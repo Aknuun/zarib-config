@@ -619,20 +619,20 @@ def read_usage_after(sub_url: str, baseline, wait: int, poll_timeout: int):
         except RatioError:
             reading = None
         if reading is not None:
-            readings.append(reading)
+            readings.append((time.time(), reading))
             if reading["upload"] + reading["download"] > base_total:
                 break
         time.sleep(5)
     for _ in range(2):
         time.sleep(4)
         try:
-            readings.append(read_usage(sub_url, retries=1))
+            readings.append((time.time(), read_usage(sub_url, retries=1)))
         except RatioError:
             pass
     if not readings:
         raise RatioError("خواندن مصرف بعد از تست ممکن نشد.")
-    best = max(readings, key=lambda item: item["upload"] + item["download"])
-    return best, readings
+    best_time, best = max(readings, key=lambda item: item[1]["upload"] + item[1]["download"])
+    return best, readings, best_time
 
 
 def run(args) -> int:
@@ -704,6 +704,32 @@ def run(args) -> int:
         print("اتصال برقرار است. خواندن مبنای مصرف ...")
         time.sleep(2)
         before = read_usage(sub_url)
+        before_time = time.time()
+        drift_rate = 0.0
+        drift_used = 0.0
+        if args.drift_window > 0:
+            print(f"بررسی مصرف پس‌زمینه ساب ({args.drift_window} ثانیه) ...")
+            drift_start = before
+            drift_start_time = before_time
+            time.sleep(args.drift_window)
+            before = read_usage(sub_url)
+            before_time = time.time()
+            drift_bytes = (before["upload"] + before["download"]) - (
+                drift_start["upload"] + drift_start["download"]
+            )
+            drift_window = max(0.001, before_time - drift_start_time)
+            if drift_bytes > 0:
+                drift_rate = drift_bytes / drift_window
+                if drift_bytes >= 64 * 1024:
+                    print(
+                        f"هشدار: ساب در حالت بی‌کاری هم مصرف دارد "
+                        f"({human(drift_bytes)} در {drift_window:.0f} ثانیه، حدود {human(drift_rate)}/s)."
+                    )
+                    print("نتیجه با احتساب همین نرخ پس‌زمینه اصلاح می‌شود.")
+                else:
+                    print(f"مصرف پس‌زمینه کم است ({human(drift_bytes)}) و در محاسبه لحاظ می‌شود.")
+            else:
+                print("مصرف پس‌زمینه‌ای دیده نشد.")
 
         print(f"شروع دانلود تست ({human(total_bytes)}) ...")
         started = time.time()
@@ -715,7 +741,8 @@ def run(args) -> int:
             print(f"هشدار: فقط {human(downloaded)} از {human(total_bytes)} دانلود شد.")
         print(f"دانلود تمام شد: {human(downloaded)} در {elapsed:.1f} ثانیه. صبر برای ثبت مصرف ...")
 
-        after, readings = read_usage_after(sub_url, before, wait, poll_timeout)
+        after, readings, after_time = read_usage_after(sub_url, before, wait, poll_timeout)
+        drift_used = drift_rate * max(0.0, after_time - before_time)
     finally:
         if process is not None and process.poll() is None:
             process.terminate()
@@ -738,7 +765,10 @@ def run(args) -> int:
         )
     if used < 0:
         raise RatioError("مصرف ساب کاهش پیدا کرد؛ احتمالاً شمارنده ساب ریست شده است.")
-    ratio = used / downloaded
+    raw_ratio = used / downloaded
+    ratio = raw_ratio
+    if drift_used > 0 and used - drift_used > 0:
+        ratio = (used - drift_used) / downloaded
     percent = (ratio - 1.0) * 100.0
 
     print()
@@ -753,6 +783,11 @@ def run(args) -> int:
         f"(دانلود {human(delta_down)} + آپلود {human(delta_up)})"
     )
     print(f"ضریب واقعی: {ratio:.3f}x  ({percent:+.1f}% نسبت به حجم واقعی)")
+    if drift_used > 0:
+        print(
+            f"ضریب خام (بدون اصلاح): {raw_ratio:.3f}x | "
+            f"مصرف پس‌زمینه در مدت تست: ~{human(drift_used)}"
+        )
     if claimed:
         if abs(ratio - claimed) <= max(0.05, claimed * 0.03):
             verdict = "مطابق ادعا"
@@ -771,9 +806,9 @@ def run(args) -> int:
                 f"(معادل {human(remaining_after / ratio)} حجم واقعی با این ضریب)"
             )
     if len(readings) > 1:
-        vals = {item["upload"] + item["download"] for item in readings}
+        vals = {item["upload"] + item["download"] for _, item in readings}
         if len(vals) > 1:
-            print("توجه: مصرف در چند قرائت تغییر کرد؛ عدد آخر ملاک است.")
+            print("توجه: مصرف در چند قرائت تغییر کرد؛ بالاترین مقدار ملاک است.")
 
     if args.json_out:
         payload = {
@@ -787,6 +822,9 @@ def run(args) -> int:
             "delta_download": delta_down,
             "delta_total": used,
             "ratio": round(ratio, 4),
+            "ratio_raw": round(raw_ratio, 4),
+            "background_bytes_per_second": round(drift_rate, 1),
+            "background_bytes_in_test": int(drift_used),
             "claimed_ratio": claimed,
             "duration_seconds": round(elapsed, 2),
         }
@@ -804,6 +842,7 @@ def build_parser():
     parser.add_argument("--size", type=float, default=DEFAULT_SIZE_MB, help=f"حجم تست به مگابایت؛ حداقل {MIN_SIZE_MB:g} (پیش‌فرض {DEFAULT_SIZE_MB:g})")
     parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"ثانیه صبر قبل از خواندن مصرف (پیش‌فرض {DEFAULT_WAIT})")
     parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT, help="حداکثر ثانیه انتظار برای ثبت مصرف")
+    parser.add_argument("--drift-window", type=int, default=10, help="ثانیه نمونه‌گیری مصرف پس‌زمینه قبل از تست؛ ۰ برای غیرفعال کردن")
     parser.add_argument("--chunk", type=float, default=DEFAULT_CHUNK_MB, help="اندازه هر درخواست دانلود به مگابایت")
     parser.add_argument("--timeout", type=float, default=180, help="حداکثر زمان هر درخواست curl به ثانیه")
     parser.add_argument("--test-url", default=DEFAULT_TEST_URL, help="آدرس دانلود تست؛ {bytes} با حجم جایگزین می‌شود")
