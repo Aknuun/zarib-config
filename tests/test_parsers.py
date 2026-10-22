@@ -48,6 +48,9 @@ class ClaimTests(unittest.TestCase):
     def test_implausible_ratio_is_ignored(self):
         self.assertIsNone(detect_claimed("port 201.5x", None)[0])
 
+    def test_multiplier_prefix(self):
+        self.assertEqual(detect_claimed("ضریب ×۱.۲", None)[0], 1.2)
+
     def test_override(self):
         self.assertEqual(detect_claimed("ضریب 2", 1.2), (1.2, "cli"))
 

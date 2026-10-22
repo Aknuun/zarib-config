@@ -402,6 +402,7 @@ def detect_claimed(text: str, override):
     patterns = [
         r"ضریب\s*[:=]?\s*(\d+(?:[.,]\d+)?)",
         r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*[xX×](?![\w])",
+        r"[xX×]\s*(\d+(?:[.,]\d+)?)(?![\w.])",
     ]
     for pattern in patterns:
         for match in re.finditer(pattern, normalized):
