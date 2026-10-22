@@ -412,6 +412,145 @@ def detect_claimed(text: str, override):
     return None, None
 
 
+SUPPORTED_SCHEMES = ("vless", "vmess", "trojan", "ss")
+
+
+def decode_sub_body(body: bytes) -> str:
+    text = body.decode("utf-8", "replace").strip()
+    if "://" in text:
+        return text
+    compact = re.sub(r"\s+", "", text)
+    if not compact:
+        return ""
+    variants = [compact, compact.replace("-", "+").replace("_", "/")]
+    for variant in variants:
+        padded = variant + "=" * (-len(variant) % 4)
+        try:
+            decoded = base64.b64decode(padded).decode("utf-8", "replace")
+        except ValueError:
+            continue
+        if "://" in decoded:
+            return decoded
+    return text
+
+
+def outbound_target(outbound) -> str:
+    settings = outbound.get("settings") or {}
+    if settings.get("vnext"):
+        server = settings["vnext"][0]
+        return f"{server.get('address')}:{server.get('port')}"
+    if settings.get("servers"):
+        server = settings["servers"][0]
+        return f"{server.get('address')}:{server.get('port')}"
+    return ""
+
+
+def extract_configs(body: bytes):
+    text = decode_sub_body(body)
+    lines = []
+    stripped = text.strip()
+    if stripped.startswith("[") or stripped.startswith("{"):
+        try:
+            data = json.loads(stripped)
+        except ValueError:
+            data = None
+        candidates = []
+        if isinstance(data, list):
+            candidates = data
+        elif isinstance(data, dict):
+            for key in ("configs", "links", "proxies", "data"):
+                if isinstance(data.get(key), list):
+                    candidates = data[key]
+                    break
+        for item in candidates:
+            if isinstance(item, str):
+                lines.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("outbounds"), list):
+                lines.append(item)
+            elif isinstance(item, dict):
+                for key in ("url", "link", "config"):
+                    if isinstance(item.get(key), str):
+                        lines.append(item[key])
+                        break
+    if not lines:
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "://" in line:
+                lines.append(line)
+    configs = []
+    seen = set()
+    for line in lines:
+        if isinstance(line, dict):
+            config = line
+            outbounds = config.get("outbounds") or []
+            proxy = next(
+                (
+                    item
+                    for item in outbounds
+                    if isinstance(item, dict) and item.get("protocol") not in DIRECT_PROTOCOLS
+                ),
+                None,
+            )
+            if not proxy or not config.get("remarks") and not proxy.get("tag"):
+                continue
+            configs.append(
+                {
+                    "uri": None,
+                    "config": config,
+                    "protocol": proxy.get("protocol") or "json",
+                    "target": outbound_target(proxy),
+                    "remark": str(config.get("remarks") or proxy.get("tag") or ""),
+                }
+            )
+            continue
+        if line in seen:
+            continue
+        scheme = line.split("://", 1)[0].lower()
+        if scheme not in SUPPORTED_SCHEMES:
+            continue
+        try:
+            outbound = outbound_from_uri(line)
+        except RatioError:
+            continue
+        seen.add(line)
+        configs.append(
+            {
+                "uri": line,
+                "config": None,
+                "protocol": scheme,
+                "target": outbound_target(outbound),
+                "remark": config_remark(line, outbound),
+            }
+        )
+    return configs
+
+
+def choose_config(configs, pick):
+    if pick is not None:
+        if 1 <= pick <= len(configs):
+            return configs[pick - 1]
+        raise RatioError(f"شماره کانفیگ باید بین ۱ تا {len(configs)} باشد.")
+    if len(configs) == 1:
+        print(f"یک کانفیگ در ساب پیدا شد: {configs[0]['remark']}")
+        return configs[0]
+    print()
+    print("کانفیگ‌های موجود در ساب:")
+    for index, item in enumerate(configs, 1):
+        remark = item["remark"] or "(بدون نام)"
+        print(f"  {index}) {item['protocol']} | {item['target']} | {remark}")
+    if not sys.stdin.isatty():
+        raise RatioError("چند کانفیگ پیدا شد؛ با --pick شماره را مشخص کن.")
+    while True:
+        raw = ask("شماره کانفیگ", 1)
+        try:
+            index = int(normalize_digits(raw))
+        except ValueError:
+            index = 0
+        if 1 <= index <= len(configs):
+            return configs[index - 1]
+        print("شماره معتبر نیست.")
+
+
 def free_port() -> int:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -640,14 +779,45 @@ def run(args) -> int:
     if not sub_url:
         raise RatioError("لینک سابسکریپشن لازم است.")
 
-    config_arg = args.config or ask("کانفیگ (مسیر فایل JSON یا لینک vless:// / vmess:// / trojan:// / ss://)")
+    if args.list:
+        body, _ = fetch(sub_url)
+        configs = extract_configs(body)
+        if not configs:
+            print("هیچ کانفیگ پشتیبانی‌شده‌ای در ساب پیدا نشد.")
+            return 2
+        for index, item in enumerate(configs, 1):
+            remark = item["remark"] or "(بدون نام)"
+            print(f"{index}) {item['protocol']} | {item['target']} | {remark}")
+        return 0
+
+    config_arg = args.config
+    if not config_arg:
+        print("در حال خواندن کانفیگ‌ها از ساب ...")
+        configs = []
+        try:
+            body, _ = fetch(sub_url)
+            configs = extract_configs(body)
+        except RatioError as exc:
+            print(f"خواندن کانفیگ از ساب ممکن نشد: {exc}")
+        if configs:
+            selected = choose_config(configs, args.pick)
+            if selected.get("config") is not None:
+                config_arg = json.dumps(selected["config"], ensure_ascii=False)
+            else:
+                config_arg = selected["uri"]
+        else:
+            print("کانفیگی در ساب پیدا نشد؛ دستی وارد کن.")
+            config_arg = ask("کانفیگ (مسیر فایل JSON یا لینک vless:// / vmess:// / trojan:// / ss://)")
     if not config_arg:
         raise RatioError("کانفیگ لازم است.")
-    config_path = Path(os.path.expanduser(config_arg))
-    if config_path.is_file():
-        config_text = config_path.read_text(encoding="utf-8", errors="replace")
-    else:
-        config_text = config_arg
+    config_text = config_arg
+    if not config_arg.lstrip().startswith("{"):
+        try:
+            config_path = Path(os.path.expanduser(config_arg))
+            if config_path.is_file():
+                config_text = config_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
 
     size_mb = float(args.size)
     if size_mb < MIN_SIZE_MB:
@@ -843,6 +1013,8 @@ def build_parser():
     parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"ثانیه صبر قبل از خواندن مصرف (پیش‌فرض {DEFAULT_WAIT})")
     parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT, help="حداکثر ثانیه انتظار برای ثبت مصرف")
     parser.add_argument("--drift-window", type=int, default=10, help="ثانیه نمونه‌گیری مصرف پس‌زمینه قبل از تست؛ ۰ برای غیرفعال کردن")
+    parser.add_argument("--pick", type=int, help="شماره کانفیگ داخل سابسکریپشن برای انتخاب خودکار")
+    parser.add_argument("--list", action="store_true", help="فقط لیست کانفیگ‌های سابسکریپشن را نشان بده و خارج شو")
     parser.add_argument("--chunk", type=float, default=DEFAULT_CHUNK_MB, help="اندازه هر درخواست دانلود به مگابایت")
     parser.add_argument("--timeout", type=float, default=180, help="حداکثر زمان هر درخواست curl به ثانیه")
     parser.add_argument("--test-url", default=DEFAULT_TEST_URL, help="آدرس دانلود تست؛ {bytes} با حجم جایگزین می‌شود")

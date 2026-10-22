@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ratio_test import (  # noqa: E402
     RatioError,
     detect_claimed,
+    extract_configs,
     outbound_from_uri,
     parse_usage,
 )
@@ -53,6 +54,50 @@ class ClaimTests(unittest.TestCase):
 
     def test_override(self):
         self.assertEqual(detect_claimed("ضریب 2", 1.2), (1.2, "cli"))
+
+
+class SubscriptionExtractionTests(unittest.TestCase):
+    def test_base64_body(self):
+        links = (
+            "vless://11111111-2222-3333-4444-555555555555@example.com:443?type=ws#node-a\n"
+            "trojan://secret@example.net:443#node-b\n"
+        )
+        configs = extract_configs(base64.b64encode(links.encode()))
+        self.assertEqual(len(configs), 2)
+        self.assertEqual(configs[0]["protocol"], "vless")
+        self.assertEqual(configs[0]["target"], "example.com:443")
+        self.assertEqual(configs[1]["remark"], "node-b")
+
+    def test_plain_text_body(self):
+        body = b"# comment\nss://YWVzLTI1Ni1nY206cGFzcw==@example.com:8388#ss\n"
+        configs = extract_configs(body)
+        self.assertEqual(len(configs), 1)
+        self.assertEqual(configs[0]["protocol"], "ss")
+
+    def test_json_body(self):
+        body = json.dumps({"configs": ["vless://11111111-2222-3333-4444-555555555555@example.com:443#one"]}).encode()
+        configs = extract_configs(body)
+        self.assertEqual(len(configs), 1)
+
+    def test_full_json_configs(self):
+        config = {
+            "remarks": "node ×1.2",
+            "inbounds": [{"protocol": "socks", "port": 10808}],
+            "outbounds": [
+                {"protocol": "vless", "tag": "proxy", "settings": {"vnext": [{"address": "example.com", "port": 443}]}},
+                {"protocol": "freedom", "tag": "DIRECT"},
+            ],
+        }
+        configs = extract_configs(json.dumps([config]).encode())
+        self.assertEqual(len(configs), 1)
+        self.assertEqual(configs[0]["protocol"], "vless")
+        self.assertEqual(configs[0]["target"], "example.com:443")
+        self.assertEqual(configs[0]["remark"], "node ×1.2")
+        self.assertIsNotNone(configs[0]["config"])
+
+    def test_unsupported_scheme_is_skipped(self):
+        configs = extract_configs(b"hysteria2://secret@example.com:443#hy")
+        self.assertEqual(configs, [])
 
 
 class UriTests(unittest.TestCase):
