@@ -37,6 +37,12 @@ DEFAULT_POLL_TIMEOUT = 60
 DEFAULT_CHUNK_MB = 5.0
 DEFAULT_TEST_URL = "https://speed.cloudflare.com/__down?bytes={bytes}"
 DEFAULT_PROBE_URL = "https://speed.cloudflare.com/__down?bytes=4096"
+DEFAULT_PROBE_TIMEOUT = 20
+PROBE_URLS = [
+    DEFAULT_PROBE_URL,
+    "https://www.google.com/generate_204",
+    "http://cp.cloudflare.com/generate_204",
+]
 CACHE_DIR = Path(os.environ.get("RATIO_TEST_CACHE", str(Path.home() / ".cache" / "ratio-test")))
 PROXY_PROTOCOLS = {"vless", "vmess", "trojan", "shadowsocks", "wireguard", "socks", "http"}
 DIRECT_PROTOCOLS = {"freedom", "blackhole", "dns"}
@@ -71,7 +77,7 @@ def ask(prompt: str, default=None) -> str:
     try:
         value = input(f"{prompt}{suffix}: ").strip()
     except EOFError:
-        raise RatioError("ورودی تمام شد.")
+        raise RatioError("Input closed.")
     if not value and default is not None:
         return str(default)
     return value
@@ -93,11 +99,11 @@ def fetch(url: str, timeout: int = 30):
         with urlopen(req, timeout=timeout) as resp:
             return resp.read(), dict(resp.headers)
     except HTTPError as exc:
-        raise RatioError(f"دریافت لینک ساب با خطای HTTP {exc.code} مواجه شد.")
+        raise RatioError(f"Subscription request failed with HTTP {exc.code}.")
     except URLError as exc:
-        raise RatioError(f"اتصال به لینک ساب برقرار نشد: {exc.reason}")
+        raise RatioError(f"Could not connect to the subscription URL: {exc.reason}")
     except TimeoutError:
-        raise RatioError("دریافت لینک ساب زمان‌بر شد (timeout).")
+        raise RatioError("Subscription request timed out.")
 
 
 def parse_usage(headers, body: bytes):
@@ -141,13 +147,13 @@ def read_usage(sub_url: str, retries: int = 3, delay: float = 3.0):
             if usage is not None:
                 return usage
             last_error = RatioError(
-                "لینک ساب هدر subscription-userinfo ندارد و مصرف هم در بدنه پیدا نشد."
+                "The subscription has no subscription-userinfo header and no usage in the body."
             )
         except RatioError as exc:
             last_error = exc
         if attempt < retries - 1:
             time.sleep(delay)
-    raise last_error or RatioError("خواندن مصرف ساب ناموفق بود.")
+    raise last_error or RatioError("Could not read subscription usage.")
 
 
 def split_host_port(value: str):
@@ -261,11 +267,11 @@ def apply_security(stream: dict, security: str, query: dict, host: str):
 def outbound_from_vless(uri: str):
     parsed = urlparse(uri)
     if not parsed.hostname:
-        raise RatioError("لینک vless نامعتبر است.")
+        raise RatioError("Invalid vless link.")
     query = {key: (values[0] if values else "") for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
     user_id = unquote(parsed.username or "")
     if not user_id:
-        raise RatioError("UUID در لینک vless پیدا نشد.")
+        raise RatioError("No UUID found in the vless link.")
     port = parsed.port or 443
     stream = {}
     apply_security(stream, query.get("security") or "none", query, parsed.hostname)
@@ -286,14 +292,14 @@ def outbound_from_vmess(uri: str):
     try:
         data = json.loads(base64.b64decode(raw).decode("utf-8"))
     except (ValueError, UnicodeDecodeError):
-        raise RatioError("لینک vmess قابل رمزگشایی نبود.")
+        raise RatioError("Could not decode the vmess link.")
     host = str(data.get("add") or "").strip()
     if not host:
-        raise RatioError("آدرس سرور در لینک vmess پیدا نشد.")
+        raise RatioError("No server address found in the vmess link.")
     port = int(data.get("port") or 443)
     user_id = str(data.get("id") or "")
     if not user_id:
-        raise RatioError("UUID در لینک vmess پیدا نشد.")
+        raise RatioError("No UUID found in the vmess link.")
     query = {
         "sni": str(data.get("sni") or ""),
         "host": str(data.get("host") or ""),
@@ -318,10 +324,10 @@ def outbound_from_vmess(uri: str):
 def outbound_from_trojan(uri: str):
     parsed = urlparse(uri)
     if not parsed.hostname:
-        raise RatioError("لینک trojan نامعتبر است.")
+        raise RatioError("Invalid trojan link.")
     password = unquote(parsed.username or "")
     if not password:
-        raise RatioError("رمز در لینک trojan پیدا نشد.")
+        raise RatioError("No password found in the trojan link.")
     query = {key: (values[0] if values else "") for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
     port = parsed.port or 443
     stream = {}
@@ -349,15 +355,15 @@ def outbound_from_ss(uri: str):
         except (ValueError, UnicodeDecodeError):
             decoded = unquote(userinfo)
         if ":" not in decoded:
-            raise RatioError("لینک ss نامعتبر است.")
+            raise RatioError("Invalid ss link.")
         method, password = decoded.split(":", 1)
     else:
         try:
             decoded = base64.b64decode(body + "=" * (-len(body) % 4)).decode("utf-8")
         except (ValueError, UnicodeDecodeError):
-            raise RatioError("لینک ss قابل رمزگشایی نبود.")
+            raise RatioError("Could not decode the ss link.")
         if "@" not in decoded or ":" not in decoded:
-            raise RatioError("لینک ss نامعتبر است.")
+            raise RatioError("Invalid ss link.")
         credentials, hostport = decoded.rsplit("@", 1)
         method, password = credentials.split(":", 1)
     host, port = split_host_port(hostport)
@@ -382,7 +388,7 @@ def outbound_from_uri(uri: str):
     }
     if scheme not in builders:
         raise RatioError(
-            f"پروتکل «{scheme}» پشتیبانی نمی‌شود. لینک vless/vmess/trojan/ss بده یا فایل JSON کامل کانفیگ را بده."
+            f"Unsupported protocol \"{scheme}\". Use a vless/vmess/trojan/ss link or a full JSON client config."
         )
     return builders[scheme](uri)
 
@@ -400,7 +406,7 @@ def detect_claimed(text: str, override):
         return float(override), "cli"
     normalized = normalize_digits(unquote(text))
     patterns = [
-        r"ضریب\s*[:=]?\s*(\d+(?:[.,]\d+)?)",
+        r"(?:ضریب|coefficient|ratio|multiplier)\s*[:=]?\s*(\d+(?:[.,]\d+)?)",
         r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*[xX×](?![\w])",
         r"[xX×]\s*(\d+(?:[.,]\d+)?)(?![\w.])",
     ]
@@ -529,26 +535,26 @@ def choose_config(configs, pick):
     if pick is not None:
         if 1 <= pick <= len(configs):
             return configs[pick - 1]
-        raise RatioError(f"شماره کانفیگ باید بین ۱ تا {len(configs)} باشد.")
+        raise RatioError(f"Config number must be between 1 and {len(configs)}.")
     if len(configs) == 1:
-        print(f"یک کانفیگ در ساب پیدا شد: {configs[0]['remark']}")
+        print(f"Found one config in the subscription: {configs[0]['remark']}")
         return configs[0]
     print()
-    print("کانفیگ‌های موجود در ساب:")
+    print("Available configs in the subscription:")
     for index, item in enumerate(configs, 1):
-        remark = item["remark"] or "(بدون نام)"
+        remark = item["remark"] or "(unnamed)"
         print(f"  {index}) {item['protocol']} | {item['target']} | {remark}")
     if not sys.stdin.isatty():
-        raise RatioError("چند کانفیگ پیدا شد؛ با --pick شماره را مشخص کن.")
+        raise RatioError("Multiple configs found; use --pick N to choose one.")
     while True:
-        raw = ask("شماره کانفیگ", 1)
+        raw = ask("Config number", 1)
         try:
             index = int(normalize_digits(raw))
         except ValueError:
             index = 0
         if 1 <= index <= len(configs):
             return configs[index - 1]
-        print("شماره معتبر نیست.")
+        print("Invalid number.")
 
 
 def free_port() -> int:
@@ -568,7 +574,7 @@ def xray_asset_name() -> str:
         return "Xray-linux-arm64-v8a.zip"
     if machine.startswith("armv7"):
         return "Xray-linux-arm32-v7a.zip"
-    raise RatioError(f"معماری {machine} برای دانلود خودکار Xray پشتیبانی نمی‌شود.")
+    raise RatioError(f"Automatic Xray download is not supported on {machine}.")
 
 
 def xray_runs(path: Path) -> bool:
@@ -589,27 +595,27 @@ def ensure_xray() -> Path:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     asset = xray_asset_name()
     url = f"https://github.com/XTLS/Xray-core/releases/latest/download/{asset}"
-    print(f"Xray پیدا نشد؛ دانلود از گیت‌هاب ({asset}) ...")
+    print(f"Xray not found; downloading from GitHub ({asset}) ...")
     request = Request(url, headers={"User-Agent": "ratio-test"})
     try:
         with urlopen(request, timeout=120) as response:
             payload = response.read()
     except (URLError, TimeoutError) as exc:
-        raise RatioError(f"دانلود Xray ناموفق بود: {exc}")
+        raise RatioError(f"Could not download Xray: {exc}")
     archive = CACHE_DIR / asset
     archive.write_bytes(payload)
     try:
         with zipfile.ZipFile(archive) as zf:
             member = next((name for name in zf.namelist() if name == "xray" or name.endswith("/xray")), None)
             if not member:
-                raise RatioError("فایل xray داخل آرشیو پیدا نشد.")
+                raise RatioError("The xray binary was not found inside the archive.")
             with zf.open(member) as src, open(target, "wb") as dst:
                 shutil.copyfileobj(src, dst)
         target.chmod(0o755)
     finally:
         archive.unlink(missing_ok=True)
     if not xray_runs(target):
-        raise RatioError("اجرای Xray دانلودشده ممکن نشد.")
+        raise RatioError("The downloaded Xray binary is not executable.")
     return target
 
 
@@ -620,12 +626,12 @@ def build_client_config(config_input: str):
         try:
             config = json.loads(text)
         except ValueError as exc:
-            raise RatioError(f"JSON کانفیگ نامعتبر است: {exc}")
+            raise RatioError(f"Invalid config JSON: {exc}")
         if not isinstance(config, dict):
-            raise RatioError("JSON کانفیگ باید یک آبجکت باشد.")
+            raise RatioError("Config JSON must be an object.")
         outbounds = config.get("outbounds") or []
         if not isinstance(outbounds, list) or not outbounds:
-            raise RatioError("کانفیگ JSON هیچ outbound ندارد؛ کانفیگ کلاینت بده، نه سرور.")
+            raise RatioError("The JSON config has no outbound; provide a client config, not a server config.")
         proxy_tags = [
             item.get("tag")
             for item in outbounds
@@ -640,7 +646,7 @@ def build_client_config(config_input: str):
                 break
         return config, None, target, remark, text
     if "://" not in text:
-        raise RatioError("کانفیگ باید لینک (vless/vmess/trojan/ss) یا JSON باشد.")
+        raise RatioError("Config must be a link (vless/vmess/trojan/ss) or JSON.")
     outbound = outbound_from_uri(text)
     remark = config_remark(text, outbound)
     outbound.pop("_remark", None)
@@ -684,13 +690,13 @@ def wait_for_port(port: int, process: subprocess.Popen, log_path: Path, timeout:
     while time.time() < deadline:
         if process.poll() is not None:
             log = log_path.read_text(errors="replace") if log_path.exists() else ""
-            raise RatioError(f"Xray قبل از شروع بسته شد:\n{log[-2000:]}")
+            raise RatioError(f"Xray exited before startup:\n{log[-2000:]}")
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.3):
                 return
         except OSError:
             time.sleep(0.1)
-    raise RatioError("Xray در زمان مشخص‌شده پورت SOCKS را باز نکرد.")
+    raise RatioError("Xray did not open the SOCKS port in time.")
 
 
 def curl_size(port: int, url: str, max_time: int):
@@ -699,6 +705,8 @@ def curl_size(port: int, url: str, max_time: int):
         "-sS",
         "--socks5-hostname",
         f"127.0.0.1:{port}",
+        "--connect-timeout",
+        "10",
         "--max-time",
         str(max_time),
         "-o",
@@ -712,7 +720,7 @@ def curl_size(port: int, url: str, max_time: int):
     except subprocess.TimeoutExpired:
         return 0, "timeout"
     except OSError as exc:
-        raise RatioError(f"اجرای curl ممکن نشد: {exc}")
+        raise RatioError(f"Could not run curl: {exc}")
     try:
         size = int(float((result.stdout or "0").strip() or 0))
     except ValueError:
@@ -721,11 +729,52 @@ def curl_size(port: int, url: str, max_time: int):
     return size, error
 
 
-def probe(port: int, url: str):
-    size, error = curl_size(port, url, 30)
-    if size <= 0:
-        raise RatioError(f"کانفیگ از طریق پروکسی جواب نداد. خطای curl: {error or 'بدون خروجی'}")
-    return size
+def curl_probe(port: int, url: str, max_time: int):
+    command = [
+        "curl",
+        "-sS",
+        "--socks5-hostname",
+        f"127.0.0.1:{port}",
+        "--connect-timeout",
+        "10",
+        "--max-time",
+        str(max_time),
+        "-o",
+        os.devnull,
+        "-w",
+        "%{http_code} %{size_download}",
+        url,
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=max_time + 15)
+    except subprocess.TimeoutExpired:
+        return 0, 0, "timeout"
+    except OSError as exc:
+        raise RatioError(f"Could not run curl: {exc}")
+    parts = (result.stdout or "").split()
+    try:
+        code = int(parts[0]) if parts else 0
+    except ValueError:
+        code = 0
+    try:
+        size = int(float(parts[1])) if len(parts) > 1 else 0
+    except ValueError:
+        size = 0
+    return code, size, (result.stderr or "").strip()
+
+
+def probe(port: int, urls, timeout: int):
+    for url in urls:
+        code, size, error = curl_probe(port, url, timeout)
+        if 200 <= code < 400:
+            return size
+        detail = error or (f"HTTP {code}" if code else "no response")
+        print(f"  probe failed: {detail} ({url})", file=sys.stderr)
+    raise RatioError(
+        "The config did not respond through the proxy. "
+        "The node may be down, blocked, or too slow. "
+        "Try another config with --pick N, or increase --probe-timeout."
+    )
 
 
 def download(port: int, template: str, total: int, chunk: int, chunk_timeout: int):
@@ -737,7 +786,7 @@ def download(port: int, template: str, total: int, chunk: int, chunk_timeout: in
         received, error = curl_size(port, url, chunk_timeout)
         done += received
         attempts += 1
-        print(f"  دریافت {human(received)} | مجموع {human(done)} از {human(total)}", file=sys.stderr)
+        print(f"  received {human(received)} | total {human(done)} of {human(total)}", file=sys.stderr)
         if received <= 0:
             if attempts >= 6:
                 break
@@ -769,36 +818,36 @@ def read_usage_after(sub_url: str, baseline, wait: int, poll_timeout: int):
         except RatioError:
             pass
     if not readings:
-        raise RatioError("خواندن مصرف بعد از تست ممکن نشد.")
+        raise RatioError("Could not read usage after the test.")
     best_time, best = max(readings, key=lambda item: item[1]["upload"] + item[1]["download"])
     return best, readings, best_time
 
 
 def run(args) -> int:
-    sub_url = args.sub or ask("لینک سابسکریپشن")
+    sub_url = args.sub or ask("Subscription URL")
     if not sub_url:
-        raise RatioError("لینک سابسکریپشن لازم است.")
+        raise RatioError("Subscription URL is required.")
 
     if args.list:
         body, _ = fetch(sub_url)
         configs = extract_configs(body)
         if not configs:
-            print("هیچ کانفیگ پشتیبانی‌شده‌ای در ساب پیدا نشد.")
+            print("No supported configs found in the subscription.")
             return 2
         for index, item in enumerate(configs, 1):
-            remark = item["remark"] or "(بدون نام)"
+            remark = item["remark"] or "(unnamed)"
             print(f"{index}) {item['protocol']} | {item['target']} | {remark}")
         return 0
 
     config_arg = args.config
     if not config_arg:
-        print("در حال خواندن کانفیگ‌ها از ساب ...")
+        print("Reading configs from the subscription ...")
         configs = []
         try:
             body, _ = fetch(sub_url)
             configs = extract_configs(body)
         except RatioError as exc:
-            print(f"خواندن کانفیگ از ساب ممکن نشد: {exc}")
+            print(f"Could not read configs from the subscription: {exc}")
         if configs:
             selected = choose_config(configs, args.pick)
             if selected.get("config") is not None:
@@ -806,10 +855,10 @@ def run(args) -> int:
             else:
                 config_arg = selected["uri"]
         else:
-            print("کانفیگی در ساب پیدا نشد؛ دستی وارد کن.")
-            config_arg = ask("کانفیگ (مسیر فایل JSON یا لینک vless:// / vmess:// / trojan:// / ss://)")
+            print("No configs found in the subscription; enter one manually.")
+            config_arg = ask("Config (JSON file path or vless:// / vmess:// / trojan:// / ss:// link)")
     if not config_arg:
-        raise RatioError("کانفیگ لازم است.")
+        raise RatioError("A config is required.")
     config_text = config_arg
     if not config_arg.lstrip().startswith("{"):
         try:
@@ -821,32 +870,32 @@ def run(args) -> int:
 
     if args.size is None:
         if sys.stdin.isatty():
-            raw_size = ask("حجم تست به مگابایت", f"{DEFAULT_SIZE_MB:g}")
+            raw_size = ask("Test size in MB", f"{DEFAULT_SIZE_MB:g}")
             try:
                 size_mb = float(normalize_digits(raw_size))
             except ValueError:
-                raise RatioError("حجم تست معتبر نیست.")
+                raise RatioError("Invalid test size.")
         else:
             size_mb = DEFAULT_SIZE_MB
     else:
         size_mb = float(args.size)
     if size_mb < MIN_SIZE_MB:
-        raise RatioError(f"حداقل حجم تست {MIN_SIZE_MB:g} مگابایت است.")
+        raise RatioError(f"Minimum test size is {MIN_SIZE_MB:g} MB.")
     wait = max(0, int(args.wait))
     poll_timeout = max(wait, int(args.poll_timeout))
     chunk_bytes = max(256 * 1024, int(float(args.chunk) * 1024 * 1024))
     total_bytes = int(size_mb * 1024 * 1024)
 
-    print("در حال خواندن اطلاعات ساب ...")
+    print("Reading subscription info ...")
     before = read_usage(sub_url)
     remaining = None
     if before.get("total"):
         remaining = before["total"] - before["upload"] - before["download"]
         if remaining > 0 and remaining < total_bytes:
-            print(f"هشدار: حجم باقی‌مانده ساب ({human(remaining)}) کمتر از حجم تست است.")
+            print(f"Warning: remaining subscription volume ({human(remaining)}) is less than the test size.")
     print(
-        f"مصرف فعلی ساب: آپلود {human(before['upload'])} | دانلود {human(before['download'])}"
-        + (f" | باقی‌مانده {human(remaining)}" if remaining is not None else "")
+        f"Current subscription usage: upload {human(before['upload'])} | download {human(before['download'])}"
+        + (f" | remaining {human(remaining)}" if remaining is not None else "")
     )
 
     base_config, outbound, target_tag, remark, scan_text = build_client_config(config_text)
@@ -870,7 +919,7 @@ def run(args) -> int:
             timeout=40,
         )
         if check.returncode != 0:
-            raise RatioError("کانفیگ برای Xray معتبر نیست:\n" + (check.stderr or check.stdout)[-2000:])
+            raise RatioError("The config is not valid for Xray:\n" + (check.stderr or check.stdout)[-2000:])
 
         log_file = open(log_path, "wb")
         process = subprocess.Popen(
@@ -879,16 +928,17 @@ def run(args) -> int:
             stderr=log_file,
         )
         wait_for_port(port, process, log_path)
-        print("Xray اجرا شد؛ بررسی اتصال از طریق کانفیگ ...")
-        probe(port, args.probe_url)
-        print("اتصال برقرار است. خواندن مبنای مصرف ...")
+        print("Xray started; probing connectivity through the config ...")
+        probe_urls = PROBE_URLS if args.probe_url == DEFAULT_PROBE_URL else [args.probe_url]
+        probe(port, probe_urls, args.probe_timeout)
+        print("Connection OK. Reading baseline usage ...")
         time.sleep(2)
         before = read_usage(sub_url)
         before_time = time.time()
         drift_rate = 0.0
         drift_used = 0.0
         if args.drift_window > 0:
-            print(f"بررسی مصرف پس‌زمینه ساب ({args.drift_window} ثانیه) ...")
+            print(f"Measuring background subscription usage ({args.drift_window}s) ...")
             drift_start = before
             drift_start_time = before_time
             time.sleep(args.drift_window)
@@ -902,24 +952,24 @@ def run(args) -> int:
                 drift_rate = drift_bytes / drift_window
                 if drift_bytes >= 64 * 1024:
                     print(
-                        f"هشدار: ساب در حالت بی‌کاری هم مصرف دارد "
-                        f"({human(drift_bytes)} در {drift_window:.0f} ثانیه، حدود {human(drift_rate)}/s)."
+                        f"Warning: the subscription is consuming data while idle "
+                        f"({human(drift_bytes)} in {drift_window:.0f}s, about {human(drift_rate)}/s)."
                     )
-                    print("نتیجه با احتساب همین نرخ پس‌زمینه اصلاح می‌شود.")
+                    print("Results will be corrected using this background rate.")
                 else:
-                    print(f"مصرف پس‌زمینه کم است ({human(drift_bytes)}) و در محاسبه لحاظ می‌شود.")
+                    print(f"Background usage is small ({human(drift_bytes)}) and will be accounted for.")
             else:
-                print("مصرف پس‌زمینه‌ای دیده نشد.")
+                print("No background usage detected.")
 
-        print(f"شروع دانلود تست ({human(total_bytes)}) ...")
+        print(f"Starting test download ({human(total_bytes)}) ...")
         started = time.time()
         downloaded = download(port, args.test_url, total_bytes, chunk_bytes, int(args.timeout))
         elapsed = time.time() - started
         if downloaded <= 0:
-            raise RatioError("هیچ داده‌ای از طریق کانفیگ دانلود نشد.")
+            raise RatioError("No data was downloaded through the config.")
         if downloaded < total_bytes:
-            print(f"هشدار: فقط {human(downloaded)} از {human(total_bytes)} دانلود شد.")
-        print(f"دانلود تمام شد: {human(downloaded)} در {elapsed:.1f} ثانیه. صبر برای ثبت مصرف ...")
+            print(f"Warning: only {human(downloaded)} of {human(total_bytes)} was downloaded.")
+        print(f"Download finished: {human(downloaded)} in {elapsed:.1f}s. Waiting for usage to be recorded ...")
 
         after, readings, after_time = read_usage_after(sub_url, before, wait, poll_timeout)
         drift_used = drift_rate * max(0.0, after_time - before_time)
@@ -932,7 +982,7 @@ def run(args) -> int:
                 process.kill()
                 process.wait(timeout=5)
         if args.keep_temp:
-            print(f"فایل‌های موقت: {tmpdir}")
+            print(f"Temporary files: {tmpdir}")
         else:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -941,10 +991,10 @@ def run(args) -> int:
     used = delta_up + delta_down
     if used <= 0:
         raise RatioError(
-            "مصرف ثبت‌شده در ساب تغییر نکرد. احتمالاً پنل مصرف را با تأخیر یا فقط در پنل نشان می‌دهد."
+            "Usage reported by the subscription did not change. The panel may be delayed or may only show usage in its dashboard."
         )
     if used < 0:
-        raise RatioError("مصرف ساب کاهش پیدا کرد؛ احتمالاً شمارنده ساب ریست شده است.")
+        raise RatioError("Subscription usage decreased; the counter may have been reset.")
     raw_ratio = used / downloaded
     ratio = raw_ratio
     if drift_used > 0 and used - drift_used > 0:
@@ -953,42 +1003,42 @@ def run(args) -> int:
 
     print()
     print("=" * 48)
-    print("نتیجه تست ضریب")
+    print("Coefficient Test Result")
     print("=" * 48)
     if remark:
-        print(f"کانفیگ: {remark}")
-    print(f"حجم دانلود واقعی: {human(downloaded)}")
+        print(f"Config: {remark}")
+    print(f"Actual download: {human(downloaded)}")
     print(
-        f"مصرف ثبت‌شده: {human(used)} "
-        f"(دانلود {human(delta_down)} + آپلود {human(delta_up)})"
+        f"Recorded usage: {human(used)} "
+        f"(download {human(delta_down)} + upload {human(delta_up)})"
     )
-    print(f"ضریب واقعی: {ratio:.3f}x  ({percent:+.1f}% نسبت به حجم واقعی)")
+    print(f"Measured coefficient: {ratio:.3f}x  ({percent:+.1f}% vs. actual traffic)")
     if drift_used > 0:
         print(
-            f"ضریب خام (بدون اصلاح): {raw_ratio:.3f}x | "
-            f"مصرف پس‌زمینه در مدت تست: ~{human(drift_used)}"
+            f"Raw coefficient: {raw_ratio:.3f}x | "
+            f"background usage during test: ~{human(drift_used)}"
         )
     if claimed:
         if abs(ratio - claimed) <= max(0.05, claimed * 0.03):
-            verdict = "مطابق ادعا"
+            verdict = "matches the claim"
         elif ratio > claimed:
-            verdict = "بیشتر از ادعا (به ضرر کاربر)"
+            verdict = "higher than the claim (worse for the user)"
         else:
-            verdict = "کمتر از ادعا (به نفع کاربر)"
-        print(f"ضریب ادعاشده: {claimed:.2f}x  →  {verdict}")
+            verdict = "lower than the claim (better for the user)"
+        print(f"Claimed coefficient: {claimed:.2f}x  ->  {verdict}")
     if ratio < 0.95:
-        print("هشدار: ضریب کمتر از ۱ است؛ ممکن است پنل مصرف را با تأخیر ثبت کند.")
+        print("Warning: coefficient is below 1; the panel may be recording usage late.")
     if after.get("total"):
         remaining_after = after["total"] - after["upload"] - after["download"]
         if remaining_after > 0:
             print(
-                f"باقی‌مانده ساب: {human(remaining_after)} "
-                f"(معادل {human(remaining_after / ratio)} حجم واقعی با این ضریب)"
+                f"Remaining subscription volume: {human(remaining_after)} "
+                f"(about {human(remaining_after / ratio)} of real traffic at this coefficient)"
             )
     if len(readings) > 1:
         vals = {item["upload"] + item["download"] for _, item in readings}
         if len(vals) > 1:
-            print("توجه: مصرف در چند قرائت تغییر کرد؛ بالاترین مقدار ملاک است.")
+            print("Note: usage changed between reads; the highest reading is used.")
 
     if args.json_out:
         payload = {
@@ -1009,29 +1059,30 @@ def run(args) -> int:
             "duration_seconds": round(elapsed, 2),
         }
         Path(args.json_out).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"خروجی JSON در {args.json_out} ذخیره شد.")
+        print(f"JSON result saved to {args.json_out}.")
     return 0
 
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="سنجش ضریب واقعی مصرف حجم کانفیگ V2Ray با مقایسه دانلود واقعی و مصرف سابسکریپشن",
+        description="Measure the real traffic coefficient of a V2Ray config by comparing actual downloads with subscription usage",
     )
-    parser.add_argument("--sub", help="لینک سابسکریپشن")
-    parser.add_argument("--config", help="لینک کانفیگ یا مسیر فایل JSON")
-    parser.add_argument("--size", type=float, help=f"حجم تست به مگابایت؛ حداقل {MIN_SIZE_MB:g} (پیش‌فرض {DEFAULT_SIZE_MB:g})")
-    parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"ثانیه صبر قبل از خواندن مصرف (پیش‌فرض {DEFAULT_WAIT})")
-    parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT, help="حداکثر ثانیه انتظار برای ثبت مصرف")
-    parser.add_argument("--drift-window", type=int, default=10, help="ثانیه نمونه‌گیری مصرف پس‌زمینه قبل از تست؛ ۰ برای غیرفعال کردن")
-    parser.add_argument("--pick", type=int, help="شماره کانفیگ داخل سابسکریپشن برای انتخاب خودکار")
-    parser.add_argument("--list", action="store_true", help="فقط لیست کانفیگ‌های سابسکریپشن را نشان بده و خارج شو")
-    parser.add_argument("--chunk", type=float, default=DEFAULT_CHUNK_MB, help="اندازه هر درخواست دانلود به مگابایت")
-    parser.add_argument("--timeout", type=float, default=180, help="حداکثر زمان هر درخواست curl به ثانیه")
-    parser.add_argument("--test-url", default=DEFAULT_TEST_URL, help="آدرس دانلود تست؛ {bytes} با حجم جایگزین می‌شود")
-    parser.add_argument("--probe-url", default=DEFAULT_PROBE_URL, help="آدرس بررسی اتصال")
-    parser.add_argument("--claimed", type=float, help="ضریب ادعاشده (در صورت نبود در نام کانفیگ)")
-    parser.add_argument("--json-out", help="ذخیره نتیجه در فایل JSON")
-    parser.add_argument("--keep-temp", action="store_true", help="نگه‌داشتن فایل‌های موقت و لاگ Xray")
+    parser.add_argument("--sub", help="Subscription URL")
+    parser.add_argument("--config", help="Config link or JSON file path")
+    parser.add_argument("--size", type=float, help=f"Test size in MB; minimum {MIN_SIZE_MB:g} (default {DEFAULT_SIZE_MB:g})")
+    parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"Seconds to wait before reading usage (default {DEFAULT_WAIT})")
+    parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT, help="Maximum seconds to wait for usage to be recorded")
+    parser.add_argument("--drift-window", type=int, default=10, help="Seconds to sample background usage before the test; 0 disables it")
+    parser.add_argument("--pick", type=int, help="Config number inside the subscription for automatic selection")
+    parser.add_argument("--list", action="store_true", help="Only list configs from the subscription and exit")
+    parser.add_argument("--chunk", type=float, default=DEFAULT_CHUNK_MB, help="Download request size in MB")
+    parser.add_argument("--timeout", type=float, default=180, help="Maximum seconds per curl request")
+    parser.add_argument("--test-url", default=DEFAULT_TEST_URL, help="Test download URL; {bytes} is replaced with the size")
+    parser.add_argument("--probe-url", default=DEFAULT_PROBE_URL, help="Probe URL used to check connectivity")
+    parser.add_argument("--probe-timeout", type=int, default=DEFAULT_PROBE_TIMEOUT, help=f"Seconds per probe URL (default {DEFAULT_PROBE_TIMEOUT})")
+    parser.add_argument("--claimed", type=float, help="Claimed coefficient, if not present in the config name")
+    parser.add_argument("--json-out", help="Save the result to a JSON file")
+    parser.add_argument("--keep-temp", action="store_true", help="Keep temporary files and the Xray log")
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return parser
 
@@ -1040,17 +1091,17 @@ def main(argv=None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)
     if not shutil.which("curl"):
-        print("curl نصب نیست.", file=sys.stderr)
+        print("curl is not installed.", file=sys.stderr)
         return 2
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
         return run(args)
     except RatioError as exc:
-        print(f"خطا: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("\nلغو شد.", file=sys.stderr)
+        print("\nCancelled.", file=sys.stderr)
         return 130
 
 

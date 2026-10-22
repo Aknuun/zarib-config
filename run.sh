@@ -6,7 +6,7 @@ CACHE="${RATIO_TEST_CACHE:-$HOME/.cache/ratio-test}"
 SCRIPT="$CACHE/ratio_test.py"
 
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "python3 نصب نیست." >&2
+    echo "python3 is not installed." >&2
     exit 1
 fi
 
@@ -25,7 +25,7 @@ fetch_script() {
 if fetch_script; then
     mv "$SCRIPT.tmp" "$SCRIPT"
 elif [ ! -f "$SCRIPT" ]; then
-    echo "دانلود اسکریپت ناموفق بود و نسخه ذخیره‌شده هم وجود ندارد." >&2
+    echo "Could not download the script and no cached copy exists." >&2
     exit 1
 fi
 

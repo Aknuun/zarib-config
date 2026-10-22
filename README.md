@@ -1,128 +1,133 @@
-# سنجش ضریب واقعی مصرف کانفیگ V2Ray
+# V2Ray Config Coefficient Tester
 
-این اسکریپت از طریق یک کانفیگ V2Ray مقدار مشخصی داده دانلود می‌کند و آن را با کاهش حجمی که پنل در سابسکریپشن گزارش می‌دهد مقایسه می‌کند تا **ضریب واقعی مصرف** مشخص شود.
+This script downloads a known amount of data through a V2Ray config and compares it with the volume deducted from your subscription, so you can measure the **real traffic coefficient** of the config.
 
-مثال: ۱۰ مگابایت دانلود می‌کنید و حجم ساب ۱۵ مگابایت کم می‌شود؛ یعنی ضریب `1.5x` است و ۵۰٪ بیشتر از حجم واقعی از ساب کسر می‌شود.
+Example: you download 10 MB and the subscription drops by 15 MB. The coefficient is `1.5x`, meaning 50% more than the real traffic is deducted.
 
-## پیش‌نیازها
+## Requirements
 
-- Python 3.9 یا بالاتر
+- Python 3.9 or newer
 - `curl`
-- دسترسی به اینترنت
-- Xray: اگر روی سیستم نصب نباشد، نسخه مناسب به‌صورت خودکار از GitHub دانلود می‌شود.
-- سابسکریپشن باید هدر `subscription-userinfo` را برگرداند (اکثر پنل‌های Marzban و مشابه‌ها این هدر را دارند).
+- Internet access
+- Xray: if it is not installed, the correct build is downloaded automatically from GitHub.
+- The subscription must expose the `subscription-userinfo` header (most Marzban-based panels do).
 
-## اجرای یک‌خطی روی سرور
+## One-line run on a server
 
-بدون نصب قبلی، همین یک خط را در ترمینال سرور بزن:
+Run this directly on the server:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh)"
 ```
 
-یا نسخه مطمئن‌تر برای ورودی تعاملی:
+Or use the more robust form that keeps interactive input working:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
 ```
 
-`run.sh` خود اسکریپت را در `~/.cache/ratio-test` دانلود/به‌روزرسانی می‌کند و بعد اجرا می‌کند. Xray هم در صورت نبود به‌صورت خودکار دانلود می‌شود.
+`run.sh` downloads/updates the tester in `~/.cache/ratio-test` and then runs it. Xray is also downloaded automatically when needed.
 
-## استفاده
+## Usage
 
-اجرای تعاملی:
+Interactive:
 
 ```bash
 python3 ratio_test.py
 ```
 
-اسکریپت لینک ساب، حجم تست و کانفیگ را می‌پرسد. اگر کانفیگ ندهی، خودش کانفیگ‌ها را از داخل سابسکریپشن استخراج می‌کند، لیست نشان می‌دهد و شماره را می‌پرسد. حداقل حجم تست **۱۰ مگابایت** است و پیش‌فرض هم ۱۰ مگابایت است. بعد از دانلود، ۲۰ ثانیه صبر می‌کند تا مصرف در ساب ثبت شود و در صورت نیاز چند بار دیگر هم ساب را می‌خواند.
+It asks for the subscription URL. If no config is passed, it extracts the configs from the subscription, lists all of them, and asks which number to test. Then it asks for the test size. The minimum and default size is **10 MB**. After the download it waits 20 seconds for the panel to record usage and keeps polling if needed.
 
-لیست کانفیگ‌های داخل ساب:
+List configs from a subscription without consuming traffic:
 
 ```bash
 python3 ratio_test.py --sub "https://example.com/sub/xxxx" --list
 ```
 
-انتخاب خودکار شماره ۵ بدون پرسش:
+Pick config number 5 without a prompt:
 
 ```bash
 python3 ratio_test.py --sub "https://example.com/sub/xxxx" --pick 5
 ```
 
-اجرای غیرتعاملی:
+Non-interactive:
 
 ```bash
 python3 ratio_test.py \
   --sub "https://example.com/sub/xxxx" \
-  --config "vless://uuid@host:443?type=ws&security=tls#%D8%B6%D8%B1%DB%8C%D8%A8%201.5x"
+  --config "vless://uuid@host:443?type=ws&security=tls#%C3%971.5"
 ```
 
-استفاده از فایل JSON کامل کانفیگ کلاینت:
+Use a full JSON client config:
 
 ```bash
 python3 ratio_test.py --sub "https://example.com/sub/xxxx" --config ./config.json
 ```
 
-ذخیره نتیجه در JSON:
+Save the result as JSON:
 
 ```bash
 python3 ratio_test.py --sub "..." --config "..." --json-out result.json
 ```
 
-### گزینه‌ها
+### Options
 
-| گزینه | توضیح |
+| Option | Description |
 | --- | --- |
-| `--size` | حجم تست به مگابایت (حداقل ۱۰، پیش‌فرض ۱۰) |
-| `--wait` | ثانیه صبر قبل از خواندن مصرف (پیش‌فرض ۲۰) |
-| `--poll-timeout` | حداکثر ثانیه انتظار برای ثبت مصرف (پیش‌فرض ۶۰) |
-| `--drift-window` | ثانیه نمونه‌گیری مصرف پس‌زمینه قبل از تست؛ ۰ برای غیرفعال کردن (پیش‌فرض ۱۰) |
-| `--list` | فقط لیست کانفیگ‌های داخل سابسکریپشن را نشان بده |
-| `--pick` | شماره کانفیگ داخل ساب برای انتخاب خودکار |
-| `--chunk` | اندازه هر درخواست دانلود به مگابایت (پیش‌فرض ۵) |
-| `--timeout` | حداکثر زمان هر درخواست curl به ثانیه (پیش‌فرض ۱۸۰) |
-| `--test-url` | آدرس دانلود تست؛ `{bytes}` با حجم جایگزین می‌شود |
-| `--probe-url` | آدرس کوچک برای بررسی سالم بودن کانفیگ |
-| `--claimed` | ضریب ادعاشده؛ اگر در نام کانفیگ نباشد |
-| `--json-out` | ذخیره نتیجه در فایل JSON |
-| `--keep-temp` | نگه‌داشتن کانفیگ موقت و لاگ Xray برای عیب‌یابی |
+| `--sub` | Subscription URL |
+| `--config` | Config link or JSON file path |
+| `--size` | Test size in MB (minimum 10, default 10) |
+| `--wait` | Seconds to wait before reading usage (default 20) |
+| `--poll-timeout` | Maximum seconds to wait for usage to be recorded (default 60) |
+| `--drift-window` | Seconds to sample background usage before the test; 0 disables it (default 10) |
+| `--list` | Only list configs from the subscription and exit |
+| `--pick` | Config number inside the subscription for automatic selection |
+| `--chunk` | Download request size in MB (default 5) |
+| `--timeout` | Maximum seconds per curl request (default 180) |
+| `--test-url` | Test download URL; `{bytes}` is replaced with the size |
+| `--probe-url` | Probe URL used to check connectivity |
+| `--probe-timeout` | Seconds per probe URL (default 20) |
+| `--claimed` | Claimed coefficient, if not present in the config name |
+| `--json-out` | Save the result to a JSON file |
+| `--keep-temp` | Keep temporary files and the Xray log for debugging |
 
-سابسکریپشن را می‌توان با `--sub` یا به‌صورت تعاملی وارد کرد. اگر `--config` ندهی، کانفیگ‌ها از خود ساب خوانده و برای انتخاب نمایش داده می‌شوند (هم لینک‌های `vless://`/`vmess://`/`trojan://`/`ss://` و هم کانفیگ‌های JSON کامل). در صورت نیاز، کانفیگ را دستی هم می‌شود داد: لینک یا مسیر فایل JSON.
+The subscription can be passed with `--sub` or entered interactively. Without `--config`, configs are read from the subscription and shown for selection. Both URI links (`vless://`, `vmess://`, `trojan://`, `ss://`) and full Xray JSON configs are supported. You can still pass a config manually as a link or a JSON file path.
 
-## نحوه محاسبه
+## How it works
 
-1. مصرف اولیه از هدر `subscription-userinfo` خوانده می‌شود.
-2. Xray با کانفیگ اجرا می‌شود و یک پروکسی SOCKS فقط روی `127.0.0.1` باز می‌کند.
-3. داده تست از طریق پروکسی دانلود می‌شود و حجم واقعی دریافت‌شده شمرده می‌شود.
-4. قبل از تست، ۱۰ ثانیه مصرف پس‌زمینه ساب نمونه‌گیری می‌شود؛ اگر ساب هم‌زمان توسط دستگاه دیگری مصرف شود، همان نرخ از نتیجه کم می‌شود.
-5. بعد از ۲۰ ثانیه، ساب دوباره خوانده می‌شود تا تغییر آپلود و دانلود ثبت شود.
-6. فرمول:
+1. The initial usage is read from the `subscription-userinfo` header.
+2. Xray starts with the config and exposes a SOCKS proxy on `127.0.0.1` only.
+3. The test data is downloaded through the proxy and the real received bytes are counted.
+4. Before the test, background usage is sampled for 10 seconds. If the subscription is being used by another device, that rate is subtracted from the result.
+5. After 20 seconds, the subscription is read again to capture the upload/download delta.
+6. Formula:
 
 ```
-ضریب = (تغییر آپلود + تغییر دانلود) / حجم واقعی دانلودشده
+coefficient = (upload delta + download delta) / actual downloaded bytes
 ```
 
-اگر در نام کانفیگ عبارتی مثل «ضریب ۱.۵» یا «1.5x» باشد، اسکریپت آن را به‌عنوان ادعا تشخیص می‌دهد و با عدد واقعی مقایسه می‌کند. با `--claimed` هم می‌توان این عدد را دستی داد.
+If the config name contains something like `1.5x`, `x1.5`, `×1.2`, `ratio 1.5`, or a Persian coefficient label, the script treats it as the claimed coefficient and compares it with the measured value. Use `--claimed` to set it manually.
 
-## محدودیت‌ها
+The connectivity probe tries Cloudflare first and then falls back to Google and Cloudflare's HTTP 204 endpoint. If all of them fail, the node is probably down, blocked, or too slow.
 
-- اگر لینک ساب هدر `subscription-userinfo` نداشته باشد و مصرف در بدنه هم نباشد، اندازه‌گیری ممکن نیست.
-- بعضی پنل‌ها مصرف را با تأخیر یا از طریق کش ثبت می‌کنند؛ در این حالت `--wait` و `--poll-timeout` را بیشتر کنید.
-- اگر سابسکریپشن هم‌زمان روی دستگاه دیگری هم مصرف شود، اسکریپت نرخ پس‌زمینه را اندازه می‌گیرد و از نتیجه کم می‌کند، ولی برای دقیق‌ترین نتیجه بهتر است دستگاه‌های دیگر قطع باشند.
-- تست حجم واقعی مصرف می‌کند.
-- ترافیک آپلود (درخواست‌ها) هم در دلتای مصرف حساب می‌شود، ولی در مقایسه با حجم تست ناچیز است.
-- پروتکل‌هایی که Xray پشتیبانی نمی‌کند (مثل Hysteria2 و TUIC) با لینک قابل استفاده نیستند؛ در این صورت کانفیگ JSON سازگار با Xray بدهید.
-- برای دقت بیشتر، حجم تست را بالاتر ببرید. اختلاف چند درصدی طبیعی است.
+## Limitations
 
-## امنیت
+- If the subscription has no `subscription-userinfo` header and no usage in the body, measurement is impossible.
+- Some panels record usage with a delay or serve it from a cache; increase `--wait` and `--poll-timeout` in that case.
+- If the subscription is used by another device at the same time, the script measures the background rate and subtracts it, but disconnecting other devices gives the most accurate result.
+- The test consumes real traffic.
+- Upload traffic (requests) is included in the usage delta, but it is negligible compared to the test size.
+- Protocols not supported by Xray (such as Hysteria2 and TUIC) cannot be used as links; provide an Xray-compatible JSON config instead.
+- For better accuracy, use a larger test size. A few percent of error is normal.
 
-- پروکسی SOCKS فقط روی `127.0.0.1` باز می‌شود.
-- فایل کانفیگ موقت با دسترسی `600` ساخته می‌شود.
-- لاگ Xray بعد از تست پاک می‌شود (با `--keep-temp` نگه داشته می‌شود).
-- اسکریپت هیچ اطلاعاتی را به سرور دیگری نمی‌فرستد.
+## Security
 
-## تست
+- The SOCKS proxy listens on `127.0.0.1` only.
+- The temporary config file is created with `600` permissions.
+- The Xray log is removed after the test (use `--keep-temp` to keep it).
+- The script does not send any data to any third-party server.
+
+## Tests
 
 ```bash
 python3 -m unittest discover -s tests -v
