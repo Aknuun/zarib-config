@@ -10,8 +10,10 @@ from ratio_test import (  # noqa: E402
     RatioError,
     detect_claimed,
     extract_configs,
+    is_usable_host,
     outbound_from_uri,
     parse_usage,
+    prepare_config,
 )
 
 
@@ -172,6 +174,44 @@ class UriTests(unittest.TestCase):
     def test_unsupported(self):
         with self.assertRaises(RatioError):
             outbound_from_uri("hysteria2://secret@example.com:443")
+
+
+class ConfigPreparationTests(unittest.TestCase):
+    def test_placeholder_host_rejected(self):
+        self.assertFalse(is_usable_host("ParsConnection"))
+        self.assertFalse(is_usable_host(""))
+        self.assertTrue(is_usable_host("example.com"))
+        self.assertTrue(is_usable_host("1.2.3.4"))
+        self.assertTrue(is_usable_host("::1"))
+
+    def test_extract_skips_placeholder_host(self):
+        body = base64.b64encode(
+            b"vless://uuid@ParsConnection:1010?encryption=none&type=tcp#info\n"
+            b"vless://uuid@example.com:443?encryption=none&security=tls&type=tcp#real"
+        )
+        configs = extract_configs(body)
+        self.assertEqual(len(configs), 1)
+        self.assertIn("example.com", configs[0]["target"])
+
+    def test_json_routing_is_replaced(self):
+        base = {
+            "inbounds": [{"port": 10808, "protocol": "socks"}],
+            "outbounds": [
+                {"protocol": "vless", "tag": "proxy"},
+                {"protocol": "freedom", "tag": "direct"},
+            ],
+            "routing": {
+                "rules": [
+                    {"type": "field", "ip": ["geoip:ir"], "outboundTag": "direct"}
+                ]
+            },
+        }
+        config = prepare_config(base, None, "proxy", 12345)
+        self.assertEqual(len(config["inbounds"]), 1)
+        self.assertEqual(config["inbounds"][0]["port"], 12345)
+        self.assertEqual(len(config["routing"]["rules"]), 1)
+        self.assertNotIn("geoip", json.dumps(config["routing"]))
+        self.assertEqual(base["routing"]["rules"][0]["ip"], ["geoip:ir"])
 
 
 if __name__ == "__main__":

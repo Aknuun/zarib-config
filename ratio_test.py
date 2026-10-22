@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import ipaddress
 import json
 import os
 import platform
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -521,6 +523,32 @@ def decode_sub_body(body: bytes) -> str:
     return text
 
 
+def outbound_host(outbound) -> str:
+    settings = outbound.get("settings") or {}
+    if settings.get("vnext"):
+        return str(settings["vnext"][0].get("address") or "")
+    if settings.get("servers"):
+        return str(settings["servers"][0].get("address") or "")
+    return ""
+
+
+def looks_like_ip(host: str) -> bool:
+    try:
+        ipaddress.ip_address(str(host).strip().strip("[]"))
+        return True
+    except ValueError:
+        return False
+
+
+def is_usable_host(host: str) -> bool:
+    host = str(host or "").strip().strip("[]")
+    if not host:
+        return False
+    if host.lower() == "localhost" or looks_like_ip(host):
+        return True
+    return "." in host
+
+
 def outbound_target(outbound) -> str:
     settings = outbound.get("settings") or {}
     if settings.get("vnext"):
@@ -580,6 +608,8 @@ def extract_configs(body: bytes):
             )
             if not proxy or not config.get("remarks") and not proxy.get("tag"):
                 continue
+            if not is_usable_host(outbound_host(proxy)):
+                continue
             configs.append(
                 {
                     "uri": None,
@@ -598,6 +628,8 @@ def extract_configs(body: bytes):
         try:
             outbound = outbound_from_uri(line)
         except RatioError:
+            continue
+        if not is_usable_host(outbound_host(outbound)):
             continue
         seen.add(line)
         configs.append(
@@ -636,6 +668,18 @@ def choose_config(configs, pick):
         if 1 <= index <= len(configs):
             return configs[index - 1]
         print("Invalid number.")
+
+
+def ensure_resolvable(host: str):
+    host = str(host or "").strip().strip("[]")
+    if not host or host.lower() == "localhost" or looks_like_ip(host):
+        return
+    try:
+        socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        raise RatioError(
+            f"Cannot resolve host '{host}'. The config may be a placeholder or unavailable."
+        )
 
 
 def free_port() -> int:
@@ -745,7 +789,7 @@ def prepare_config(base_config, outbound, target_tag, port: int):
     else:
         config = json.loads(json.dumps(base_config))
         config["log"] = {"loglevel": "warning"}
-        config.setdefault("inbounds", [])
+        config["inbounds"] = []
     tag = "ratio-test-socks"
     config["inbounds"].append(
         {
@@ -757,12 +801,14 @@ def prepare_config(base_config, outbound, target_tag, port: int):
         }
     )
     if target_tag:
-        routing = config.setdefault("routing", {})
-        rules = routing.setdefault("rules", [])
-        rules.insert(
-            0,
-            {"type": "field", "inboundTag": [tag], "outboundTag": target_tag},
-        )
+        config["routing"] = {
+            "domainStrategy": "AsIs",
+            "rules": [
+                {"type": "field", "inboundTag": [tag], "outboundTag": target_tag}
+            ],
+        }
+    else:
+        config.pop("routing", None)
     return config
 
 
@@ -780,7 +826,7 @@ def wait_for_port(port: int, process: subprocess.Popen, log_path: Path, timeout:
     raise RatioError("Xray did not open the SOCKS port in time.")
 
 
-def curl_size(port: int, url: str, max_time: int):
+def curl_size(port: int, url: str, max_time: int, speed_limit: int = 0):
     command = [
         "curl",
         "-sS",
@@ -790,6 +836,10 @@ def curl_size(port: int, url: str, max_time: int):
         "10",
         "--max-time",
         str(max_time),
+    ]
+    if speed_limit:
+        command += ["--speed-limit", str(speed_limit), "--speed-time", "30"]
+    command += [
         "-o",
         os.devnull,
         "-w",
@@ -864,7 +914,7 @@ def download(port: int, template: str, total: int, chunk: int, chunk_timeout: in
     while done < total:
         size = min(chunk, total - done)
         url = template.replace("{bytes}", str(size)).replace("{remaining}", str(total - done))
-        received, error = curl_size(port, url, chunk_timeout)
+        received, error = curl_size(port, url, chunk_timeout, speed_limit=10240)
         done += received
         attempts += 1
         print(c(f"  received {human(received)} | total {human(done)} of {human(total)}", "dim"), file=sys.stderr)
@@ -984,9 +1034,27 @@ def run(args) -> int:
     base_config, outbound, target_tag, remark, scan_text = build_client_config(config_text)
     claimed, claimed_source = detect_claimed(scan_text + " " + remark, args.claimed)
 
+    if base_config is None:
+        proxy_outbound = outbound
+    else:
+        proxy_outbound = next(
+            (
+                item
+                for item in base_config.get("outbounds", [])
+                if isinstance(item, dict)
+                and item.get("protocol") not in DIRECT_PROTOCOLS
+                and (target_tag is None or item.get("tag") == target_tag)
+            ),
+            None,
+        )
+    if proxy_outbound:
+        ensure_resolvable(outbound_host(proxy_outbound))
+
     xray = ensure_xray()
     port = free_port()
     config = prepare_config(base_config, outbound, target_tag, port)
+    if base_config is not None:
+        print(c("Using a test-safe copy of the JSON config (custom routing rules removed).", "dim"))
 
     tmpdir = Path(tempfile.mkdtemp(prefix="ratio-test-"))
     cfg_path = tmpdir / "config.json"
@@ -1014,6 +1082,9 @@ def run(args) -> int:
         print(c("Xray started; probing connectivity through the config ...", "cyan"))
         probe_urls = PROBE_URLS if args.probe_url == DEFAULT_PROBE_URL else [args.probe_url]
         probe(port, probe_urls, args.probe_timeout)
+        if args.probe_only:
+            print(c("Connection OK.", "green"))
+            return 0
         print(c("Connection OK. Reading baseline usage ...", "green"))
         time.sleep(2)
         before = read_usage(sub_url)
@@ -1180,6 +1251,7 @@ def build_parser():
     parser.add_argument("--test-url", default=DEFAULT_TEST_URL, help="Test download URL; {bytes} is replaced with the size")
     parser.add_argument("--probe-url", default=DEFAULT_PROBE_URL, help="Probe URL used to check connectivity")
     parser.add_argument("--probe-timeout", type=int, default=DEFAULT_PROBE_TIMEOUT, help=f"Seconds per probe URL (default {DEFAULT_PROBE_TIMEOUT})")
+    parser.add_argument("--probe-only", action="store_true", help="Only check that the config connects, without downloading test data")
     parser.add_argument("--claimed", type=float, help="Claimed coefficient, if not present in the config name")
     parser.add_argument("--json-out", help="Save the result to a JSON file")
     parser.add_argument("--keep-temp", action="store_true", help="Keep temporary files and the Xray log")
@@ -1195,6 +1267,11 @@ def main(argv=None) -> int:
         return 2
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    def _on_term(signum, frame):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, _on_term)
     try:
         return run(args)
     except RatioError as exc:

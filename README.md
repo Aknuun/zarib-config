@@ -87,11 +87,14 @@ python3 ratio_test.py --sub "..." --config "..." --json-out result.json
 | `--test-url` | Test download URL; `{bytes}` is replaced with the size |
 | `--probe-url` | Probe URL used to check connectivity |
 | `--probe-timeout` | Seconds per probe URL (default 20) |
+| `--probe-only` | Only check that the config connects; do not download test data |
 | `--claimed` | Claimed coefficient, if not present in the config name |
 | `--json-out` | Save the result to a JSON file |
 | `--keep-temp` | Keep temporary files and the Xray log for debugging |
 
 The subscription can be passed with `--sub` or entered interactively. Without `--config`, configs are read from the subscription and shown for selection. Both URI links (`vless://`, `vmess://`, `trojan://`, `ss://`) and full Xray JSON configs are supported. You can still pass a config manually as a link or a JSON file path.
+
+Placeholder entries that some panels put in subscriptions (for example a host like `ParsConnection` with no real domain) are skipped automatically. Full JSON configs are copied for the test and their custom routing rules are replaced with one rule that sends the test traffic to the selected proxy. This avoids missing `geoip.dat`/`geosite.dat` errors and port conflicts with the original config.
 
 ## How it works
 
