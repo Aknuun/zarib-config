@@ -72,6 +72,87 @@ def human(n) -> str:
     return f"{n:.2f} {units[idx]}"
 
 
+class Style:
+    enabled = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+    codes = {
+        "red": 31,
+        "green": 32,
+        "yellow": 33,
+        "blue": 34,
+        "magenta": 35,
+        "cyan": 36,
+        "bold": 1,
+        "dim": 2,
+    }
+
+    @classmethod
+    def paint(cls, text, *names):
+        text = str(text)
+        if not cls.enabled:
+            return text
+        prefix = "".join(f"\033[{cls.codes[name]}m" for name in names if name in cls.codes)
+        return f"{prefix}{text}\033[0m"
+
+
+def c(text, *names):
+    return Style.paint(text, *names)
+
+
+BIG_FONT = {
+    "0": ["###", "# #", "# #", "# #", "###"],
+    "1": ["  #", "  #", "  #", "  #", "  #"],
+    "2": ["###", "  #", "###", "#  ", "###"],
+    "3": ["###", "  #", "###", "  #", "###"],
+    "4": ["# #", "# #", "###", "  #", "  #"],
+    "5": ["###", "#  ", "###", "  #", "###"],
+    "6": ["###", "#  ", "###", "# #", "###"],
+    "7": ["###", "  #", "  #", "  #", "  #"],
+    "8": ["###", "# #", "###", "# #", "###"],
+    "9": ["###", "# #", "###", "  #", "###"],
+    ".": ["   ", "   ", "   ", "   ", " # "],
+    "x": ["   ", "# #", " # ", "# #", "   "],
+}
+
+
+def big_text(text: str):
+    glyphs = [BIG_FONT[ch] for ch in str(text) if ch in BIG_FONT]
+    if not glyphs:
+        return []
+    return [
+        "  ".join("".join("██" if cell == "#" else "  " for cell in glyph[row]) for glyph in glyphs)
+        for row in range(5)
+    ]
+
+
+def countdown(seconds: int, message: str):
+    seconds = int(seconds)
+    if seconds <= 0:
+        return
+    if not Style.enabled:
+        print(f"{message} ({seconds}s) ...")
+        time.sleep(seconds)
+        return
+    frames = "|/-\\"
+    width = 20
+    for remaining in range(seconds, 0, -1):
+        filled = int((seconds - remaining + 1) / seconds * width)
+        bar = "█" * filled + "░" * (width - filled)
+        sys.stdout.write(
+            "\r\033[K"
+            + c(message, "cyan")
+            + "  "
+            + c(bar, "green")
+            + "  "
+            + c(f"{remaining:2d}s", "bold")
+            + " "
+            + c(frames[remaining % 4], "cyan")
+        )
+        sys.stdout.flush()
+        time.sleep(1)
+    sys.stdout.write("\r\033[K" + c(f"{message} ... done", "green") + "\n")
+    sys.stdout.flush()
+
+
 def ask(prompt: str, default=None) -> str:
     suffix = f" [{default}]" if default not in (None, "") else ""
     try:
@@ -786,7 +867,7 @@ def download(port: int, template: str, total: int, chunk: int, chunk_timeout: in
         received, error = curl_size(port, url, chunk_timeout)
         done += received
         attempts += 1
-        print(f"  received {human(received)} | total {human(done)} of {human(total)}", file=sys.stderr)
+        print(c(f"  received {human(received)} | total {human(done)} of {human(total)}", "dim"), file=sys.stderr)
         if received <= 0:
             if attempts >= 6:
                 break
@@ -796,8 +877,7 @@ def download(port: int, template: str, total: int, chunk: int, chunk_timeout: in
     return done
 
 
-def read_usage_after(sub_url: str, baseline, wait: int, poll_timeout: int):
-    time.sleep(wait)
+def read_usage_after(sub_url: str, baseline, poll_timeout: int):
     base_total = baseline["upload"] + baseline["download"]
     deadline = time.time() + poll_timeout
     readings = []
@@ -886,16 +966,19 @@ def run(args) -> int:
     chunk_bytes = max(256 * 1024, int(float(args.chunk) * 1024 * 1024))
     total_bytes = int(size_mb * 1024 * 1024)
 
-    print("Reading subscription info ...")
+    print(c("Reading subscription info ...", "cyan"))
     before = read_usage(sub_url)
     remaining = None
     if before.get("total"):
         remaining = before["total"] - before["upload"] - before["download"]
         if remaining > 0 and remaining < total_bytes:
-            print(f"Warning: remaining subscription volume ({human(remaining)}) is less than the test size.")
+            print(c(f"Warning: remaining subscription volume ({human(remaining)}) is less than the test size.", "yellow"))
     print(
-        f"Current subscription usage: upload {human(before['upload'])} | download {human(before['download'])}"
-        + (f" | remaining {human(remaining)}" if remaining is not None else "")
+        c(
+            f"Current subscription usage: upload {human(before['upload'])} | download {human(before['download'])}"
+            + (f" | remaining {human(remaining)}" if remaining is not None else ""),
+            "dim",
+        )
     )
 
     base_config, outbound, target_tag, remark, scan_text = build_client_config(config_text)
@@ -928,20 +1011,19 @@ def run(args) -> int:
             stderr=log_file,
         )
         wait_for_port(port, process, log_path)
-        print("Xray started; probing connectivity through the config ...")
+        print(c("Xray started; probing connectivity through the config ...", "cyan"))
         probe_urls = PROBE_URLS if args.probe_url == DEFAULT_PROBE_URL else [args.probe_url]
         probe(port, probe_urls, args.probe_timeout)
-        print("Connection OK. Reading baseline usage ...")
+        print(c("Connection OK. Reading baseline usage ...", "green"))
         time.sleep(2)
         before = read_usage(sub_url)
         before_time = time.time()
         drift_rate = 0.0
         drift_used = 0.0
         if args.drift_window > 0:
-            print(f"Measuring background subscription usage ({args.drift_window}s) ...")
             drift_start = before
             drift_start_time = before_time
-            time.sleep(args.drift_window)
+            countdown(args.drift_window, "Measuring background usage")
             before = read_usage(sub_url)
             before_time = time.time()
             drift_bytes = (before["upload"] + before["download"]) - (
@@ -952,26 +1034,31 @@ def run(args) -> int:
                 drift_rate = drift_bytes / drift_window
                 if drift_bytes >= 64 * 1024:
                     print(
-                        f"Warning: the subscription is consuming data while idle "
-                        f"({human(drift_bytes)} in {drift_window:.0f}s, about {human(drift_rate)}/s)."
+                        c(
+                            f"Warning: the subscription is consuming data while idle "
+                            f"({human(drift_bytes)} in {drift_window:.0f}s, about {human(drift_rate)}/s).",
+                            "yellow",
+                        )
                     )
-                    print("Results will be corrected using this background rate.")
+                    print(c("Results will be corrected using this background rate.", "dim"))
                 else:
-                    print(f"Background usage is small ({human(drift_bytes)}) and will be accounted for.")
+                    print(c(f"Background usage is small ({human(drift_bytes)}) and will be accounted for.", "dim"))
             else:
-                print("No background usage detected.")
+                print(c("No background usage detected.", "dim"))
 
-        print(f"Starting test download ({human(total_bytes)}) ...")
+        print(c(f"Starting test download ({human(total_bytes)}) ...", "cyan"))
         started = time.time()
         downloaded = download(port, args.test_url, total_bytes, chunk_bytes, int(args.timeout))
         elapsed = time.time() - started
         if downloaded <= 0:
             raise RatioError("No data was downloaded through the config.")
         if downloaded < total_bytes:
-            print(f"Warning: only {human(downloaded)} of {human(total_bytes)} was downloaded.")
-        print(f"Download finished: {human(downloaded)} in {elapsed:.1f}s. Waiting for usage to be recorded ...")
+            print(c(f"Warning: only {human(downloaded)} of {human(total_bytes)} was downloaded.", "yellow"))
+        print(c(f"Download finished: {human(downloaded)} in {elapsed:.1f}s.", "green"))
 
-        after, readings, after_time = read_usage_after(sub_url, before, wait, poll_timeout)
+        countdown(wait, "Waiting for the panel to record usage")
+        print(c("Checking subscription usage ...", "dim"))
+        after, readings, after_time = read_usage_after(sub_url, before, poll_timeout)
         drift_used = drift_rate * max(0.0, after_time - before_time)
     finally:
         if process is not None and process.poll() is None:
@@ -982,7 +1069,7 @@ def run(args) -> int:
                 process.kill()
                 process.wait(timeout=5)
         if args.keep_temp:
-            print(f"Temporary files: {tmpdir}")
+            print(c(f"Temporary files: {tmpdir}", "dim"))
         else:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -1001,44 +1088,57 @@ def run(args) -> int:
         ratio = (used - drift_used) / downloaded
     percent = (ratio - 1.0) * 100.0
 
-    print()
-    print("=" * 48)
-    print("Coefficient Test Result")
-    print("=" * 48)
-    if remark:
-        print(f"Config: {remark}")
-    print(f"Actual download: {human(downloaded)}")
-    print(
-        f"Recorded usage: {human(used)} "
-        f"(download {human(delta_down)} + upload {human(delta_up)})"
-    )
-    print(f"Measured coefficient: {ratio:.3f}x  ({percent:+.1f}% vs. actual traffic)")
-    if drift_used > 0:
-        print(
-            f"Raw coefficient: {raw_ratio:.3f}x | "
-            f"background usage during test: ~{human(drift_used)}"
-        )
     if claimed:
-        if abs(ratio - claimed) <= max(0.05, claimed * 0.03):
-            verdict = "matches the claim"
+        matches = abs(ratio - claimed) <= max(0.05, claimed * 0.03)
+        if matches:
+            verdict, verdict_color = "matches the claim", "green"
+            coef_color = "green"
         elif ratio > claimed:
-            verdict = "higher than the claim (worse for the user)"
+            verdict, verdict_color = "higher than the claim", "red"
+            coef_color = "red"
         else:
-            verdict = "lower than the claim (better for the user)"
-        print(f"Claimed coefficient: {claimed:.2f}x  ->  {verdict}")
-    if ratio < 0.95:
-        print("Warning: coefficient is below 1; the panel may be recording usage late.")
+            verdict, verdict_color = "lower than the claim", "green"
+            coef_color = "green"
+    else:
+        verdict = None
+        verdict_color = "dim"
+        coef_color = "green" if ratio <= 1.1 else "yellow" if ratio <= 1.5 else "red"
+
+    def kv(label, value, value_color="bold"):
+        print(f"  {c(label.ljust(24), 'dim')} {c(value, value_color)}")
+
+    print()
+    print(c("=" * 54, "cyan"))
+    print(c("              COEFFICIENT TEST RESULT", "cyan", "bold"))
+    print(c("=" * 54, "cyan"))
+    if remark:
+        print(c(f"Config: {remark}", "dim"))
+    print()
+    print(c("  REAL COEFFICIENT", "bold"))
+    print()
+    for line in big_text(f"{ratio:.2f}x"):
+        print("    " + c(line, coef_color, "bold"))
+    print()
+    print(
+        f"  For every {c('1 MB', 'bold')} downloaded, "
+        f"{c(f'{ratio:.2f} MB', coef_color, 'bold')} is deducted from your subscription."
+    )
+    print()
+    kv("Downloaded", human(downloaded))
+    kv("Deducted", human(used))
+    if claimed:
+        print(f"  {c('Claimed'.ljust(24), 'dim')} {c(f'{claimed:.2f}x', 'bold')}  {c(verdict, verdict_color)}")
+    else:
+        kv("Claimed", "not found", "dim")
     if after.get("total"):
         remaining_after = after["total"] - after["upload"] - after["download"]
         if remaining_after > 0:
-            print(
-                f"Remaining subscription volume: {human(remaining_after)} "
-                f"(about {human(remaining_after / ratio)} of real traffic at this coefficient)"
-            )
-    if len(readings) > 1:
-        vals = {item["upload"] + item["download"] for _, item in readings}
-        if len(vals) > 1:
-            print("Note: usage changed between reads; the highest reading is used.")
+            kv("Remaining", f"{human(remaining_after)}  (~{human(remaining_after / ratio)} real)")
+    if drift_used > 0:
+        print(c(f"  background corrected by {human(drift_used)} (raw {raw_ratio:.3f}x)", "dim"))
+    if ratio < 0.95:
+        print(c("  Warning: coefficient is below 1; usage may be recorded late.", "yellow"))
+    print(c("=" * 54, "cyan"))
 
     if args.json_out:
         payload = {
@@ -1059,7 +1159,7 @@ def run(args) -> int:
             "duration_seconds": round(elapsed, 2),
         }
         Path(args.json_out).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"JSON result saved to {args.json_out}.")
+        print(c(f"JSON result saved to {args.json_out}.", "green"))
     return 0
 
 
@@ -1098,10 +1198,10 @@ def main(argv=None) -> int:
     try:
         return run(args)
     except RatioError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"{c('Error:', 'red', 'bold')} {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("\nCancelled.", file=sys.stderr)
+        print(c("\nCancelled.", "yellow"), file=sys.stderr)
         return 130
 
 

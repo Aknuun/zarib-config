@@ -110,6 +110,34 @@ If the config name contains something like `1.5x`, `x1.5`, `×1.2`, `ratio 1.5`,
 
 The connectivity probe tries Cloudflare first and then falls back to Google and Cloudflare's HTTP 204 endpoint. If all of them fail, the node is probably down, blocked, or too slow.
 
+## Output
+
+The result shows the real coefficient as a large number, followed by one plain sentence:
+
+```
+======================================================
+              COEFFICIENT TEST RESULT
+======================================================
+
+  REAL COEFFICIENT
+
+    ██████          ██████  ██████
+        ██          ██  ██  ██  ██  ██  ██
+    ██████          ██  ██  ██  ██    ██
+    ██              ██  ██  ██  ██  ██  ██
+    ██████    ██    ██████  ██████
+
+  For every 1 MB downloaded, 2.00 MB is deducted from your subscription.
+
+  Downloaded               50.00 MB
+  Deducted                100.27 MB
+  Claimed                   2.00x  matches the claim
+  Remaining                91.17 GB  (~45.54 GB real)
+======================================================
+```
+
+The wait for the panel is shown as a live countdown with a progress bar. Output is colored on a terminal; set `NO_COLOR=1` to disable colors.
+
 ## Limitations
 
 - If the subscription has no `subscription-userinfo` header and no usage in the body, measurement is impossible.
