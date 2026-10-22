@@ -819,7 +819,17 @@ def run(args) -> int:
         except OSError:
             pass
 
-    size_mb = float(args.size)
+    if args.size is None:
+        if sys.stdin.isatty():
+            raw_size = ask("حجم تست به مگابایت", f"{DEFAULT_SIZE_MB:g}")
+            try:
+                size_mb = float(normalize_digits(raw_size))
+            except ValueError:
+                raise RatioError("حجم تست معتبر نیست.")
+        else:
+            size_mb = DEFAULT_SIZE_MB
+    else:
+        size_mb = float(args.size)
     if size_mb < MIN_SIZE_MB:
         raise RatioError(f"حداقل حجم تست {MIN_SIZE_MB:g} مگابایت است.")
     wait = max(0, int(args.wait))
@@ -1009,7 +1019,7 @@ def build_parser():
     )
     parser.add_argument("--sub", help="لینک سابسکریپشن")
     parser.add_argument("--config", help="لینک کانفیگ یا مسیر فایل JSON")
-    parser.add_argument("--size", type=float, default=DEFAULT_SIZE_MB, help=f"حجم تست به مگابایت؛ حداقل {MIN_SIZE_MB:g} (پیش‌فرض {DEFAULT_SIZE_MB:g})")
+    parser.add_argument("--size", type=float, help=f"حجم تست به مگابایت؛ حداقل {MIN_SIZE_MB:g} (پیش‌فرض {DEFAULT_SIZE_MB:g})")
     parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"ثانیه صبر قبل از خواندن مصرف (پیش‌فرض {DEFAULT_WAIT})")
     parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT, help="حداکثر ثانیه انتظار برای ثبت مصرف")
     parser.add_argument("--drift-window", type=int, default=10, help="ثانیه نمونه‌گیری مصرف پس‌زمینه قبل از تست؛ ۰ برای غیرفعال کردن")

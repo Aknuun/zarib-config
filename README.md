@@ -12,6 +12,22 @@
 - Xray: اگر روی سیستم نصب نباشد، نسخه مناسب به‌صورت خودکار از GitHub دانلود می‌شود.
 - سابسکریپشن باید هدر `subscription-userinfo` را برگرداند (اکثر پنل‌های Marzban و مشابه‌ها این هدر را دارند).
 
+## اجرای یک‌خطی روی سرور
+
+بدون نصب قبلی، همین یک خط را در ترمینال سرور بزن:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh)"
+```
+
+یا نسخه مطمئن‌تر برای ورودی تعاملی:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
+```
+
+`run.sh` خود اسکریپت را در `~/.cache/ratio-test` دانلود/به‌روزرسانی می‌کند و بعد اجرا می‌کند. Xray هم در صورت نبود به‌صورت خودکار دانلود می‌شود.
+
 ## استفاده
 
 اجرای تعاملی:
