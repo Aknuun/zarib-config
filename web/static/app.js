@@ -73,6 +73,9 @@
       verdictHigher: "بیشتر از ادعا",
       verdictLower: "کمتر از ادعا",
       realEquivalent: "معادل واقعی {v}",
+      coefMeasured: "اندازه‌گیری واقعی: {r}",
+      noRatioClose: "کاملاً بدون ضریب است",
+      noRatioExact: "این کانفیگ یا ساب ضریب ندارد",
       background: "اصلاح پس‌زمینه",
       raw: "خام",
       duration: "مدت تست",
@@ -198,6 +201,9 @@
       verdictHigher: "Higher than the claim",
       verdictLower: "Lower than the claim",
       realEquivalent: "real equivalent {v}",
+      coefMeasured: "Measured: {r}",
+      noRatioClose: "Completely without a coefficient",
+      noRatioExact: "This config or sub has no coefficient",
       background: "Background correction",
       raw: "raw",
       duration: "Duration",
@@ -324,6 +330,19 @@
   function formatRatio(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
     return `${Number(value).toFixed(2)}x`;
+  }
+
+  function ratioIsNo(value) {
+    const n = Number(value) || 0;
+    return n > 0 && n < 1.1;
+  }
+
+  function ratioIsUnit(value) {
+    return Math.round((Number(value) || 0) * 100) === 100;
+  }
+
+  function ratioBig(value) {
+    return ratioIsNo(value) ? "1.00x" : formatRatio(value);
   }
 
   function formatDuration(seconds) {
@@ -1078,11 +1097,28 @@
     state.result = aggregate;
 
     const coef = $("#coef");
-    coef.textContent = formatRatio(avg);
+    const coefExact = $("#coefExact");
+    const verdict = $("#verdict");
+    const noRatio = ratioIsNo(avg);
+    const unitRatio = ratioIsUnit(avg);
+    coef.textContent = ratioBig(avg);
     coef.classList.remove("warn", "bad");
     if (avg > 1.5) coef.classList.add("bad");
     else if (avg > 1.1) coef.classList.add("warn");
-    hide($("#verdict"));
+    if (noRatio && !unitRatio) {
+      coefExact.textContent = t("coefMeasured", { r: formatRatio(avg) });
+      show(coefExact);
+    } else {
+      hide(coefExact);
+    }
+    verdict.classList.remove("good", "warn", "bad");
+    if (noRatio) {
+      verdict.textContent = unitRatio ? t("noRatioExact") : t("noRatioClose");
+      verdict.classList.add("good");
+      show(verdict);
+    } else {
+      hide(verdict);
+    }
 
     $("#sentence").textContent = t("sentenceAvg", { n: count, r: avg.toFixed(2) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
@@ -1145,12 +1181,17 @@
       const value = document.createElement("span");
       value.className = "result-row-value";
       if (item.result) {
-        value.textContent = formatRatio(item.result.ratio);
+        const r = Number(item.result.ratio) || 0;
+        value.textContent = ratioBig(r);
         const detail = document.createElement("span");
         detail.className = "result-row-detail";
-        detail.textContent = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
+        const bytes = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
           item.result.delta_total,
         )}`;
+        detail.textContent =
+          ratioIsNo(r) && !ratioIsUnit(r)
+            ? `${t("coefMeasured", { r: formatRatio(r) })} · ${bytes}`
+            : bytes;
         value.append(detail);
       } else {
         value.textContent = t("resultError");
@@ -1175,11 +1216,12 @@
       count > 1
         ? t("sentenceAvg", { n: count, r: ratio.toFixed(2) })
         : t("sentence", { n: ratio.toFixed(2) });
-    return [
-      `${t("shareCaptionTitle")} — ${formatRatio(ratio)}`,
-      sentence,
-      SITE_URL,
-    ].join("\n");
+    const lines = [`${t("shareCaptionTitle")} — ${ratioBig(ratio)}`, sentence];
+    if (ratioIsNo(ratio)) {
+      lines.push(ratioIsUnit(ratio) ? t("noRatioExact") : t("noRatioClose"));
+    }
+    lines.push(SITE_URL);
+    return lines.join("\n");
   }
 
   function roundRect(ctx, x, y, w, h, r) {
@@ -1418,7 +1460,7 @@
       align: rtl ? "right" : "left",
     });
 
-    drawCanvasText(ctx, formatRatio(ratio), rtl ? W - pad : pad, 430, {
+    drawCanvasText(ctx, ratioBig(ratio), rtl ? W - pad : pad, 430, {
       size: 190,
       weight: 900,
       color: ratioColor,
@@ -1426,6 +1468,33 @@
     });
 
     let verdictY = 470;
+    if (ratioIsNo(ratio)) {
+      const unit = ratioIsUnit(ratio);
+      if (!unit) {
+        drawCanvasText(
+          ctx,
+          t("coefMeasured", { r: formatRatio(ratio) }),
+          rtl ? W - pad : pad,
+          486,
+          {
+            size: 34,
+            weight: 700,
+            color: C.muted,
+            align: rtl ? "right" : "left",
+            rtl,
+          },
+        );
+        verdictY = 520;
+      }
+      drawCanvasText(ctx, unit ? t("noRatioExact") : t("noRatioClose"), rtl ? W - pad : pad, verdictY + 30, {
+        size: 30,
+        weight: 700,
+        color: C.good,
+        align: rtl ? "right" : "left",
+        rtl,
+      });
+      verdictY += 64;
+    }
     const claimed = result.claimed_ratio;
     if (
       claimed !== null &&

@@ -955,6 +955,14 @@ select.text-input option {
   background-clip: text;
 }
 
+.coef-exact {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .result-ring {
   position: relative;
   width: 112px;
