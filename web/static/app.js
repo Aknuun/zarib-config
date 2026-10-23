@@ -9,7 +9,7 @@
       heroTitle2: "ترافیک کانفیگ",
       heroSub: "۵ مگابایت تست، بدون ذخیره لینک.",
       privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
-      copyServerScript: "کپی اسکریپت تست روی سرور خودت",
+      copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
       copyServerHint: "روی سرور لینوکس یا مک اجرا کن؛ اگر Go نصب نباشد خودکار نصب می‌شود.",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
@@ -37,6 +37,31 @@
       configLabel: "کانفیگ مورد تست",
       configCount: "{n} کانفیگ",
       configCountTruncated: "{shown} از {total} کانفیگ",
+      tunnelColumn: "تانل",
+      checkColumn: "بررسی",
+      tunnelYes: "تانل",
+      tunnelNo: "معمولی",
+      tunnelUnknown: "نامشخص",
+      checkTunnel: "بررسی موقعیت سرور (تانل)",
+      checkPing: "پینگ (اتصال TCP)",
+      pingOk: "پینگ",
+      pingFail: "بدون پاسخ",
+      geoFailed: "بررسی تانل ممکن نشد.",
+      pingFailed: "پینگ ممکن نشد.",
+      tunnelDetected: "سرور در ایران است؛ تانل محسوب می‌شود.",
+      tunnelNotDetected: "سرور خارج از ایران است.",
+      onlineNow: "آنلاین",
+      liveTitle: "آمار زنده",
+      liveHeading: "وضعیت امروز سایت",
+      liveClose: "بستن",
+      liveHint: "این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.",
+      statOnline: "افراد آنلاین",
+      statTests: "تست امروز",
+      statWithRatio: "ضریب‌دار",
+      statNormal: "معمولی (۱×)",
+      statInvalid: "نامعتبر",
+      statDownloaded: "حجم تست‌شده امروز",
+      liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
       claimedLabel: "ضریب ادعاشده (اختیاری)",
@@ -148,7 +173,7 @@
       heroTitle2: "config traffic ratio",
       heroSub: "A 5 MB test. Link never stored.",
       privacyNote: "Per our GitHub docs, no config is retained or stored.",
-      copyServerScript: "Copy the self-host test script",
+      copyServerScript: "Copy and run it directly on your server",
       copyServerHint: "Run it on a Linux or macOS server; Go is installed automatically if missing.",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
@@ -176,6 +201,31 @@
       configLabel: "Config to test",
       configCount: "{n} configs",
       configCountTruncated: "{shown} of {total} configs",
+      tunnelColumn: "Tunnel",
+      checkColumn: "Check",
+      tunnelYes: "Tunnel",
+      tunnelNo: "Normal",
+      tunnelUnknown: "Unknown",
+      checkTunnel: "Check server location (tunnel)",
+      checkPing: "Ping (TCP connect)",
+      pingOk: "Ping",
+      pingFail: "No response",
+      geoFailed: "Could not check the tunnel status.",
+      pingFailed: "Ping failed.",
+      tunnelDetected: "The server is in Iran, so it is treated as a tunnel.",
+      tunnelNotDetected: "The server is outside Iran.",
+      onlineNow: "online",
+      liveTitle: "Live stats",
+      liveHeading: "Today at a glance",
+      liveClose: "Close",
+      liveHint: "These are aggregate counters only; no link or config is stored.",
+      statOnline: "Online now",
+      statTests: "Tests today",
+      statWithRatio: "With ratio",
+      statNormal: "Normal (1x)",
+      statInvalid: "Invalid",
+      statDownloaded: "Tested today",
+      liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
       advanced: "More settings",
       sizeLabel: "Test size",
       claimedLabel: "Claimed ratio (optional)",
@@ -312,6 +362,9 @@
     error: null,
     errorCode: null,
     errorLog: [],
+    live: null,
+    liveId: "",
+    liveTimer: null,
   };
   let subSeq = 0;
 
@@ -459,6 +512,117 @@
     window.setTimeout(() => el.remove(), duration);
   }
 
+  function randomClientID() {
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      const bytes = new Uint8Array(16);
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return `anon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+
+  function clientID() {
+    const key = "ratio-client-id";
+    try {
+      let id = localStorage.getItem(key);
+      if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+        id = randomClientID();
+        localStorage.setItem(key, id);
+      }
+      return id;
+    } catch (_) {
+      return randomClientID();
+    }
+  }
+
+  function renderLive() {
+    const live = state.live;
+    const today = (live && live.today) || {};
+    const online = Number(live && live.online) || 0;
+    const count = $("#liveCount");
+    if (count) count.textContent = live ? String(online) : "—";
+    const set = (selector, value) => {
+      const el = $(selector);
+      if (el) el.textContent = value;
+    };
+    set("#liveStatOnline", live ? String(online) : "—");
+    set("#liveStatTests", live ? String(today.tests || 0) : "—");
+    set("#liveStatWithRatio", live ? String(today.with_ratio || 0) : "—");
+    set("#liveStatNormal", live ? String(today.normal || 0) : "—");
+    set("#liveStatInvalid", live ? String(today.invalid || 0) : "—");
+    set("#liveStatDownloaded", live ? formatBytes(today.downloaded || 0) : "—");
+    const line = $("#liveTunnelLine");
+    if (line) {
+      line.textContent = live
+        ? t("liveTunnelLine", {
+            t: today.tunnel || 0,
+            n: today.non_tunnel || 0,
+            u: today.unknown_tunnel || 0,
+          })
+        : "";
+    }
+  }
+
+  async function sendPresence() {
+    if (!state.liveId) state.liveId = clientID();
+    try {
+      const data = await api("/api/presence", {
+        method: "POST",
+        body: JSON.stringify({ id: state.liveId }),
+      });
+      state.live = data;
+      renderLive();
+    } catch (_) {
+      /* heartbeats are best-effort */
+    }
+  }
+
+  function openLiveDialog() {
+    const dialog = $("#liveDialog");
+    if (!dialog) return;
+    sendPresence();
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+  }
+
+  function closeLiveDialog() {
+    const dialog = $("#liveDialog");
+    if (!dialog) return;
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function initLive() {
+    state.liveId = clientID();
+    sendPresence();
+    window.setInterval(() => {
+      if (document.visibilityState !== "hidden") sendPresence();
+    }, 20000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") sendPresence();
+    });
+    const button = $("#liveBtn");
+    if (button) button.addEventListener("click", openLiveDialog);
+    const close = $("#liveClose");
+    if (close) close.addEventListener("click", closeLiveDialog);
+    const dialog = $("#liveDialog");
+    if (dialog) {
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) closeLiveDialog();
+      });
+    }
+  }
+
   function errorMessage(code) {
     const key = `err_${code || "unknown"}`;
     return I18N[state.lang] && I18N[state.lang][key] ? t(key) : t("err_unknown");
@@ -521,7 +685,13 @@
     $$("[data-i18n]").forEach((el) => {
       el.textContent = t(el.dataset.i18n);
     });
+    $$("[data-i18n-aria-label]").forEach((el) => {
+      const label = t(el.dataset.i18nAriaLabel);
+      el.setAttribute("aria-label", label);
+      el.setAttribute("title", label);
+    });
     updateLogToggle();
+    renderLive();
   }
 
   function setLoading(button, loading) {
@@ -602,22 +772,52 @@
     }
   }
 
-  async function addSub(raw) {
+  function resultIsShowing() {
+    return (
+      !$("#resultCard").classList.contains("hidden") ||
+      !$("#errorCard").classList.contains("hidden")
+    );
+  }
+
+  function prepareFreshTest() {
+    state.subs = [];
+    state.results = [];
+    state.completed = 0;
+    state.total = 0;
+    state.result = null;
+    state.error = null;
+    state.errorCode = null;
+    state.errorLog = [];
+    state.claimedTouched = false;
+    state.claimed = null;
+    const claimedInput = $("#claimed");
+    if (claimedInput) claimedInput.value = "";
+    stopProgressAnimation();
+    hide($("#resultCard"));
+    hide($("#errorCard"));
+    hide($("#progressCard"));
+    hide($("#resultListWrap"));
+    hide($("#selectCard"));
+  }
+
+  async function addSub(raw, options = {}) {
     if (state.running) return;
+    const fresh = options.fresh === true;
     clearInputError();
     const normalized = normalizeUrl(raw);
     if (!normalized) {
       showInputError(errorMessage("invalid_url"));
       return;
     }
-    if (state.subs.length >= 5) {
+    if (!fresh && state.subs.length >= 5) {
       showInputError(t("subLimit"));
       return;
     }
-    if (state.subs.some((sub) => sub.url === normalized)) {
+    if (!fresh && state.subs.some((sub) => sub.url === normalized)) {
       $("#subUrl").value = "";
       return;
     }
+    if (fresh) prepareFreshTest();
     const sub = {
       id: `sub-${++subSeq}`,
       url: normalized,
@@ -637,21 +837,26 @@
     renderSubs();
     updateStartState();
     await inspectSub(sub);
+    if (fresh && !sub.error && sub.configs.length && !state.running) {
+      startTest();
+    }
   }
 
   function addSubFromInput() {
     const value = $("#subUrl").value.trim();
+    const fresh = resultIsShowing();
     if (!value) {
-      pasteFromClipboard();
+      pasteFromClipboard(fresh);
       return;
     }
     const parts = value.split(/\s+/).filter(Boolean);
     if (parts.length > 1) {
       $("#subUrl").value = "";
+      if (fresh) prepareFreshTest();
       parts.forEach((part) => addSub(part));
       return;
     }
-    addSub(value);
+    addSub(value, { fresh });
   }
 
   function scheduleAutoAddFromPaste() {
@@ -668,19 +873,20 @@
     if (parts.length > 1) {
       event.preventDefault();
       $("#subUrl").value = "";
+      if (resultIsShowing()) prepareFreshTest();
       parts.forEach((part) => addSub(part));
       return;
     }
     scheduleAutoAddFromPaste();
   }
 
-  async function pasteFromClipboard() {
+  async function pasteFromClipboard(fresh) {
     try {
       if (navigator.clipboard && window.isSecureContext) {
         const text = await navigator.clipboard.readText();
         if (text && text.trim()) {
           $("#subUrl").value = text.trim();
-          addSub(text.trim());
+          addSub(text.trim(), { fresh: fresh === true || resultIsShowing() });
           return;
         }
       }
@@ -727,6 +933,89 @@
     renderClaim();
     updateStartState();
     if (!state.subs.length) hide($("#selectCard"));
+  }
+
+  function configAction(kind, label) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "config-action";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    if (kind === "geo") {
+      button.innerHTML =
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 12h17M12 3.5c2.2 2.3 3.3 5.3 3.3 8.5S14.2 18.2 12 20.5C9.8 18.2 8.7 15.2 8.7 12S9.8 5.8 12 3.5Z" stroke="currentColor" stroke-width="1.5"/></svg>';
+    } else {
+      button.innerHTML =
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true"><path d="M4 18v-4M9 18V9M14 18v-6M19 18V5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    }
+    return button;
+  }
+
+  function renderTunnelBadge(badge, config) {
+    badge.classList.remove("is-tunnel", "is-normal", "is-unknown");
+    if (config.tunnel === true) {
+      badge.classList.add("is-tunnel");
+      badge.textContent = `✓ ${t("tunnelYes")}`;
+      badge.title = config.geoCountry ? `${t("tunnelYes")} · ${config.geoCountry}` : t("tunnelYes");
+    } else if (config.tunnel === false) {
+      badge.classList.add("is-normal");
+      badge.textContent = t("tunnelNo");
+      badge.title = config.geoCountry
+        ? `${t("tunnelNo")} · ${config.geoCountry}`
+        : t("tunnelNo");
+    } else {
+      badge.classList.add("is-unknown");
+      badge.textContent = "—";
+      badge.title = t("tunnelUnknown");
+    }
+  }
+
+  async function checkTunnel(config, badge, button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add("busy");
+    try {
+      const data = await api(`/api/geo?target=${encodeURIComponent(config.target || "")}`);
+      config.tunnel = !!data.tunnel;
+      config.geoCountry = data.country || "";
+      renderTunnelBadge(badge, config);
+      toast(data.tunnel ? t("tunnelDetected") : t("tunnelNotDetected"));
+    } catch (error) {
+      toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("geoFailed"));
+    } finally {
+      button.disabled = false;
+      button.classList.remove("busy");
+    }
+  }
+
+  async function runPing(config, output, button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add("busy");
+    output.textContent = "…";
+    output.classList.remove("ok", "bad");
+    try {
+      const data = await api(`/api/ping?target=${encodeURIComponent(config.target || "")}`);
+      if (data.ok) {
+        config.pingMs = Number(data.latency_ms) || 0;
+        output.textContent = `${config.pingMs} ms`;
+        output.classList.add("ok");
+        output.title = `${t("pingOk")}: ${config.pingMs} ms`;
+      } else {
+        config.pingMs = null;
+        output.textContent = t("pingFail");
+        output.classList.add("bad");
+        output.title = t("pingFail");
+      }
+    } catch (error) {
+      config.pingMs = null;
+      output.textContent = t("pingFail");
+      output.classList.add("bad");
+      toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("pingFailed"));
+    } finally {
+      button.disabled = false;
+      button.classList.remove("busy");
+    }
   }
 
   function renderSubs() {
@@ -781,6 +1070,15 @@
         empty.textContent = t("err_no_configs");
         group.append(empty);
       } else {
+        const cols = document.createElement("div");
+        cols.className = "config-cols";
+        const tunnelHead = document.createElement("span");
+        tunnelHead.textContent = t("tunnelColumn");
+        const checkHead = document.createElement("span");
+        checkHead.textContent = t("checkColumn");
+        cols.append(tunnelHead, checkHead);
+        group.append(cols);
+
         const list = document.createElement("div");
         list.className = "config-list";
         sub.configs.forEach((config) => {
@@ -810,6 +1108,35 @@
             claim.textContent = formatRatio(config.claimed);
             item.append(claim);
           }
+
+          const side = document.createElement("span");
+          side.className = "config-side";
+          const tunnel = document.createElement("span");
+          tunnel.className = "config-tunnel";
+          renderTunnelBadge(tunnel, config);
+          const ping = document.createElement("span");
+          ping.className = "config-ping";
+          if (config.pingMs !== undefined && config.pingMs !== null) {
+            ping.textContent = `${config.pingMs} ms`;
+            ping.classList.add("ok");
+          } else {
+            ping.textContent = "—";
+          }
+          const geoBtn = configAction("geo", t("checkTunnel"));
+          geoBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            checkTunnel(config, tunnel, geoBtn);
+          });
+          const pingBtn = configAction("ping", t("checkPing"));
+          pingBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            runPing(config, ping, pingBtn);
+          });
+          side.append(tunnel, ping, geoBtn, pingBtn);
+          item.append(side);
+
           list.append(item);
         });
         group.append(list);
@@ -971,6 +1298,9 @@
   }
 
   async function runOne(sub, pick, claimed) {
+    const config = (sub.configs || []).find((item) => item.index === pick);
+    const tunnel =
+      config && typeof config.tunnel === "boolean" ? config.tunnel : null;
     const data = await api("/api/jobs", {
       method: "POST",
       body: JSON.stringify({
@@ -981,6 +1311,7 @@
         wait: 2,
         drift: 5,
         core: $("#coreSelect").value || "auto",
+        tunnel,
       }),
     });
     const jobId = data.id;
@@ -1982,6 +2313,7 @@
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
     setSize(5);
+    initLive();
 
     $("#themeBtn").addEventListener("click", toggleTheme);
     $("#langBtn").addEventListener("click", () => {

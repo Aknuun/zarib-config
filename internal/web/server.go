@@ -49,6 +49,7 @@ type job struct {
 	Pick       int
 	SizeMB     float64
 	Core       string
+	Tunnel     *bool
 	Dir        string
 	SubFile    string
 	ResultFile string
@@ -60,9 +61,14 @@ var publicURLFn = ratio.IsPublicURL
 type server struct {
 	staticDir string
 	jobsDir   string
+	statsFile string
 	mu        sync.Mutex
 	jobs      map[string]*job
 	rates     map[string]map[string][]time.Time
+	presence  map[string]float64
+	live      liveStats
+	geoMu     sync.Mutex
+	geoCache  map[string]geoEntry
 	sem       chan struct{}
 }
 
@@ -95,6 +101,7 @@ type jobIn struct {
 	Wait    *int     `json:"wait"`
 	Drift   *int     `json:"drift"`
 	Core    *string  `json:"core"`
+	Tunnel  *bool    `json:"tunnel"`
 }
 
 func Run(addr, staticDir string) error {
@@ -121,10 +128,14 @@ func Run(addr, staticDir string) error {
 	s := &server{
 		staticDir: absoluteStatic,
 		jobsDir:   jobsDir,
+		statsFile: filepath.Join(cacheRoot, "stats.json"),
 		jobs:      map[string]*job{},
 		rates:     map[string]map[string][]time.Time{},
+		presence:  map[string]float64{},
+		geoCache:  map[string]geoEntry{},
 		sem:       make(chan struct{}, maxActive),
 	}
+	s.loadStats()
 	go s.pruneLoop()
 	fmt.Printf("zarib-config web listening on %s\n", addr)
 	httpServer := &http.Server{
@@ -174,6 +185,21 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.createJob(w, r)
+	case path == "/api/presence":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.presenceHandler(w, r)
+	case path == "/api/geo":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.geoCheck(w, r)
+	case path == "/api/ping":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.pingCheck(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
 		s.jobRoute(w, r)
 	case path == "/":
@@ -367,8 +393,8 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	now := float64(time.Now().UnixNano()) / 1e9
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
-		Pick: pick, SizeMB: sizeMB, Core: core, Dir: jobDir, SubFile: subFile,
-		ResultFile: filepath.Join(jobDir, "result.json"),
+		Pick: pick, SizeMB: sizeMB, Core: core, Tunnel: payload.Tunnel,
+		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = item
@@ -500,6 +526,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 			if err := json.Unmarshal(content, &result); err != nil {
 				s.finishError(jobID, "unknown", "Could not read the result: "+err.Error())
 			} else {
+				var doneTunnel *bool
 				s.mu.Lock()
 				if current := s.jobs[jobID]; current != nil {
 					finished := nowSeconds()
@@ -510,8 +537,10 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 					current.Finished = &finished
 					current.Result = &result
 					current.Child = nil
+					doneTunnel = current.Tunnel
 				}
 				s.mu.Unlock()
+				s.recordResult(&result, doneTunnel)
 			}
 		}
 	} else {
@@ -734,6 +763,9 @@ func (s *server) rateLimit(bucket, ip string, limit int) bool {
 	window := 3600 * time.Second
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.rates == nil {
+		s.rates = map[string]map[string][]time.Time{}
+	}
 	entries := s.rates[bucket]
 	if entries == nil {
 		entries = map[string][]time.Time{}
@@ -758,14 +790,27 @@ func (s *server) pruneLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		cutoff := nowSeconds() - 3600
+		now := nowSeconds()
+		cutoff := now - 3600
 		s.mu.Lock()
 		for id, item := range s.jobs {
 			if item.Finished != nil && *item.Finished < cutoff {
 				delete(s.jobs, id)
 			}
 		}
+		for id, seen := range s.presence {
+			if now-seen > presenceWindow.Seconds() {
+				delete(s.presence, id)
+			}
+		}
 		s.mu.Unlock()
+		s.geoMu.Lock()
+		for host, entry := range s.geoCache {
+			if time.Now().After(entry.Expires) {
+				delete(s.geoCache, host)
+			}
+		}
+		s.geoMu.Unlock()
 	}
 }
 
