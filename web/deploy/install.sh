@@ -14,23 +14,29 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 apt-get update
-apt-get install -y --no-install-recommends python3-venv nginx certbot python3-certbot-nginx curl ca-certificates
+apt-get install -y --no-install-recommends nginx certbot curl ca-certificates
+if ! command -v go >/dev/null 2>&1; then
+  apt-get install -y --no-install-recommends golang-go
+fi
+if ! command -v go >/dev/null 2>&1; then
+  echo "Go 1.22 or newer is required to build zarib-config." >&2
+  exit 1
+fi
 
 if ! id -u ratio >/dev/null 2>&1; then
   useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin ratio
 fi
 
-mkdir -p "$APP_DIR/app" "$APP_DIR/.cache/ratio-test" "$APP_DIR/venv"
-install -m 0644 "$REPO_DIR/ratio_test.py" "$APP_DIR/app/ratio_test.py"
-install -m 0644 "$WEB_DIR/main.py" "$APP_DIR/app/main.py"
-rm -rf "$APP_DIR/app/static"
+mkdir -p "$APP_DIR/bin" "$APP_DIR/.cache/ratio-test"
+(
+  cd "$REPO_DIR"
+  CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$APP_DIR/bin/zarib-config" ./cmd/zarib-config
+)
+rm -rf "$APP_DIR/app" "$APP_DIR/venv"
+mkdir -p "$APP_DIR/app"
 cp -r "$WEB_DIR/static" "$APP_DIR/app/static"
 find "$APP_DIR/app" -type f -exec chmod 0644 {} +
 find "$APP_DIR/app" -type d -exec chmod 0755 {} +
-
-python3 -m venv "$APP_DIR/venv"
-"$APP_DIR/venv/bin/pip" install --upgrade pip
-"$APP_DIR/venv/bin/pip" install -r "$WEB_DIR/requirements.txt"
 
 if [ -x /root/.cache/ratio-test/xray ]; then
   install -m 0755 /root/.cache/ratio-test/xray "$APP_DIR/.cache/ratio-test/xray"
@@ -38,7 +44,7 @@ fi
 
 chown -R ratio:ratio "$APP_DIR/.cache"
 chmod -R u+rwX "$APP_DIR/.cache"
-chown -R root:root "$APP_DIR/app" "$APP_DIR/venv"
+chown -R root:root "$APP_DIR/app" "$APP_DIR/bin"
 
 install -m 0644 "$HERE/v2ray-ratio.service" /etc/systemd/system/v2ray-ratio.service
 systemctl daemon-reload

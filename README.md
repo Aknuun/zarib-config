@@ -10,18 +10,30 @@ Hosted web UI: **https://zarib-config.videobazi.com**
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
 ```
 
-Requirements: Python 3.9+, `curl`, and a subscription that exposes usage via `subscription-userinfo`. Xray is downloaded automatically.
+Requirements: Go 1.22+, `curl`, and a subscription that exposes usage via `subscription-userinfo`. Xray is downloaded automatically.
+
+## Build
+
+```bash
+go build -o zarib-config ./cmd/zarib-config
+```
 
 ## CLI
 
 ```bash
-python3 ratio_test.py
-python3 ratio_test.py --sub "https://example.com/sub/xxxx" --list
-python3 ratio_test.py --sub "https://example.com/sub/xxxx" --pick 5
-python3 ratio_test.py --sub "https://example.com/sub/xxxx" --config "vless://..." --json-out result.json
+./zarib-config
+./zarib-config --sub "https://example.com/sub/xxxx" --list
+./zarib-config --sub "https://example.com/sub/xxxx" --pick 5
+./zarib-config --sub "https://example.com/sub/xxxx" --config "vless://..." --json-out result.json
 ```
 
-Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON file. Run `python3 ratio_test.py --help` for all options.
+Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON file. Run `./zarib-config --help` for all options.
+
+## Web server
+
+```bash
+./zarib-config serve --addr 127.0.0.1:8000 --static-dir web/static
+```
 
 ## How it works
 
@@ -48,5 +60,11 @@ No subscription URL, config, or result is persisted. The URL is used only during
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v
+go test ./...
+```
+
+## Deployment
+
+```bash
+sudo bash web/deploy/install.sh
 ```

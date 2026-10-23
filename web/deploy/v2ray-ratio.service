@@ -1,5 +1,5 @@
 [Unit]
-Description=V2Ray Ratio Test web service
+Description=Zarib Config web service
 After=network-online.target
 Wants=network-online.target
 
@@ -11,10 +11,9 @@ WorkingDirectory=/opt/v2ray-ratio/app
 Environment=HOME=/opt/v2ray-ratio
 Environment=XDG_CACHE_HOME=/opt/v2ray-ratio/.cache
 Environment=RATIO_SAFE_FETCH=1
-Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=NO_COLOR=1
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/opt/v2ray-ratio/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+ExecStart=/opt/v2ray-ratio/bin/zarib-config serve --addr 127.0.0.1:8000 --static-dir /opt/v2ray-ratio/app/static
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true

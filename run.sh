@@ -1,38 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RAW="${RATIO_TEST_RAW:-https://raw.githubusercontent.com/Aknuun/zarib-config/main/ratio_test.py}"
-CACHE="${RATIO_TEST_CACHE:-$HOME/.cache/ratio-test}"
-SCRIPT="$CACHE/ratio_test.py"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "python3 is not installed." >&2
+if [ -x "$HERE/zarib-config" ]; then
+    exec "$HERE/zarib-config" "$@"
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+    echo "Go 1.22 or newer is required." >&2
     exit 1
 fi
 
-LOCAL_SCRIPT="$(cd "$(dirname "$0")" && pwd)/ratio_test.py"
-if [ -f "$LOCAL_SCRIPT" ]; then
-    exec python3 "$LOCAL_SCRIPT" "$@"
+if [ -f "$HERE/go.mod" ]; then
+    cd "$HERE"
+    exec go run ./cmd/zarib-config "$@"
 fi
 
-mkdir -p "$CACHE"
-
-fetch_script() {
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$RAW" -o "$SCRIPT.tmp"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO "$SCRIPT.tmp" "$RAW"
-    else
-        return 1
-    fi
-}
-
-if fetch_script; then
-    mv "$SCRIPT.tmp" "$SCRIPT"
-elif [ ! -f "$SCRIPT" ]; then
-    echo "Could not download the script and no cached copy exists." >&2
-    exit 1
-fi
-
-chmod +x "$SCRIPT"
-exec python3 "$SCRIPT" "$@"
+exec go run github.com/Aknuun/zarib-config/cmd/zarib-config@latest "$@"
