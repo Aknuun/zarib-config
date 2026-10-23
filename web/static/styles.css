@@ -635,12 +635,12 @@ select.text-input option {
 
 .config-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   border: 1px solid var(--border);
   background: var(--surface-1);
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  padding: 10px 14px;
   cursor: pointer;
   transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
 }
@@ -659,7 +659,7 @@ select.text-input option {
   appearance: none;
   width: 18px;
   height: 18px;
-  margin: 4px 0 0;
+  margin: 0;
   border: 1.5px solid var(--border-strong);
   border-radius: 50%;
   flex: none;
@@ -679,12 +679,30 @@ select.text-input option {
   transition: transform 0.18s;
 }
 
+.config-item.multi .config-radio {
+  border-radius: 5px;
+}
+
+.config-item.multi .config-radio::before {
+  border-radius: 2px;
+}
+
 .config-radio:checked {
   border-color: var(--accent);
 }
 
 .config-radio:checked::before {
   transform: scale(1);
+}
+
+.config-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.86rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .config-body {
@@ -703,7 +721,6 @@ select.text-input option {
   font-family: var(--mono);
   font-size: 0.65rem;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--accent);
   background: var(--accent-soft);

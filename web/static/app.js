@@ -23,7 +23,7 @@
       subLoading: "در حال خواندن…",
       subConfigs: "{n} کانفیگ",
       configsToTest: "تعداد کانفیگ تست",
-      configsHint: "برای هر ساب، این تعداد کانفیگ اول انتخاب می‌شود و ساب‌ها هم‌زمان تست می‌شوند.",
+      configsHint: "برای هر ساب، این تعداد کانفیگ اول انتخاب می‌شود. کانفیگ‌های یک ساب به‌ترتیب و ساب‌ها هم‌زمان تست می‌شوند.",
       perConfigResults: "نتیجه هر کانفیگ",
       sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
       err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
@@ -149,7 +149,7 @@
       subLoading: "Loading…",
       subConfigs: "{n} configs",
       configsToTest: "Configs to test",
-      configsHint: "The first N configs of each subscription are selected, and subscriptions are tested in parallel.",
+      configsHint: "The first N configs of each subscription are selected. Configs within a subscription run sequentially; subscriptions run in parallel.",
       perConfigResults: "Result per config",
       sentenceAvg: "Average across {n} configs: {r}×",
       err_no_selection: "Select at least one config to test.",
@@ -275,6 +275,7 @@
     startedAt: 0,
     lastJobData: null,
     logOpen: false,
+    pasteTimer: null,
     results: [],
     completed: 0,
     total: 0,
@@ -521,7 +522,6 @@
       error: null,
       configs: [],
       count: 0,
-      usage: null,
       selected: [],
     };
     state.subs.push(sub);
@@ -537,11 +537,37 @@
 
   function addSubFromInput() {
     const value = $("#subUrl").value.trim();
-    if (value) {
-      addSub(value);
+    if (!value) {
+      pasteFromClipboard();
       return;
     }
-    pasteFromClipboard();
+    const parts = value.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      $("#subUrl").value = "";
+      parts.forEach((part) => addSub(part));
+      return;
+    }
+    addSub(value);
+  }
+
+  function scheduleAutoAddFromPaste() {
+    if (state.pasteTimer) window.clearTimeout(state.pasteTimer);
+    state.pasteTimer = window.setTimeout(() => {
+      state.pasteTimer = null;
+      if ($("#subUrl").value.trim()) addSubFromInput();
+    }, 120);
+  }
+
+  function handlePaste(event) {
+    const text = event.clipboardData ? event.clipboardData.getData("text") : "";
+    const parts = text.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      event.preventDefault();
+      $("#subUrl").value = "";
+      parts.forEach((part) => addSub(part));
+      return;
+    }
+    scheduleAutoAddFromPaste();
   }
 
   async function pasteFromClipboard() {
@@ -573,13 +599,11 @@
       });
       sub.configs = data.configs || [];
       sub.count = data.count || sub.configs.length;
-      sub.usage = data.usage || null;
       sub.selected = defaultSelection(sub);
     } catch (error) {
       sub.error = error;
       sub.configs = [];
       sub.count = 0;
-      sub.usage = null;
       sub.selected = [];
     } finally {
       sub.loading = false;
@@ -599,63 +623,6 @@
     renderClaim();
     updateStartState();
     if (!state.subs.length) hide($("#selectCard"));
-  }
-
-  function buildUsage(sub) {
-    const box = document.createElement("div");
-    box.className = "usage-box";
-    const usage = sub.usage;
-    if (!usage) {
-      const top = document.createElement("div");
-      top.className = "usage-top";
-      const label = document.createElement("span");
-      label.textContent = t("usageRemaining");
-      const value = document.createElement("strong");
-      value.textContent = "—";
-      top.append(label, value);
-      const hint = document.createElement("p");
-      hint.className = "hint small";
-      hint.textContent = t("noUsage");
-      box.append(top, hint);
-      return box;
-    }
-
-    const top = document.createElement("div");
-    top.className = "usage-top";
-    const label = document.createElement("span");
-    label.textContent = t("usageRemaining");
-    const value = document.createElement("strong");
-    value.textContent = usage.remaining === null ? "—" : formatBytes(usage.remaining);
-    const total = document.createElement("span");
-    total.textContent =
-      usage.total === null ? "" : t("usageOfTotal", { v: formatBytes(usage.total) });
-    top.append(label, value, total);
-
-    const bar = document.createElement("div");
-    bar.className = "usage-bar";
-    const fill = document.createElement("span");
-    const percent = usage.total ? Math.min(100, (usage.used / usage.total) * 100) : 0;
-    fill.style.width = `${percent.toFixed(1)}%`;
-    bar.append(fill);
-
-    const meta = document.createElement("div");
-    meta.className = "usage-meta";
-    const used = document.createElement("span");
-    used.textContent = `${t("usageUsed")}: ${formatBytes(usage.used)}`;
-    meta.append(used);
-    if (usage.total !== null) {
-      const totalEl = document.createElement("span");
-      totalEl.textContent = `${t("usageTotal")}: ${formatBytes(usage.total)}`;
-      meta.append(totalEl);
-    }
-    if (usage.days_left !== null && usage.days_left !== undefined) {
-      const days = document.createElement("span");
-      days.textContent =
-        usage.days_left > 0 ? t("daysLeft", { n: usage.days_left }) : t("expired");
-      meta.append(days);
-    }
-    box.append(top, bar, meta);
-    return box;
   }
 
   function renderSubs() {
@@ -688,8 +655,6 @@
       head.append(title, remove);
       group.append(head);
 
-      if (sub.usage) group.append(buildUsage(sub));
-
       if (sub.loading) {
         const loading = document.createElement("p");
         loading.className = "hint small";
@@ -711,6 +676,7 @@
         sub.configs.forEach((config) => {
           const item = document.createElement("label");
           item.className = "config-item";
+          if (maxConfigs() > 1) item.classList.add("multi");
           if (sub.selected.includes(config.index)) item.classList.add("selected");
 
           const check = document.createElement("input");
@@ -719,28 +685,14 @@
           check.checked = sub.selected.includes(config.index);
           check.addEventListener("change", () => toggleConfig(sub, config.index));
 
-          const body = document.createElement("div");
-          body.className = "config-body";
-          const top = document.createElement("div");
-          top.className = "config-top";
           const proto = document.createElement("span");
           proto.className = "proto";
           proto.textContent = config.protocol || "json";
-          const target = document.createElement("span");
-          target.className = "config-target";
-          target.textContent = config.target || "";
-          top.append(proto, target);
-          if (config.claimed !== null && config.claimed !== undefined) {
-            const claim = document.createElement("span");
-            claim.className = "config-claim";
-            claim.textContent = formatRatio(config.claimed);
-            top.append(claim);
-          }
-          const remark = document.createElement("div");
-          remark.className = "config-remark";
-          remark.textContent = config.remark || t("unnamed");
-          body.append(top, remark);
-          item.append(check, body);
+          const name = document.createElement("span");
+          name.className = "config-name";
+          name.textContent = config.remark || config.target || `#${config.index}`;
+          item.title = config.target || "";
+          item.append(check, proto, name);
           list.append(item);
         });
         group.append(list);
@@ -1811,10 +1763,11 @@
         addSubFromInput();
       }
     });
-    $("#subUrl").addEventListener("paste", () => {
-      window.setTimeout(() => {
-        if ($("#subUrl").value.trim()) addSubFromInput();
-      }, 60);
+    $("#subUrl").addEventListener("paste", handlePaste);
+    $("#subUrl").addEventListener("input", (event) => {
+      if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+        scheduleAutoAddFromPaste();
+      }
     });
     $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
     $("#testCount").addEventListener("change", (event) => {
