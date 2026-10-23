@@ -46,7 +46,6 @@
       chooseAnother: "کانفیگ دیگر",
       claimOptional: "اختیاری",
       claimDetected: "ادعای این کانفیگ: {n}",
-      agreeText: "می‌دانم حدود {mb} مگابایت مصرف می‌شود.",
       startTest: "شروع تست",
       privacyHint: "لینک و نتیجه فقط در حافظه نگهداری می‌شوند و بعد از پایان حذف می‌شوند.",
       progressTitle: "در حال تست…",
@@ -172,7 +171,6 @@
       chooseAnother: "Another config",
       claimOptional: "Optional",
       claimDetected: "This config claims: {n}",
-      agreeText: "I know about {mb} MB will be used.",
       startTest: "Start test",
       privacyHint: "The link and result are kept in memory only and are removed after the test.",
       progressTitle: "Testing…",
@@ -422,7 +420,6 @@
     $$("[data-i18n]").forEach((el) => {
       el.textContent = t(el.dataset.i18n);
     });
-    updateAgreeText();
     updateLogToggle();
   }
 
@@ -710,7 +707,8 @@
       sub.selected = sub.selected.filter((value) => value !== index);
     } else {
       const limit = maxConfigs();
-      const next = [...sub.selected, index].sort((a, b) => a - b);
+      const next = sub.selected.filter((value) => value !== index);
+      next.push(index);
       while (next.length > limit) next.shift();
       sub.selected = next;
     }
@@ -748,10 +746,6 @@
     }
   }
 
-  function updateAgreeText() {
-    $("#agreeText").textContent = t("agreeText", { mb: state.size });
-  }
-
   function updateLogToggle() {
     $("#logToggle").textContent = state.logOpen ? t("hideLog") : t("showLog");
   }
@@ -761,9 +755,8 @@
   }
 
   function updateStartState() {
-    const agree = $("#agree").checked;
     const hasSelection = selectedCount() > 0;
-    $("#startBtn").disabled = !(agree && hasSelection) || state.running;
+    $("#startBtn").disabled = !hasSelection || state.running;
     $("#inspectBtn").disabled = state.subs.length >= 5 || state.running;
     $("#testCount").disabled = state.running;
     $("#sizeRange").disabled = state.running;
@@ -775,7 +768,6 @@
     state.size = value;
     $("#sizeRange").value = String(value);
     $("#sizeValue").textContent = `${value} MB`;
-    updateAgreeText();
   }
 
   async function startTest() {
@@ -1690,7 +1682,6 @@
     hide($("#progressCard"));
     hide($("#resultListWrap"));
     show($("#selectCard"));
-    $("#agree").checked = true;
     state.results = [];
     state.completed = 0;
     state.total = 0;
@@ -1707,13 +1698,7 @@
   function retry() {
     hide($("#errorCard"));
     if (selectedCount() > 0) {
-      if ($("#agree").checked) {
-        startTest();
-        return;
-      }
-      show($("#selectCard"));
-      updateStartState();
-      $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      startTest();
       return;
     }
     if (state.subs.some((sub) => sub.configs.length)) {
@@ -1777,7 +1762,6 @@
     $("#claimed").addEventListener("input", () => {
       state.claimedTouched = true;
     });
-    $("#agree").addEventListener("change", updateStartState);
     $("#startBtn").addEventListener("click", startTest);
     $("#cancelBtn").addEventListener("click", cancelTest);
     $("#logToggle").addEventListener("click", () => {
