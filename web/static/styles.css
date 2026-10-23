@@ -207,6 +207,14 @@ body {
   color: var(--accent);
 }
 
+.brand-version {
+  margin-inline-start: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
 .top-actions {
   display: flex;
   align-items: center;
@@ -884,6 +892,17 @@ select.text-input option {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.stage-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--warn-text);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
 }
 
 .progress-actions {

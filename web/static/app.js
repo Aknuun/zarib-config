@@ -62,6 +62,7 @@
       stage_done: "تمام شد",
       stage_cancelled: "لغو شد",
       stage_error: "خطا",
+      usageSlowHint: "بعضی ساب‌ها دیر نتیجه می‌دهند؛ این ربطی به ماشین‌حساب ضریب ندارد.",
       resultEyebrow: "نتیجه تست",
       sentence: "برای هر ۱ مگابایت دانلود، {n} مگابایت از سابسکریپشن شما کم می‌شود.",
       downloaded: "دانلود واقعی",
@@ -190,6 +191,7 @@
       stage_done: "Done",
       stage_cancelled: "Cancelled",
       stage_error: "Error",
+      usageSlowHint: "Some subscriptions report usage slowly; this is not caused by the ratio calculator.",
       resultEyebrow: "Test result",
       sentence: "For every 1 MB downloaded, {n} MB is deducted from your subscription.",
       downloaded: "Downloaded",
@@ -277,6 +279,7 @@
     displayPct: 0,
     targetPct: 0,
     startedAt: 0,
+    usageWaitStarted: 0,
     lastJobData: null,
     logOpen: false,
     pasteTimer: null,
@@ -1000,6 +1003,9 @@
     state.targetPct = 0;
     $("#stageLabel").textContent = `${t("startTest")} 0/${state.total || 0}`;
     $("#stageMessage").textContent = "";
+    $("#stageHint").textContent = "";
+    hide($("#stageHint"));
+    state.usageWaitStarted = 0;
     applyProgress(0);
     $("#elapsed").textContent = "00:00";
     $("#logBox").textContent = "";
@@ -1013,6 +1019,20 @@
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");
     $("#stageMessage").textContent = data.message || "";
+    const checkingUsage =
+      data.stage === "waiting" && /Checking subscription usage/i.test(data.message || "");
+    const hint = $("#stageHint");
+    if (checkingUsage) {
+      if (!state.usageWaitStarted) state.usageWaitStarted = Date.now();
+      if (Date.now() - state.usageWaitStarted >= 6000) {
+        hint.textContent = t("usageSlowHint");
+        show(hint);
+      }
+    } else if (state.usageWaitStarted) {
+      state.usageWaitStarted = 0;
+      hint.textContent = "";
+      hide(hint);
+    }
     const elapsed =
       data.elapsed && data.elapsed > 0
         ? data.elapsed
@@ -1824,7 +1844,20 @@
     }
   }
 
+  async function loadVersion() {
+    try {
+      const res = await fetch("/healthz", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const el = $("#brandVersion");
+      if (el && data && data.version) el.textContent = `v${data.version}`;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   function init() {
+    loadVersion();
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
     setSize(5);
