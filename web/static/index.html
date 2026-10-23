@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261026a">
+  <link rel="stylesheet" href="/static/styles.css?v=20261028a">
 </head>
 <body>
   <header class="topbar">
@@ -75,7 +75,6 @@
     <section id="selectCard" class="card hidden">
       <div class="card-head">
         <h2 data-i18n="selectTitle">انتخاب کانفیگ</h2>
-        <span id="configCount" class="status-pill"></span>
       </div>
 
       <div id="subsContainer"></div>
@@ -83,13 +82,15 @@
       <details class="advanced">
         <summary data-i18n="advanced">تنظیمات بیشتر</summary>
         <div class="advanced-body">
-          <div class="field-label" data-i18n="sizeLabel">حجم تست</div>
-          <div class="size-row">
-            <input id="sizeRange" class="size-range" type="range" min="2" max="10" step="1" value="5" aria-label="Test size">
-            <output id="sizeValue" class="size-value mono" for="sizeRange">5 MB</output>
-          </div>
-          <div class="grid2 advanced-grid">
-            <div>
+          <div class="advanced-grid">
+            <div class="advanced-field">
+              <label class="field-label" for="sizeRange" data-i18n="sizeLabel">حجم تست</label>
+              <div class="size-row">
+                <input id="sizeRange" class="size-range" type="range" min="2" max="10" step="1" value="5" aria-label="Test size">
+                <output id="sizeValue" class="size-value mono" for="sizeRange">5 MB</output>
+              </div>
+            </div>
+            <div class="advanced-field">
               <label class="field-label" for="testCount" data-i18n="configsToTest">تعداد کانفیگ تست</label>
               <select id="testCount" class="text-input" dir="ltr">
                 <option value="1">1</option>
@@ -99,14 +100,7 @@
                 <option value="5">5</option>
               </select>
             </div>
-            <div>
-              <label class="field-label" for="claimed" data-i18n="claimedLabel">ضریب ادعاشده (اختیاری)</label>
-              <input id="claimed" class="text-input" type="number" step="0.01" min="0.1" max="100" dir="ltr" placeholder="1.20">
-              <p id="claimHint" class="hint small"></p>
-            </div>
-          </div>
-          <div class="grid2 advanced-grid">
-            <div>
+            <div class="advanced-field">
               <label class="field-label" for="coreSelect" data-i18n="coreLabel">هسته Xray</label>
               <select id="coreSelect" class="text-input" dir="ltr">
                 <option value="auto" data-i18n="coreAuto">خودکار</option>
@@ -115,8 +109,8 @@
                 <option value="system" data-i18n="coreSystem">سیستم</option>
               </select>
             </div>
-            <div class="field-hint" data-i18n="configsHint">برای هر ساب، این تعداد کانفیگ اول انتخاب می‌شود. کانفیگ‌های یک ساب به‌ترتیب و ساب‌ها هم‌زمان تست می‌شوند.</div>
           </div>
+          <p class="hint small advanced-note" data-i18n="configsShortHint">هر ساب به‌ترتیب تست می‌شود و ساب‌ها هم‌زمان پیش می‌روند.</p>
         </div>
       </details>
 
@@ -153,16 +147,18 @@
           <div id="verdict" class="badge hidden"></div>
         </div>
         <div class="result-ring" aria-hidden="true">
-          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
-          <span>×</span>
+          <svg class="ring-svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
+          <svg class="ring-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M5 16.5a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M12 16.5l3.2-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="12" cy="16.5" r="1.4" fill="currentColor"/>
+          </svg>
         </div>
       </div>
       <p id="sentence" class="sentence"></p>
       <div class="stats">
         <div class="stat"><span data-i18n="downloaded">دانلود واقعی</span><strong id="statDownloaded">—</strong></div>
         <div class="stat"><span data-i18n="deducted">کسرشده</span><strong id="statDeducted">—</strong></div>
-        <div class="stat"><span data-i18n="claimed">ادعای پنل</span><strong id="statClaimed">—</strong></div>
-        <div class="stat"><span data-i18n="remaining">باقی‌مانده</span><strong id="statRemaining">—</strong></div>
       </div>
       <div id="resultMeta" class="meta"></div>
       <div id="resultListWrap" class="result-list-wrap hidden">
@@ -175,6 +171,10 @@
         <button id="shareBtn" class="ghost-btn" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span class="btn-label" data-i18n="shareResult">اشتراک‌گذاری</span>
+        </button>
+        <button id="reportBtn" class="ghost-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-label" data-i18n="reportError">گزارش خطا</span>
         </button>
       </div>
       <p class="result-disclaimer" data-i18n="resultDisclaimer">امکان خطا و اشتباه وجود دارد.</p>
@@ -199,7 +199,7 @@
   </main>
 
   <footer class="footer">
-    <a class="credit" href="https://t.me/panelsazfilterbot" target="_blank" rel="noopener noreferrer">powered by t.me/panelsazfilterbot</a>
+    <a class="credit" href="https://t.me/aknuun" target="_blank" rel="noopener noreferrer">powered by t.me/aknuun</a>
   </footer>
 
   <dialog id="liveDialog" class="live-dialog" aria-labelledby="liveHeading">
@@ -240,10 +240,33 @@
     <p class="hint small" data-i18n="liveHint">این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.</p>
   </dialog>
 
+  <dialog id="reportDialog" class="live-dialog report-dialog" aria-labelledby="reportHeading">
+    <div class="live-dialog-head">
+      <div>
+        <div class="eyebrow"><span class="dot"></span><span data-i18n="reportTitle">گزارش خطا</span></div>
+        <h2 id="reportHeading" data-i18n="reportHeading">چه مشکلی دیدی؟</h2>
+      </div>
+      <button id="reportClose" class="ghost-btn icon-btn" type="button" aria-label="بستن" data-i18n-aria-label="liveClose">×</button>
+    </div>
+    <form id="reportForm" class="report-form">
+      <label class="field-label" for="reportDescription" data-i18n="reportDescriptionLabel">شرح مشکل</label>
+      <textarea id="reportDescription" class="text-input report-textarea" rows="4" maxlength="1500" required placeholder="مثلاً ضریب اشتباه بود یا تست نامعتبر شد…" data-i18n-placeholder="reportDescriptionPlaceholder"></textarea>
+      <label class="field-label" for="reportSub" data-i18n="reportSubLabel">لینک ساب برای بررسی (حداقل ۱۰۰ مگابایت)</label>
+      <input id="reportSub" class="text-input" type="url" dir="ltr" maxlength="1500" placeholder="https://…" data-i18n-placeholder="reportSubPlaceholder">
+      <p class="hint small" data-i18n="reportSubHint">برای اینکه توسعه‌دهنده بتواند تست را تکرار کند، لینکی بفرست که حداقل ۱۰۰ مگابایت حجم داشته باشد.</p>
+      <p class="hint small" data-i18n="reportPrivacy">شرح و لینک از طریق ربات تلگرام برای توسعه‌دهنده ارسال می‌شود.</p>
+      <p id="reportStatus" class="hint small report-status hidden" role="alert"></p>
+      <div class="report-actions">
+        <button id="reportSubmit" class="primary-btn" type="submit" data-i18n="reportSend">ارسال گزارش</button>
+        <button id="reportCancel" class="ghost-btn" type="button" data-i18n="cancel">لغو</button>
+      </div>
+    </form>
+  </dialog>
+
   <noscript>
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261026a"></script>
+  <script src="/static/app.js?v=20261028a"></script>
 </body>
 </html>

@@ -224,3 +224,93 @@ func TestPingBlocksPrivateTarget(t *testing.T) {
 		t.Fatalf("unexpected code: %v", data["code"])
 	}
 }
+
+func TestReportSendsTelegramMessage(t *testing.T) {
+	var got struct {
+		ChatID string `json:"chat_id"`
+		Text   string `json:"text"`
+	}
+	var path string
+	telegram := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("decode telegram payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer telegram.Close()
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = telegram.URL
+	payload := `{"description":"ratio was wrong","sub_url":"https://example.com/sub","result":{"ratio":1.5,"downloaded_bytes":5242880,"delta_total":7864320,"configs_tested":2,"core":"latest","xray_version":"v1.8.24"}}`
+	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(payload))
+	response := httptest.NewRecorder()
+	s.report(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+	}
+	if path != "/bottest-token/sendMessage" {
+		t.Fatalf("unexpected telegram path: %s", path)
+	}
+	if got.ChatID != "12345" {
+		t.Fatalf("unexpected chat id: %q", got.ChatID)
+	}
+	for _, want := range []string{"ratio was wrong", "https://example.com/sub", "1.50"} {
+		if !strings.Contains(got.Text, want) {
+			t.Fatalf("telegram text missing %q: %s", want, got.Text)
+		}
+	}
+}
+
+func TestReportDisabledWithoutTelegramConfig(t *testing.T) {
+	s := testServer(t)
+	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"x"}`))
+	response := httptest.NewRecorder()
+	s.report(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unexpected status %d", response.Code)
+	}
+	var data map[string]any
+	_ = json.Unmarshal(response.Body.Bytes(), &data)
+	if data["code"] != "report_disabled" {
+		t.Fatalf("unexpected code: %v", data["code"])
+	}
+}
+
+func TestReportRejectsEmptyDescription(t *testing.T) {
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = "http://127.0.0.1:1"
+	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"  "}`))
+	response := httptest.NewRecorder()
+	s.report(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d", response.Code)
+	}
+	var data map[string]any
+	_ = json.Unmarshal(response.Body.Bytes(), &data)
+	if data["code"] != "invalid_input" {
+		t.Fatalf("unexpected code: %v", data["code"])
+	}
+}
+
+func TestReportRejectsInvalidSubURL(t *testing.T) {
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = "http://127.0.0.1:1"
+	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"x","sub_url":"not-a-url"}`))
+	response := httptest.NewRecorder()
+	s.report(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d", response.Code)
+	}
+	var data map[string]any
+	_ = json.Unmarshal(response.Body.Bytes(), &data)
+	if data["code"] != "invalid_url" {
+		t.Fatalf("unexpected code: %v", data["code"])
+	}
+}

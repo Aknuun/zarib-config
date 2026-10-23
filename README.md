@@ -20,7 +20,7 @@ To refresh the cached source after an update:
 ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
 ```
 
-You can also pin a release: `ZARIB_REF=v1.2.4`.
+You can also pin a release: `ZARIB_REF=v1.2.5`.
 
 > Results are estimates. There is a possibility of error or inaccuracy because panels may record usage with a delay or report it differently.
 
@@ -70,6 +70,7 @@ coefficient = (upload delta + download delta) / downloaded bytes
 - **Tunnel column**: each config can be checked on demand. The server resolves the config host, looks up its country through `ipinfo.io` (falling back to `ipwho.is`), and treats servers located in Iran as tunnels.
 - **Ping**: a TCP connect check with latency in milliseconds. ICMP is not used because many servers block it.
 - **Live stats**: the header shows how many browsers are currently open on the site. Clicking it shows today's completed tests, how many had a coefficient, how many were normal (1x), invalid tests, tested volume, and the tunnel/non-tunnel split. Only aggregate counters are saved; no URL or config is stored.
+- **Error reports**: the result card has a "Report a problem" button. It sends the description and an optional subscription link (at least 100 MB of volume) to the developer through a Telegram bot. Reporting is disabled unless the server has `ZARIB_TELEGRAM_TOKEN` and `ZARIB_TELEGRAM_CHAT_ID`; see the systemd unit in `web/deploy/` for the `EnvironmentFile` path.
 
 ## Privacy
 

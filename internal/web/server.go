@@ -59,17 +59,20 @@ type job struct {
 var publicURLFn = ratio.IsPublicURL
 
 type server struct {
-	staticDir string
-	jobsDir   string
-	statsFile string
-	mu        sync.Mutex
-	jobs      map[string]*job
-	rates     map[string]map[string][]time.Time
-	presence  map[string]float64
-	live      liveStats
-	geoMu     sync.Mutex
-	geoCache  map[string]geoEntry
-	sem       chan struct{}
+	staticDir       string
+	jobsDir         string
+	statsFile       string
+	telegramToken   string
+	telegramChatID  string
+	telegramAPIBase string
+	mu              sync.Mutex
+	jobs            map[string]*job
+	rates           map[string]map[string][]time.Time
+	presence        map[string]float64
+	live            liveStats
+	geoMu           sync.Mutex
+	geoCache        map[string]geoEntry
+	sem             chan struct{}
 }
 
 type publicJob struct {
@@ -126,14 +129,17 @@ func Run(addr, staticDir string) error {
 		return err
 	}
 	s := &server{
-		staticDir: absoluteStatic,
-		jobsDir:   jobsDir,
-		statsFile: filepath.Join(cacheRoot, "stats.json"),
-		jobs:      map[string]*job{},
-		rates:     map[string]map[string][]time.Time{},
-		presence:  map[string]float64{},
-		geoCache:  map[string]geoEntry{},
-		sem:       make(chan struct{}, maxActive),
+		staticDir:       absoluteStatic,
+		jobsDir:         jobsDir,
+		statsFile:       filepath.Join(cacheRoot, "stats.json"),
+		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
+		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
+		telegramAPIBase: "https://api.telegram.org",
+		jobs:            map[string]*job{},
+		rates:           map[string]map[string][]time.Time{},
+		presence:        map[string]float64{},
+		geoCache:        map[string]geoEntry{},
+		sem:             make(chan struct{}, maxActive),
 	}
 	s.loadStats()
 	go s.pruneLoop()
@@ -200,6 +206,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.pingCheck(w, r)
+	case path == "/api/report":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.report(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
 		s.jobRoute(w, r)
 	case path == "/":

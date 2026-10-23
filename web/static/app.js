@@ -15,7 +15,6 @@
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
       chip1: "مگابایت تست",
       chip2: "بدون ذخیره لینک",
-      chip3: "مقایسه با ادعای پنل",
       subTitle: "لینک سابسکریپشن",
       statusReady: "آماده",
       subLabel: "لینک سابسکریپشن",
@@ -24,10 +23,14 @@
       pasteHint: "لینک ساب را در کادر بچسبان (Ctrl+V).",
       subLimit: "حداکثر ۵ لینک ساب می‌توانی اضافه کنی.",
       removeSub: "حذف لینک",
+      pingAll: "پینگ همه",
+      checkAllTunnels: "چک تانل",
+      pingAllDone: "پینگ همه کانفیگ‌ها انجام شد.",
+      tunnelAllDone: "وضعیت تانل همه کانفیگ‌ها بررسی شد.",
       subLoading: "در حال خواندن…",
       subConfigs: "{n} کانفیگ",
       configsToTest: "تعداد کانفیگ تست",
-      configsHint: "برای هر ساب، این تعداد کانفیگ اول انتخاب می‌شود. کانفیگ‌های یک ساب به‌ترتیب و ساب‌ها هم‌زمان تست می‌شوند.",
+      configsShortHint: "کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان تست می‌شوند.",
       perConfigResults: "نتیجه هر کانفیگ",
       sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
       err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
@@ -35,8 +38,6 @@
       subHint: "لینک فقط برای همین تست استفاده می‌شود و ذخیره نمی‌شود.",
       selectTitle: "انتخاب کانفیگ",
       configLabel: "کانفیگ مورد تست",
-      configCount: "{n} کانفیگ",
-      configCountTruncated: "{shown} از {total} کانفیگ",
       tunnelColumn: "تانل",
       checkColumn: "بررسی",
       tunnelYes: "تانل",
@@ -64,7 +65,6 @@
       liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
-      claimedLabel: "ضریب ادعاشده (اختیاری)",
       coreLabel: "هسته Xray",
       coreAuto: "خودکار",
       coreLatest: "جدید",
@@ -73,8 +73,6 @@
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
       coreUsed: "هسته Xray",
       chooseAnother: "کانفیگ دیگری از همین ساب",
-      claimOptional: "اختیاری",
-      claimDetected: "ادعای این کانفیگ: {n}",
       startTest: "شروع تست",
       privacyHint: "لینک و نتیجه فقط در حافظه نگهداری می‌شوند و بعد از پایان حذف می‌شوند.",
       progressTitle: "در حال تست…",
@@ -97,20 +95,12 @@
       sentence: "برای هر ۱ مگابایت دانلود، {n} مگابایت از سابسکریپشن شما کم می‌شود.",
       downloaded: "دانلود واقعی",
       deducted: "کسرشده",
-      claimed: "ادعای پنل",
-      remaining: "باقی‌مانده",
-      notClaimed: "نامشخص",
-      verdictMatch: "با ادعا مطابقت دارد",
-      verdictHigher: "بیشتر از ادعا",
-      verdictLower: "کمتر از ادعا",
-      realEquivalent: "معادل واقعی {v}",
       coefMeasured: "اندازه‌گیری واقعی: {r}",
       noRatioClose: "کاملاً بدون ضریب است",
       noRatioExact: "این کانفیگ یا ساب ضریب ندارد",
       invalidLow: "تست نامعتبر: مصرف ثبت‌شده کمتر از حجم دانلود است",
       sentenceInvalid: "پنل برای {d} دانلود فقط {u} ثبت کرد؛ این تست معتبر نیست. کانفیگ دیگری را امتحان کن یا دوباره تست بگیر.",
       invalidRow: "تست نامعتبر",
-      claimedFallback: "ضریب ادعای پنل (مصرف ثبت نشد)",
       excludedHint: "{n} کانفیگ به دلیل ثبت‌نشدن مصرف در محاسبه ضریب لحاظ نشد.",
       background: "اصلاح پس‌زمینه",
       raw: "خام",
@@ -122,6 +112,23 @@
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
       shareDownloaded: "تصویر نتیجه دانلود شد. متن اشتراک‌گذاری را دستی کپی کن.",
       shareFailed: "ساخت یا اشتراک‌گذاری تصویر ممکن نشد.",
+      reportError: "گزارش خطا",
+      reportTitle: "گزارش خطا",
+      reportHeading: "چه مشکلی دیدی؟",
+      reportDescriptionLabel: "شرح مشکل",
+      reportDescriptionPlaceholder: "مثلاً ضریب اشتباه بود یا تست نامعتبر شد…",
+      reportSubLabel: "لینک ساب برای بررسی (حداقل ۱۰۰ مگابایت)",
+      reportSubPlaceholder: "https://…",
+      reportSubHint: "برای اینکه توسعه‌دهنده بتواند تست را تکرار کند، لینکی بفرست که حداقل ۱۰۰ مگابایت حجم داشته باشد.",
+      reportPrivacy: "شرح و لینک از طریق ربات تلگرام برای توسعه‌دهنده ارسال می‌شود.",
+      reportSend: "ارسال گزارش",
+      reportSending: "در حال ارسال…",
+      reportSent: "گزارش ارسال شد. ممنون!",
+      reportRequired: "شرح مشکل را بنویس.",
+      reportFailed: "ارسال گزارش ممکن نشد. کمی بعد دوباره تلاش کن.",
+      reportDisabled: "ارسال گزارش در حال حاضر فعال نیست.",
+      reportInvalidLink: "لینک ساب معتبر نیست.",
+      reportRateLimited: "گزارش‌های زیادی فرستادی. کمی بعد دوباره تلاش کن.",
       shareCaptionTitle: "نتیجه محاسبه ضریب ترافیک کانفیگ من",
       shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
       themeToDark: "تغییر به تم تاریک",
@@ -179,7 +186,6 @@
       copyServerFailed: "Copy failed; select and copy the text manually.",
       chip1: "MB test",
       chip2: "Link never stored",
-      chip3: "Compares with the claim",
       subTitle: "Subscription link",
       statusReady: "Ready",
       subLabel: "Subscription URL",
@@ -188,10 +194,14 @@
       pasteHint: "Paste the subscription link in the box (Ctrl+V).",
       subLimit: "You can add up to 5 subscription links.",
       removeSub: "Remove link",
+      pingAll: "Ping all",
+      checkAllTunnels: "Check tunnels",
+      pingAllDone: "Ping finished for all configs.",
+      tunnelAllDone: "Tunnel status checked for all configs.",
       subLoading: "Loading…",
       subConfigs: "{n} configs",
       configsToTest: "Configs to test",
-      configsHint: "The first N configs of each subscription are selected. Configs within a subscription run sequentially; subscriptions run in parallel.",
+      configsShortHint: "Configs run in order per subscription; subscriptions run in parallel.",
       perConfigResults: "Result per config",
       sentenceAvg: "Average across {n} configs: {r}×",
       err_no_selection: "Select at least one config to test.",
@@ -199,8 +209,6 @@
       subHint: "The link is used only for this test and is never stored.",
       selectTitle: "Choose a config",
       configLabel: "Config to test",
-      configCount: "{n} configs",
-      configCountTruncated: "{shown} of {total} configs",
       tunnelColumn: "Tunnel",
       checkColumn: "Check",
       tunnelYes: "Tunnel",
@@ -228,7 +236,6 @@
       liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
       advanced: "More settings",
       sizeLabel: "Test size",
-      claimedLabel: "Claimed ratio (optional)",
       coreLabel: "Xray core",
       coreAuto: "Auto",
       coreLatest: "Latest",
@@ -237,8 +244,6 @@
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
       coreUsed: "Xray core",
       chooseAnother: "Another config from this sub",
-      claimOptional: "Optional",
-      claimDetected: "This config claims: {n}",
       startTest: "Start test",
       privacyHint: "The link and result are kept in memory only and are removed after the test.",
       progressTitle: "Testing…",
@@ -261,20 +266,12 @@
       sentence: "For every 1 MB downloaded, {n} MB is deducted from your subscription.",
       downloaded: "Downloaded",
       deducted: "Deducted",
-      claimed: "Claimed",
-      remaining: "Remaining",
-      notClaimed: "Not found",
-      verdictMatch: "Matches the claim",
-      verdictHigher: "Higher than the claim",
-      verdictLower: "Lower than the claim",
-      realEquivalent: "real equivalent {v}",
       coefMeasured: "Measured: {r}",
       noRatioClose: "Completely without a coefficient",
       noRatioExact: "This config or sub has no coefficient",
       invalidLow: "Invalid test: recorded usage is less than downloaded",
       sentenceInvalid: "The panel recorded only {u} for {d} downloaded; this test is invalid. Try another config or retry.",
       invalidRow: "Invalid test",
-      claimedFallback: "Panel claim (usage not recorded)",
       excludedHint: "{n} config(s) were excluded from the ratio because their usage was not recorded.",
       background: "Background correction",
       raw: "raw",
@@ -286,6 +283,23 @@
       shareFallback: "The result image was downloaded and the share text was copied. Attach it in Telegram.",
       shareDownloaded: "The result image was downloaded. Copy the share text manually.",
       shareFailed: "Could not create or share the result image.",
+      reportError: "Report a problem",
+      reportTitle: "Report a problem",
+      reportHeading: "What went wrong?",
+      reportDescriptionLabel: "Describe the problem",
+      reportDescriptionPlaceholder: "For example, the ratio was wrong or the test was invalid…",
+      reportSubLabel: "Subscription link to check (at least 100 MB)",
+      reportSubPlaceholder: "https://…",
+      reportSubHint: "So the developer can repeat the test, send a link with at least 100 MB of volume.",
+      reportPrivacy: "The description and link are sent to the developer through a Telegram bot.",
+      reportSend: "Send report",
+      reportSending: "Sending…",
+      reportSent: "Report sent. Thanks!",
+      reportRequired: "Describe the problem first.",
+      reportFailed: "Could not send the report. Try again later.",
+      reportDisabled: "Reporting is not enabled right now.",
+      reportInvalidLink: "The subscription link is not valid.",
+      reportRateLimited: "You sent too many reports. Try again later.",
       shareCaptionTitle: "My config traffic ratio result",
       shareFooter: "Real config traffic ratio calculator",
       themeToDark: "Switch to dark theme",
@@ -344,7 +358,6 @@
     subs: [],
     testCount: 1,
     size: 5,
-    claimedTouched: false,
     running: false,
     activeJobs: new Set(),
     progressTimer: null,
@@ -428,30 +441,12 @@
     return ratioIsNo(value) ? "1.00x" : formatRatio(value);
   }
 
-  function claimForResult(item) {
-    const result = item.result || {};
-    if (result.claimed_ratio !== null && result.claimed_ratio !== undefined) {
-      return Number(result.claimed_ratio);
-    }
-    const config = (item.sub.configs || []).find((cfg) => cfg.index === item.pick);
-    if (config && config.claimed !== null && config.claimed !== undefined) {
-      return Number(config.claimed);
-    }
-    return null;
-  }
-
   function resultRatio(item) {
     return item.result ? Number(item.result.ratio) || 0 : null;
   }
 
   function effectiveRatio(item) {
-    const measured = resultRatio(item);
-    if (measured === null) return null;
-    if (ratioIsInvalid(measured)) {
-      const claim = claimForResult(item);
-      if (claim !== null && Number.isFinite(claim)) return claim;
-    }
-    return measured;
+    return resultRatio(item);
   }
 
   function aggregateResults(successes) {
@@ -623,6 +618,85 @@
     }
   }
 
+  function openReportDialog() {
+    const dialog = $("#reportDialog");
+    if (!dialog) return;
+    const status = $("#reportStatus");
+    if (status) {
+      status.textContent = "";
+      hide(status);
+    }
+    const subInput = $("#reportSub");
+    if (subInput && !subInput.value && state.subs.length === 1) {
+      subInput.value = state.subs[0].url || "";
+    }
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+    const description = $("#reportDescription");
+    if (description) description.focus();
+  }
+
+  function closeReportDialog() {
+    const dialog = $("#reportDialog");
+    if (!dialog) return;
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function reportErrorText(code) {
+    switch (code) {
+      case "report_disabled":
+        return t("reportDisabled");
+      case "invalid_url":
+        return t("reportInvalidLink");
+      case "rate_limited":
+        return t("reportRateLimited");
+      case "invalid_input":
+        return t("reportRequired");
+      default:
+        return t("reportFailed");
+    }
+  }
+
+  async function submitReport(event) {
+    event.preventDefault();
+    const descriptionEl = $("#reportDescription");
+    const subEl = $("#reportSub");
+    const status = $("#reportStatus");
+    const description = descriptionEl ? descriptionEl.value.trim() : "";
+    const subURL = subEl ? subEl.value.trim() : "";
+    if (!description) {
+      status.textContent = t("reportRequired");
+      show(status);
+      descriptionEl.focus();
+      return;
+    }
+    const button = $("#reportSubmit");
+    button.disabled = true;
+    button.textContent = t("reportSending");
+    status.textContent = "";
+    hide(status);
+    try {
+      await api("/api/report", {
+        method: "POST",
+        body: JSON.stringify({ description, sub_url: subURL, result: state.result }),
+      });
+      toast(t("reportSent"), 4200);
+      const form = $("#reportForm");
+      if (form) form.reset();
+      closeReportDialog();
+    } catch (error) {
+      status.textContent = reportErrorText(error.code);
+      show(status);
+    } finally {
+      button.disabled = false;
+      button.textContent = t("reportSend");
+    }
+  }
+
   function errorMessage(code) {
     const key = `err_${code || "unknown"}`;
     return I18N[state.lang] && I18N[state.lang][key] ? t(key) : t("err_unknown");
@@ -690,6 +764,9 @@
       el.setAttribute("aria-label", label);
       el.setAttribute("title", label);
     });
+    $$("[data-i18n-placeholder]").forEach((el) => {
+      el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder));
+    });
     updateLogToggle();
     renderLive();
   }
@@ -755,13 +832,7 @@
   }
 
   function defaultSelection(sub) {
-    const withClaim = sub.configs.filter(
-      (config) => config.claimed !== null && config.claimed !== undefined,
-    );
-    const rest = sub.configs.filter(
-      (config) => config.claimed === null || config.claimed === undefined,
-    );
-    return [...withClaim, ...rest].slice(0, maxConfigs()).map((config) => config.index);
+    return sub.configs.slice(0, maxConfigs()).map((config) => config.index);
   }
 
   function subHost(url) {
@@ -788,10 +859,6 @@
     state.error = null;
     state.errorCode = null;
     state.errorLog = [];
-    state.claimedTouched = false;
-    state.claimed = null;
-    const claimedInput = $("#claimed");
-    if (claimedInput) claimedInput.value = "";
     stopProgressAnimation();
     hide($("#resultCard"));
     hide($("#errorCard"));
@@ -918,8 +985,7 @@
     } finally {
       sub.loading = false;
       renderSubs();
-      renderClaim();
-      updateStartState();
+        updateStartState();
       if (state.subs.some((item) => item.configs.length)) {
         $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -930,7 +996,6 @@
     if (state.running) return;
     state.subs = state.subs.filter((sub) => sub.id !== id);
     renderSubs();
-    renderClaim();
     updateStartState();
     if (!state.subs.length) hide($("#selectCard"));
   }
@@ -970,51 +1035,94 @@
     }
   }
 
-  async function checkTunnel(config, badge, button) {
-    if (button.disabled) return;
-    button.disabled = true;
-    button.classList.add("busy");
+  async function checkTunnel(config, badge, button, silent = false) {
+    if (button && button.disabled) return;
+    if (button) {
+      button.disabled = true;
+      button.classList.add("busy");
+    }
     try {
       const data = await api(`/api/geo?target=${encodeURIComponent(config.target || "")}`);
       config.tunnel = !!data.tunnel;
       config.geoCountry = data.country || "";
-      renderTunnelBadge(badge, config);
-      toast(data.tunnel ? t("tunnelDetected") : t("tunnelNotDetected"));
+      if (badge) renderTunnelBadge(badge, config);
+      if (!silent) toast(data.tunnel ? t("tunnelDetected") : t("tunnelNotDetected"));
     } catch (error) {
-      toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("geoFailed"));
+      if (!silent) toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("geoFailed"));
     } finally {
-      button.disabled = false;
-      button.classList.remove("busy");
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("busy");
+      }
     }
   }
 
-  async function runPing(config, output, button) {
-    if (button.disabled) return;
-    button.disabled = true;
-    button.classList.add("busy");
-    output.textContent = "…";
-    output.classList.remove("ok", "bad");
+  async function runPing(config, output, button, silent = false) {
+    if (button && button.disabled) return;
+    if (button) {
+      button.disabled = true;
+      button.classList.add("busy");
+    }
+    if (output) {
+      output.textContent = "…";
+      output.classList.remove("ok", "bad");
+    }
     try {
       const data = await api(`/api/ping?target=${encodeURIComponent(config.target || "")}`);
       if (data.ok) {
         config.pingMs = Number(data.latency_ms) || 0;
-        output.textContent = `${config.pingMs} ms`;
-        output.classList.add("ok");
-        output.title = `${t("pingOk")}: ${config.pingMs} ms`;
+        if (output) {
+          output.textContent = `${config.pingMs} ms`;
+          output.classList.add("ok");
+          output.title = `${t("pingOk")}: ${config.pingMs} ms`;
+        }
       } else {
         config.pingMs = null;
-        output.textContent = t("pingFail");
-        output.classList.add("bad");
-        output.title = t("pingFail");
+        if (output) {
+          output.textContent = t("pingFail");
+          output.classList.add("bad");
+          output.title = t("pingFail");
+        }
       }
     } catch (error) {
       config.pingMs = null;
-      output.textContent = t("pingFail");
-      output.classList.add("bad");
-      toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("pingFailed"));
+      if (output) {
+        output.textContent = t("pingFail");
+        output.classList.add("bad");
+      }
+      if (!silent) toast(error.code === "rate_limited" ? errorMessage("rate_limited") : t("pingFailed"));
     } finally {
-      button.disabled = false;
-      button.classList.remove("busy");
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("busy");
+      }
+    }
+  }
+
+  async function runSubAction(sub, mode, button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    const label = button.textContent;
+    button.textContent = "…";
+    try {
+      for (const config of [...sub.configs]) {
+        const group = $("#subsContainer").querySelector(`.sub-group[data-sub-id="${sub.id}"]`);
+        const item = group
+          ? group.querySelector(`.config-item[data-index="${config.index}"]`)
+          : null;
+        if (!item) continue;
+        if (mode === "geo") {
+          const badge = item.querySelector(".config-tunnel");
+          await checkTunnel(config, badge, null, true);
+        } else {
+          const output = item.querySelector(".config-ping");
+          await runPing(config, output, null, true);
+        }
+      }
+      toast(mode === "geo" ? t("tunnelAllDone") : t("pingAllDone"));
+    } finally {
+      button.textContent = label;
+      button.disabled = state.running;
     }
   }
 
@@ -1026,9 +1134,7 @@
       if (list && group.dataset.subId) scrolls.set(group.dataset.subId, list.scrollTop);
     });
     container.replaceChildren();
-    let totalConfigs = 0;
     state.subs.forEach((sub) => {
-      totalConfigs += sub.count || sub.configs.length;
       const group = document.createElement("section");
       group.className = "sub-group";
       group.dataset.subId = sub.id;
@@ -1037,21 +1143,44 @@
       head.className = "sub-head";
       const title = document.createElement("div");
       title.className = "sub-title";
+      const nameRow = document.createElement("div");
+      nameRow.className = "sub-name-row";
       const host = document.createElement("strong");
       host.textContent = sub.host || sub.url;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "sub-remove";
+      remove.textContent = "×";
+      remove.title = t("removeSub");
+      remove.setAttribute("aria-label", t("removeSub"));
+      remove.disabled = state.running;
+      remove.addEventListener("click", () => removeSub(sub.id));
+      nameRow.append(host, remove);
+
       const status = document.createElement("span");
       status.className = "sub-status";
       if (sub.loading) status.textContent = t("subLoading");
       else if (sub.error) status.textContent = errorMessage(sub.error.code);
       else status.textContent = t("subConfigs", { n: sub.count || sub.configs.length });
-      title.append(host, status);
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "ghost-btn sub-remove";
-      remove.textContent = t("removeSub");
-      remove.disabled = state.running;
-      remove.addEventListener("click", () => removeSub(sub.id));
-      head.append(title, remove);
+      title.append(nameRow, status);
+
+      const actions = document.createElement("div");
+      actions.className = "sub-actions";
+      const pingAll = document.createElement("button");
+      pingAll.type = "button";
+      pingAll.className = "ghost-btn sub-action";
+      pingAll.textContent = t("pingAll");
+      pingAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
+      pingAll.addEventListener("click", () => runSubAction(sub, "ping", pingAll));
+      const tunnelAll = document.createElement("button");
+      tunnelAll.type = "button";
+      tunnelAll.className = "ghost-btn sub-action";
+      tunnelAll.textContent = t("checkAllTunnels");
+      tunnelAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
+      tunnelAll.addEventListener("click", () => runSubAction(sub, "geo", tunnelAll));
+      actions.append(pingAll, tunnelAll);
+
+      head.append(title, actions);
       group.append(head);
 
       if (sub.loading) {
@@ -1102,12 +1231,6 @@
           name.textContent = config.remark || config.target || `#${config.index}`;
           item.title = config.target || "";
           item.append(check, proto, name);
-          if (config.claimed !== null && config.claimed !== undefined) {
-            const claim = document.createElement("span");
-            claim.className = "config-claim";
-            claim.textContent = formatRatio(config.claimed);
-            item.append(claim);
-          }
 
           const side = document.createElement("span");
           side.className = "config-side";
@@ -1151,8 +1274,6 @@
       }
     });
 
-    const count = $("#configCount");
-    count.textContent = t("configCount", { n: totalConfigs });
   }
 
   function syncSelection(sub) {
@@ -1179,7 +1300,6 @@
       sub.selected = next;
     }
     syncSelection(sub);
-    renderClaim();
     updateStartState();
   }
 
@@ -1188,28 +1308,7 @@
       sub.selected = defaultSelection(sub);
     });
     renderSubs();
-    renderClaim();
     updateStartState();
-  }
-
-  function selectedConfig() {
-    for (const sub of state.subs) {
-      const config = sub.configs.find((item) => sub.selected.includes(item.index));
-      if (config) return config;
-    }
-    return null;
-  }
-
-  function renderClaim() {
-    const config = selectedConfig();
-    const hint = $("#claimHint");
-    if (config && config.claimed !== null && config.claimed !== undefined) {
-      hint.textContent = t("claimDetected", { n: formatRatio(config.claimed) });
-      if (!state.claimedTouched) $("#claimed").value = String(config.claimed);
-    } else {
-      hint.textContent = t("claimOptional");
-      if (!state.claimedTouched) $("#claimed").value = "";
-    }
   }
 
   function updateLogToggle() {
@@ -1239,15 +1338,6 @@
   async function startTest() {
     if (state.running) return;
     clearInputError();
-    const claimedRaw = $("#claimed").value.trim();
-    let claimed = null;
-    if (claimedRaw) {
-      claimed = Number(claimedRaw);
-      if (Number.isNaN(claimed) || claimed < 0.1 || claimed > 100) {
-        showInputError(errorMessage("invalid_input"));
-        return;
-      }
-    }
     const groups = state.subs.filter((sub) => sub.selected.length > 0 && sub.configs.length);
     if (!groups.length) {
       showInputError(t("err_no_selection"));
@@ -1260,7 +1350,6 @@
     hide($("#resultCard"));
     hide($("#selectCard"));
     state.running = true;
-    state.claimed = claimed;
     state.results = [];
     state.completed = 0;
     state.total = groups.reduce((sum, sub) => sum + sub.selected.length, 0);
@@ -1274,7 +1363,7 @@
     $("#progressCard").scrollIntoView({ behavior: "smooth", block: "start" });
     updateStartState();
     try {
-      await Promise.all(groups.map((sub) => runSubTests(sub, claimed)));
+      await Promise.all(groups.map((sub) => runSubTests(sub)));
     } finally {
       state.running = false;
       state.activeJobs.clear();
@@ -1284,10 +1373,10 @@
     finishTests();
   }
 
-  async function runSubTests(sub, claimed) {
+  async function runSubTests(sub) {
     for (const pick of [...sub.selected]) {
       try {
-        const result = await runOne(sub, pick, claimed);
+        const result = await runOne(sub, pick);
         state.results.push({ sub, pick, result, error: null });
       } catch (error) {
         state.results.push({ sub, pick, result: null, error });
@@ -1297,7 +1386,7 @@
     }
   }
 
-  async function runOne(sub, pick, claimed) {
+  async function runOne(sub, pick) {
     const config = (sub.configs || []).find((item) => item.index === pick);
     const tunnel =
       config && typeof config.tunnel === "boolean" ? config.tunnel : null;
@@ -1307,7 +1396,6 @@
         sub_url: sub.url,
         pick,
         size_mb: state.size,
-        claimed,
         wait: 2,
         drift: 5,
         core: $("#coreSelect").value || "auto",
@@ -1513,14 +1601,10 @@
     const deducted = agg.deducted;
     const usableCount = agg.basis.length || count;
     const last = successes[successes.length - 1].result;
-    const claimed = state.claimed === undefined ? null : state.claimed;
     const aggregate = {
       ratio: avg,
       downloaded_bytes: downloaded,
       delta_total: deducted,
-      claimed_ratio: claimed,
-      claimed_matches: null,
-      remaining_bytes: last.remaining_bytes,
       config: null,
       core: last.core,
       xray_version: last.xray_version,
@@ -1567,22 +1651,6 @@
       : t("sentenceAvg", { n: usableCount, r: avg.toFixed(2) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
     $("#statDeducted").textContent = formatBytes(deducted);
-    $("#statClaimed").textContent =
-      claimed === null || claimed === undefined ? t("notClaimed") : formatRatio(claimed);
-
-    const remainingEl = $("#statRemaining");
-    remainingEl.replaceChildren();
-    if (last.remaining_bytes === null || last.remaining_bytes === undefined) {
-      remainingEl.textContent = "—";
-    } else {
-      remainingEl.textContent = formatBytes(last.remaining_bytes);
-      if (avg > 0) {
-        const sub = document.createElement("span");
-        sub.className = "stat-sub";
-        sub.textContent = t("realEquivalent", { v: formatBytes(last.remaining_bytes / avg) });
-        remainingEl.append(sub);
-      }
-    }
 
     const meta = $("#resultMeta");
     meta.replaceChildren();
@@ -1627,18 +1695,15 @@
       if (item.result) {
         const r = Number(item.result.ratio) || 0;
         const rowInvalid = ratioIsInvalid(r);
-        const claim = rowInvalid ? claimForResult(item) : null;
-        const hasClaim = claim !== null && Number.isFinite(claim);
-        value.textContent = hasClaim ? formatRatio(claim) : ratioBig(r);
-        if (hasClaim) value.classList.add("warn");
-        else if (rowInvalid) value.classList.add("bad");
+        value.textContent = ratioBig(r);
+        if (rowInvalid) value.classList.add("bad");
         const detail = document.createElement("span");
         detail.className = "result-row-detail";
         const bytes = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
           item.result.delta_total,
         )}`;
         if (rowInvalid) {
-          detail.textContent = `${hasClaim ? t("claimedFallback") : t("invalidRow")} · ${bytes}`;
+          detail.textContent = `${t("invalidRow")} · ${bytes}`;
         } else if (ratioIsNo(r) && !ratioIsUnit(r)) {
           detail.textContent = `${t("coefMeasured", { r: formatRatio(r) })} · ${bytes}`;
         } else {
@@ -1967,56 +2032,6 @@
       );
       verdictY += 64;
     }
-    const claimed = result.claimed_ratio;
-    if (
-      claimed !== null &&
-      claimed !== undefined &&
-      result.claimed_matches !== null &&
-      result.claimed_matches !== undefined
-    ) {
-      const matches = Boolean(result.claimed_matches);
-      let key = "verdictMatch";
-      let tone = C.good;
-      let soft = C.goodSoft;
-      let border = C.goodBorder;
-      if (!matches) {
-        if (ratio > Number(claimed)) {
-          key = "verdictHigher";
-          tone = C.danger;
-          soft = C.dangerSoft;
-          border = C.dangerBorder;
-        } else {
-          key = "verdictLower";
-        }
-      }
-      const verdictText = t(key);
-      setCanvasFont(ctx, 700, 24);
-      const verdictWidth = ctx.measureText(verdictText).width;
-      const verdictW = verdictWidth + 44;
-      const verdictH = 44;
-      const verdictX = rtl ? W - pad - verdictW : pad;
-      roundRect(ctx, verdictX, verdictY, verdictW, verdictH, 22);
-      ctx.fillStyle = soft;
-      ctx.fill();
-      ctx.strokeStyle = border;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      drawCanvasText(
-        ctx,
-        verdictText,
-        rtl ? verdictX + verdictW - 22 : verdictX + 22,
-        verdictY + 30,
-        {
-          size: 24,
-          weight: 700,
-          color: tone,
-          align: rtl ? "right" : "left",
-          rtl: true,
-        },
-      );
-      verdictY += 64;
-    }
-
     const testedCount = Number(result.configs_tested) || 0;
     const sentence =
       testedCount > 1
@@ -2041,23 +2056,9 @@
     const statGap = 20;
     const statW = (W - pad * 2 - statGap) / 2;
     const statH = 150;
-    const remaining = result.remaining_bytes;
     const stats = [
       { label: t("downloaded"), value: formatBytes(result.downloaded_bytes) },
       { label: t("deducted"), value: formatBytes(result.delta_total) },
-      {
-        label: t("claimed"),
-        value:
-          claimed === null || claimed === undefined ? t("notClaimed") : formatRatio(claimed),
-      },
-      {
-        label: t("remaining"),
-        value: remaining === null || remaining === undefined ? "—" : formatBytes(remaining),
-        sub:
-          remaining !== null && remaining !== undefined && ratio > 0
-            ? t("realEquivalent", { v: formatBytes(remaining / ratio) })
-            : "",
-      },
     ];
     stats.forEach((stat, index) => {
       const row = Math.floor(index / 2);
@@ -2098,7 +2099,8 @@
       }
     });
 
-    const metaY = statsTop + statH * 2 + statGap + 44;
+    const statRows = Math.ceil(stats.length / 2);
+    const metaY = statsTop + statRows * statH + (statRows - 1) * statGap + 44;
     const metaLines = [];
     if (result.config) metaLines.push(`${t("configUsed")}: ${result.config}`);
     if (result.core) {
@@ -2251,9 +2253,6 @@
     state.total = 0;
     state.result = null;
     state.error = null;
-    state.claimedTouched = false;
-    state.claimed = null;
-    $("#claimed").value = "";
     renderSubs();
     updateStartState();
     $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2284,7 +2283,6 @@
     }
     applyI18n();
     renderSubs();
-    renderClaim();
     updateStartState();
     if (state.result) renderResults();
     if (state.lastJobData && !$("#progressCard").classList.contains("hidden")) {
@@ -2337,9 +2335,6 @@
       state.testCount = Number(event.target.value) || 1;
       selectConfigsForCount();
     });
-    $("#claimed").addEventListener("input", () => {
-      state.claimedTouched = true;
-    });
     $("#startBtn").addEventListener("click", startTest);
     $("#cancelBtn").addEventListener("click", cancelTest);
     $("#logToggle").addEventListener("click", () => {
@@ -2358,6 +2353,16 @@
     });
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", shareResult);
+    $("#reportBtn").addEventListener("click", openReportDialog);
+    $("#reportClose").addEventListener("click", closeReportDialog);
+    $("#reportCancel").addEventListener("click", closeReportDialog);
+    $("#reportForm").addEventListener("submit", submitReport);
+    const reportDialog = $("#reportDialog");
+    if (reportDialog) {
+      reportDialog.addEventListener("click", (event) => {
+        if (event.target === reportDialog) closeReportDialog();
+      });
+    }
     const copyScriptBtn = $("#copyScriptBtn");
     if (copyScriptBtn) {
       copyScriptBtn.addEventListener("click", async () => {
