@@ -16,19 +16,13 @@ A hosted bilingual (Persian/English) version is available at **https://zarib-con
 
 ## Run on a server
 
-The repository is private. Clone it and use the local launcher:
-
-```bash
-git clone https://github.com/Aknuun/v2ray-ratio-test.git
-cd v2ray-ratio-test
-bash run.sh
-```
-
-The raw one-line commands below only work from a public fork:
+Run this directly on the server:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh)"
 ```
+
+Or use the more robust form that keeps interactive input working:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
@@ -125,6 +119,10 @@ If the config name contains something like `1.5x`, `x1.5`, `×1.2`, `ratio 1.5`,
 The connectivity probe tries Cloudflare first and then falls back to Google and Cloudflare's HTTP 204 endpoint. If all of them fail, the node is probably down, blocked, or too slow. Use `--probe-retries` and `--probe-wait` to retry a transient failure, or choose another config when prompted.
 
 Some configs only work with a newer or older Xray core. `--core auto` tries the latest release, then the legacy v1.8.24 core, then any system binary. The JSON result includes the core that was actually used.
+
+## Privacy
+
+The tester does not persist subscription URLs, configs, or test results. During a test, the subscription URL is used only to fetch the config list; it is written to a private temporary file (`0600`) so the worker can read it, and that file and the job directory are deleted as soon as the job finishes or is cancelled. Temporary config files are also removed after the test. Results are kept in memory for up to one hour so the web UI can poll them, then they are pruned. No config or subscription data is written to a database, log, or long-term storage.
 
 ## Output
 
