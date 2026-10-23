@@ -19,13 +19,13 @@ A hosted bilingual (Persian/English) version is available at **https://zarib-con
 Run this directly on the server:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
 ```
 
 Or use the more robust form that keeps interactive input working:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
+curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
 ```
 
 `run.sh` uses the local `ratio_test.py` when present; otherwise it downloads/updates the tester in `~/.cache/ratio-test`. Xray is also downloaded automatically when needed.

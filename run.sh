@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RAW="${RATIO_TEST_RAW:-https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/ratio_test.py}"
+RAW="${RATIO_TEST_RAW:-https://raw.githubusercontent.com/Aknuun/zarib-config/main/ratio_test.py}"
 CACHE="${RATIO_TEST_CACHE:-$HOME/.cache/ratio-test}"
 SCRIPT="$CACHE/ratio_test.py"
 
