@@ -41,7 +41,7 @@ type Options struct {
 
 func DefaultOptions() Options {
 	return Options{
-		Wait: DefaultWait, PollTimeout: DefaultPollTimeout, DriftWindow: 10,
+		Wait: DefaultWait, PollTimeout: DefaultPollTimeout, DriftWindow: DefaultDriftWindow,
 		ChunkMB: DefaultChunkMB, Timeout: 180, TestURL: DefaultTestURL,
 		ProbeURL: DefaultProbeURL, ProbeTimeout: DefaultProbeTimeout,
 		ProbeRetries: DefaultProbeRetries, ProbeWait: DefaultProbeWait, Core: "auto",
@@ -323,11 +323,15 @@ type usageReading struct {
 	Usage *Usage
 }
 
-func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, pollTimeout int) (*Usage, []usageReading, time.Time, error) {
+func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, window int) (*Usage, []usageReading, time.Time, error) {
 	baseTotal := baseline.Used()
-	deadline := time.Now().Add(time.Duration(pollTimeout) * time.Second)
+	if window < 1 {
+		window = 1
+	}
+	deadline := time.Now().Add(time.Duration(window) * time.Second)
 	var readings []usageReading
-	for time.Now().Before(deadline) || time.Now().Equal(deadline) {
+	for {
+		fmt.Println(C("Checking subscription usage ...", "dim"))
 		reading, err := ReadUsage(subURL, 1, 3*time.Second)
 		if err == nil && reading != nil {
 			readings = append(readings, usageReading{At: time.Now(), Usage: reading})
@@ -335,20 +339,17 @@ func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, pollTime
 				break
 			}
 		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		if remaining > time.Second {
+			remaining = time.Second
+		}
 		select {
 		case <-ctx.Done():
 			return nil, readings, time.Time{}, ctx.Err()
-		case <-time.After(5 * time.Second):
-		}
-	}
-	for i := 0; i < 2; i++ {
-		select {
-		case <-ctx.Done():
-			return nil, readings, time.Time{}, ctx.Err()
-		case <-time.After(4 * time.Second):
-		}
-		if reading, err := ReadUsage(subURL, 1, 3*time.Second); err == nil && reading != nil {
-			readings = append(readings, usageReading{At: time.Now(), Usage: reading})
+		case <-time.After(remaining):
 		}
 	}
 	if len(readings) == 0 {
@@ -365,41 +366,33 @@ func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, pollTime
 
 var readUsageAfterFn = ReadUsageAfter
 
+var usageWaitStages = []int{2, 10, 20, 20}
+
 func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTimeout, retries int, interactive bool) (*Usage, []usageReading, time.Time, error) {
 	baseline := before.Used()
-	countdownFn(wait, "Waiting for the panel to record usage")
-	for attempt := 0; attempt <= retries; attempt++ {
-		fmt.Println(C("Checking subscription usage ...", "dim"))
-		window := pollTimeout
-		if attempt != 0 {
-			window = wait
-			if window < 5 {
-				window = 5
-			}
-			if window > pollTimeout {
-				window = pollTimeout
-			}
+	for index, window := range usageWaitStages {
+		if window < 1 {
+			window = 1
 		}
+		fmt.Println(C(fmt.Sprintf("Waiting for the panel to record usage (up to %ds) ...", window), "dim"))
 		after, readings, afterTime, err := readUsageAfterFn(ctx, subURL, before, window)
-		if err != nil {
-			if attempt >= retries {
-				return nil, nil, time.Time{}, err
-			}
-			fmt.Println(C(fmt.Sprintf("Could not read usage: %v", err), "yellow"))
-		}
-		if after != nil && after.Used() > baseline {
+		if err == nil && after != nil && after.Used() > baseline {
 			return after, readings, afterTime, nil
 		}
-		if attempt >= retries {
-			break
+		if ctx.Err() != nil {
+			if err != nil {
+				return nil, nil, time.Time{}, err
+			}
+			return nil, nil, time.Time{}, ctx.Err()
 		}
-		if attempt > 0 && interactive && !AskYesNo(fmt.Sprintf("Usage has not changed. Wait another %ds?", wait), true) {
-			break
+		if err != nil {
+			fmt.Println(C(fmt.Sprintf("Could not read usage: %v", err), "yellow"))
 		}
-		fmt.Println(C("Usage reported by the subscription did not change yet.", "yellow"))
-		countdownFn(wait, "Waiting for the panel to record usage")
+		if index < len(usageWaitStages)-1 {
+			fmt.Println(C("Usage reported by the subscription did not change yet.", "yellow"))
+		}
 	}
-	return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change. The panel may be delayed or may only show usage in its dashboard.")
+	return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 52 seconds. The panel may be delayed or may only show usage in its dashboard.")
 }
 
 type Result struct {
@@ -780,6 +773,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 	if sizeMB < MinSizeMB {
 		return nil, ratioErrorf("Minimum test size is %g MB.", MinSizeMB)
+	}
+	if sizeMB > MaxSizeMB {
+		return nil, ratioErrorf("Maximum test size is %g MB.", MaxSizeMB)
 	}
 	opts.SizeMB = &sizeMB
 	wait := opts.Wait

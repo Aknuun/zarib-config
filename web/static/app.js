@@ -3,11 +3,11 @@
 
   const I18N = {
     fa: {
-      pageTitle: "ضریب واقعی ترافیک V2Ray | RatioTest",
+      pageTitle: "محاسبه ضریب واقعی ترافیک کانفیگ | RatioTest",
       eyebrow: "شفافیت حجم، بدون حدس",
-      heroTitle1: "ضریب واقعی",
-      heroTitle2: "ترافیک V2Ray",
-      heroSub: "۱۰ مگابایت تست، بدون ذخیره لینک.",
+      heroTitle1: "محاسبه ضریب واقعی",
+      heroTitle2: "ترافیک کانفیگ",
+      heroSub: "۵ مگابایت تست، بدون ذخیره لینک.",
       privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
       chip1: "مگابایت تست",
       chip2: "بدون ذخیره لینک",
@@ -16,6 +16,18 @@
       statusReady: "آماده",
       subLabel: "لینک سابسکریپشن",
       loadConfigs: "دریافت کانفیگ‌ها",
+      pasteSubLink: "جاگذاری لینک ساب",
+      pasteHint: "لینک ساب را در کادر بچسبان (Ctrl+V).",
+      subLimit: "حداکثر ۵ لینک ساب می‌توانی اضافه کنی.",
+      removeSub: "حذف لینک",
+      subLoading: "در حال خواندن…",
+      subConfigs: "{n} کانفیگ",
+      configsToTest: "تعداد کانفیگ تست",
+      configsHint: "برای هر ساب، این تعداد کانفیگ اول انتخاب می‌شود و ساب‌ها هم‌زمان تست می‌شوند.",
+      perConfigResults: "نتیجه هر کانفیگ",
+      sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
+      err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
+      resultError: "خطا",
       subHint: "لینک فقط برای همین تست استفاده می‌شود و ذخیره نمی‌شود.",
       selectTitle: "انتخاب کانفیگ",
       configLabel: "کانفیگ مورد تست",
@@ -72,8 +84,8 @@
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
       shareDownloaded: "تصویر نتیجه دانلود شد. متن اشتراک‌گذاری را دستی کپی کن.",
       shareFailed: "ساخت یا اشتراک‌گذاری تصویر ممکن نشد.",
-      shareCaptionTitle: "نتیجه تست ضریب V2Ray من",
-      shareFooter: "تست ضریب واقعی V2Ray",
+      shareCaptionTitle: "نتیجه محاسبه ضریب ترافیک کانفیگ من",
+      shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
       themeToDark: "تغییر به تم تاریک",
       themeToLight: "تغییر به تم روشن",
       errorTitle: "تست انجام نشد",
@@ -117,11 +129,11 @@
       err_unknown: "خطای پیش‌بینی‌نشده‌ای رخ داد.",
     },
     en: {
-      pageTitle: "V2Ray Ratio Test | RatioTest",
+      pageTitle: "Config Traffic Ratio Calculator | RatioTest",
       eyebrow: "Transparent data accounting",
-      heroTitle1: "Real V2Ray",
-      heroTitle2: "traffic ratio",
-      heroSub: "A 10 MB test. Link never stored.",
+      heroTitle1: "Calculate the real",
+      heroTitle2: "config traffic ratio",
+      heroSub: "A 5 MB test. Link never stored.",
       privacyNote: "Per our GitHub docs, no config is retained or stored.",
       chip1: "MB test",
       chip2: "Link never stored",
@@ -130,6 +142,18 @@
       statusReady: "Ready",
       subLabel: "Subscription URL",
       loadConfigs: "Load configs",
+      pasteSubLink: "Paste sub link",
+      pasteHint: "Paste the subscription link in the box (Ctrl+V).",
+      subLimit: "You can add up to 5 subscription links.",
+      removeSub: "Remove link",
+      subLoading: "Loading…",
+      subConfigs: "{n} configs",
+      configsToTest: "Configs to test",
+      configsHint: "The first N configs of each subscription are selected, and subscriptions are tested in parallel.",
+      perConfigResults: "Result per config",
+      sentenceAvg: "Average across {n} configs: {r}×",
+      err_no_selection: "Select at least one config to test.",
+      resultError: "Error",
       subHint: "The link is used only for this test and is never stored.",
       selectTitle: "Choose a config",
       configLabel: "Config to test",
@@ -186,8 +210,8 @@
       shareFallback: "The result image was downloaded and the share text was copied. Attach it in Telegram.",
       shareDownloaded: "The result image was downloaded. Copy the share text manually.",
       shareFailed: "Could not create or share the result image.",
-      shareCaptionTitle: "My V2Ray ratio test result",
-      shareFooter: "Real V2Ray traffic ratio test",
+      shareCaptionTitle: "My config traffic ratio result",
+      shareFooter: "Real config traffic ratio calculator",
       themeToDark: "Switch to dark theme",
       themeToLight: "Switch to light theme",
       errorTitle: "Test failed",
@@ -239,23 +263,27 @@
 
   const state = {
     lang: document.documentElement.lang === "en" ? "en" : "fa",
-    subUrl: "",
-    configs: [],
-    usage: null,
-    configCount: 0,
-    selected: null,
-    size: 10,
+    subs: [],
+    testCount: 1,
+    size: 5,
     claimedTouched: false,
-    jobId: null,
-    pollTimer: null,
+    running: false,
+    activeJobs: new Set(),
+    progressTimer: null,
+    displayPct: 0,
+    targetPct: 0,
     startedAt: 0,
     lastJobData: null,
     logOpen: false,
+    results: [],
+    completed: 0,
+    total: 0,
     result: null,
     error: null,
     errorCode: null,
     errorLog: [],
   };
+  let subSeq = 0;
 
   try {
     const saved = localStorage.getItem("ratio-lang");
@@ -453,50 +481,130 @@
     return value;
   }
 
-  async function inspect() {
+  function maxConfigs() {
+    return Math.max(1, Math.min(5, Number(state.testCount) || 1));
+  }
+
+  function defaultSelection(sub) {
+    return sub.configs.slice(0, maxConfigs()).map((config) => config.index);
+  }
+
+  function subHost(url) {
+    try {
+      return new URL(url).host || url;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  async function addSub(raw) {
+    if (state.running) return;
     clearInputError();
-    const normalized = normalizeUrl($("#subUrl").value);
+    const normalized = normalizeUrl(raw);
     if (!normalized) {
       showInputError(errorMessage("invalid_url"));
       return;
     }
-    $("#subUrl").value = normalized;
-    state.subUrl = normalized;
-    const button = $("#inspectBtn");
-    setLoading(button, true);
-    hide($("#selectCard"));
+    if (state.subs.length >= 5) {
+      showInputError(t("subLimit"));
+      return;
+    }
+    if (state.subs.some((sub) => sub.url === normalized)) {
+      $("#subUrl").value = "";
+      return;
+    }
+    const sub = {
+      id: `sub-${++subSeq}`,
+      url: normalized,
+      host: subHost(normalized),
+      loading: true,
+      error: null,
+      configs: [],
+      count: 0,
+      usage: null,
+      selected: [],
+    };
+    state.subs.push(sub);
+    $("#subUrl").value = "";
+    show($("#selectCard"));
     hide($("#resultCard"));
     hide($("#errorCard"));
     hide($("#progressCard"));
+    renderSubs();
+    updateStartState();
+    await inspectSub(sub);
+  }
+
+  function addSubFromInput() {
+    const value = $("#subUrl").value.trim();
+    if (value) {
+      addSub(value);
+      return;
+    }
+    pasteFromClipboard();
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          $("#subUrl").value = text.trim();
+          addSub(text.trim());
+          return;
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    $("#subUrl").focus();
+    toast(t("pasteHint"));
+  }
+
+  async function inspectSub(sub) {
+    sub.loading = true;
+    sub.error = null;
+    renderSubs();
+    updateStartState();
     try {
       const data = await api("/api/inspect", {
         method: "POST",
-        body: JSON.stringify({ sub_url: normalized }),
+        body: JSON.stringify({ sub_url: sub.url }),
       });
-      state.configs = data.configs || [];
-      state.configCount = data.count || state.configs.length;
-      state.usage = data.usage || null;
-      state.selected = state.configs.length ? state.configs[0].index : null;
-      state.claimedTouched = false;
-      $("#claimed").value = "";
-      renderUsage();
-      renderConfigs();
+      sub.configs = data.configs || [];
+      sub.count = data.count || sub.configs.length;
+      sub.usage = data.usage || null;
+      sub.selected = defaultSelection(sub);
+    } catch (error) {
+      sub.error = error;
+      sub.configs = [];
+      sub.count = 0;
+      sub.usage = null;
+      sub.selected = [];
+    } finally {
+      sub.loading = false;
+      renderSubs();
       renderClaim();
       updateStartState();
-      show($("#selectCard"));
-      $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (error) {
-      showInputError(errorMessage(error.code), error.message);
-    } finally {
-      setLoading(button, false);
-      button.disabled = false;
+      if (state.subs.some((item) => item.configs.length)) {
+        $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
   }
 
-  function renderUsage() {
-    const box = $("#usageBox");
-    box.replaceChildren();
-    const usage = state.usage;
+  function removeSub(id) {
+    if (state.running) return;
+    state.subs = state.subs.filter((sub) => sub.id !== id);
+    renderSubs();
+    renderClaim();
+    updateStartState();
+    if (!state.subs.length) hide($("#selectCard"));
+  }
+
+  function buildUsage(sub) {
+    const box = document.createElement("div");
+    box.className = "usage-box";
+    const usage = sub.usage;
     if (!usage) {
       const top = document.createElement("div");
       top.className = "usage-top";
@@ -509,7 +617,7 @@
       hint.className = "hint small";
       hint.textContent = t("noUsage");
       box.append(top, hint);
-      return;
+      return box;
     }
 
     const top = document.createElement("div");
@@ -547,74 +655,133 @@
       meta.append(days);
     }
     box.append(top, bar, meta);
+    return box;
   }
 
-  function renderConfigs() {
-    const list = $("#configList");
-    list.replaceChildren();
-    state.configs.forEach((config) => {
-      const item = document.createElement("label");
-      item.className = "config-item";
-      if (config.index === state.selected) item.classList.add("selected");
+  function renderSubs() {
+    const container = $("#subsContainer");
+    container.replaceChildren();
+    let totalConfigs = 0;
+    state.subs.forEach((sub) => {
+      totalConfigs += sub.count || sub.configs.length;
+      const group = document.createElement("section");
+      group.className = "sub-group";
 
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "config";
-      radio.className = "config-radio";
-      radio.value = String(config.index);
-      radio.checked = config.index === state.selected;
-      radio.addEventListener("change", () => selectConfig(config.index));
+      const head = document.createElement("div");
+      head.className = "sub-head";
+      const title = document.createElement("div");
+      title.className = "sub-title";
+      const host = document.createElement("strong");
+      host.textContent = sub.host || sub.url;
+      const status = document.createElement("span");
+      status.className = "sub-status";
+      if (sub.loading) status.textContent = t("subLoading");
+      else if (sub.error) status.textContent = errorMessage(sub.error.code);
+      else status.textContent = t("subConfigs", { n: sub.count || sub.configs.length });
+      title.append(host, status);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "ghost-btn sub-remove";
+      remove.textContent = t("removeSub");
+      remove.disabled = state.running;
+      remove.addEventListener("click", () => removeSub(sub.id));
+      head.append(title, remove);
+      group.append(head);
 
-      const body = document.createElement("div");
-      body.className = "config-body";
+      if (sub.usage) group.append(buildUsage(sub));
 
-      const top = document.createElement("div");
-      top.className = "config-top";
-      const proto = document.createElement("span");
-      proto.className = "proto";
-      proto.textContent = config.protocol || "json";
-      const target = document.createElement("span");
-      target.className = "config-target";
-      target.textContent = config.target || "";
-      top.append(proto, target);
-      if (config.claimed !== null && config.claimed !== undefined) {
-        const claim = document.createElement("span");
-        claim.className = "config-claim";
-        claim.textContent = formatRatio(config.claimed);
-        top.append(claim);
+      if (sub.loading) {
+        const loading = document.createElement("p");
+        loading.className = "hint small";
+        loading.textContent = t("subLoading");
+        group.append(loading);
+      } else if (sub.error) {
+        const error = document.createElement("p");
+        error.className = "inline-error";
+        error.textContent = errorMessage(sub.error.code);
+        group.append(error);
+      } else if (!sub.configs.length) {
+        const empty = document.createElement("p");
+        empty.className = "hint small";
+        empty.textContent = t("err_no_configs");
+        group.append(empty);
+      } else {
+        const list = document.createElement("div");
+        list.className = "config-list";
+        sub.configs.forEach((config) => {
+          const item = document.createElement("label");
+          item.className = "config-item";
+          if (sub.selected.includes(config.index)) item.classList.add("selected");
+
+          const check = document.createElement("input");
+          check.type = "checkbox";
+          check.className = "config-radio";
+          check.checked = sub.selected.includes(config.index);
+          check.addEventListener("change", () => toggleConfig(sub, config.index));
+
+          const body = document.createElement("div");
+          body.className = "config-body";
+          const top = document.createElement("div");
+          top.className = "config-top";
+          const proto = document.createElement("span");
+          proto.className = "proto";
+          proto.textContent = config.protocol || "json";
+          const target = document.createElement("span");
+          target.className = "config-target";
+          target.textContent = config.target || "";
+          top.append(proto, target);
+          if (config.claimed !== null && config.claimed !== undefined) {
+            const claim = document.createElement("span");
+            claim.className = "config-claim";
+            claim.textContent = formatRatio(config.claimed);
+            top.append(claim);
+          }
+          const remark = document.createElement("div");
+          remark.className = "config-remark";
+          remark.textContent = config.remark || t("unnamed");
+          body.append(top, remark);
+          item.append(check, body);
+          list.append(item);
+        });
+        group.append(list);
       }
-
-      const remark = document.createElement("div");
-      remark.className = "config-remark";
-      remark.textContent = config.remark || t("unnamed");
-
-      body.append(top, remark);
-      item.append(radio, body);
-      list.append(item);
+      container.append(group);
     });
 
     const count = $("#configCount");
-    const total = state.configCount || state.configs.length;
-    count.textContent =
-      total > state.configs.length
-        ? t("configCountTruncated", { shown: state.configs.length, total })
-        : t("configCount", { n: total });
+    count.textContent = t("configCount", { n: totalConfigs });
   }
 
-  function selectConfig(index) {
-    state.selected = index;
-    $$("#configList .config-item").forEach((item) => {
-      const radio = $(".config-radio", item);
-      const active = Number(radio.value) === index;
-      item.classList.toggle("selected", active);
-      radio.checked = active;
+  function toggleConfig(sub, index) {
+    if (state.running) return;
+    if (sub.selected.includes(index)) {
+      sub.selected = sub.selected.filter((value) => value !== index);
+    } else {
+      const limit = maxConfigs();
+      const next = [...sub.selected, index].sort((a, b) => a - b);
+      while (next.length > limit) next.shift();
+      sub.selected = next;
+    }
+    renderSubs();
+    renderClaim();
+    updateStartState();
+  }
+
+  function selectConfigsForCount() {
+    state.subs.forEach((sub) => {
+      sub.selected = defaultSelection(sub);
     });
+    renderSubs();
     renderClaim();
     updateStartState();
   }
 
   function selectedConfig() {
-    return state.configs.find((config) => config.index === state.selected) || null;
+    for (const sub of state.subs) {
+      const config = sub.configs.find((item) => sub.selected.includes(item.index));
+      if (config) return config;
+    }
+    return null;
   }
 
   function renderClaim() {
@@ -637,22 +804,30 @@
     $("#logToggle").textContent = state.logOpen ? t("hideLog") : t("showLog");
   }
 
+  function selectedCount() {
+    return state.subs.reduce((sum, sub) => sum + sub.selected.length, 0);
+  }
+
   function updateStartState() {
     const agree = $("#agree").checked;
-    const hasConfig = Boolean(state.selected);
-    $("#startBtn").disabled = !(agree && hasConfig) || Boolean(state.jobId);
+    const hasSelection = selectedCount() > 0;
+    $("#startBtn").disabled = !(agree && hasSelection) || state.running;
+    $("#inspectBtn").disabled = state.subs.length >= 5 || state.running;
+    $("#testCount").disabled = state.running;
+    $("#sizeRange").disabled = state.running;
+    $("#coreSelect").disabled = state.running;
   }
 
   function setSize(size) {
-    state.size = Number(size);
-    $$("#sizeGroup .seg").forEach((button) => {
-      button.classList.toggle("is-active", Number(button.dataset.size) === state.size);
-    });
+    const value = Math.max(2, Math.min(10, Math.round(Number(size) || 5)));
+    state.size = value;
+    $("#sizeRange").value = String(value);
+    $("#sizeValue").textContent = `${value} MB`;
     updateAgreeText();
   }
 
   async function startTest() {
-    if ($("#startBtn").disabled) return;
+    if (state.running) return;
     clearInputError();
     const claimedRaw = $("#claimed").value.trim();
     let claimed = null;
@@ -663,105 +838,184 @@
         return;
       }
     }
+    const groups = state.subs.filter((sub) => sub.selected.length > 0 && sub.configs.length);
+    if (!groups.length) {
+      showInputError(t("err_no_selection"));
+      return;
+    }
     const button = $("#startBtn");
     setLoading(button, true);
     button.disabled = true;
     hide($("#errorCard"));
     hide($("#resultCard"));
+    hide($("#selectCard"));
+    state.running = true;
+    state.claimed = claimed;
+    state.results = [];
+    state.completed = 0;
+    state.total = groups.reduce((sum, sub) => sum + sub.selected.length, 0);
+    state.startedAt = Date.now();
+    state.lastJobData = null;
+    state.logOpen = false;
+    state.result = null;
+    state.error = null;
+    resetProgress();
+    show($("#progressCard"));
+    $("#progressCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    updateStartState();
     try {
-      const data = await api("/api/jobs", {
-        method: "POST",
-        body: JSON.stringify({
-          sub_url: state.subUrl,
-          pick: state.selected,
-          size_mb: state.size,
-          claimed,
-          wait: 20,
-          drift: 10,
-          core: $("#coreSelect").value || "auto",
-        }),
-      });
-      state.jobId = data.id;
-      state.startedAt = Date.now();
-      state.lastJobData = null;
-      state.logOpen = false;
-      state.result = null;
-      state.error = null;
-      hide($("#selectCard"));
-      resetProgress();
-      show($("#progressCard"));
-      $("#progressCard").scrollIntoView({ behavior: "smooth", block: "start" });
-      startPolling();
-    } catch (error) {
-      showError(error);
+      await Promise.all(groups.map((sub) => runSubTests(sub, claimed)));
     } finally {
+      state.running = false;
+      state.activeJobs.clear();
       setLoading(button, false);
       updateStartState();
     }
+    finishTests();
+  }
+
+  async function runSubTests(sub, claimed) {
+    for (const pick of [...sub.selected]) {
+      try {
+        const result = await runOne(sub, pick, claimed);
+        state.results.push({ sub, pick, result, error: null });
+      } catch (error) {
+        state.results.push({ sub, pick, result: null, error });
+      }
+      state.completed += 1;
+      updateOverallProgress();
+    }
+  }
+
+  async function runOne(sub, pick, claimed) {
+    const data = await api("/api/jobs", {
+      method: "POST",
+      body: JSON.stringify({
+        sub_url: sub.url,
+        pick,
+        size_mb: state.size,
+        claimed,
+        wait: 2,
+        drift: 5,
+        core: $("#coreSelect").value || "auto",
+      }),
+    });
+    const jobId = data.id;
+    state.activeJobs.add(jobId);
+    try {
+      const job = await waitForJob(jobId);
+      return job.result;
+    } finally {
+      state.activeJobs.delete(jobId);
+    }
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  async function waitForJob(jobId) {
+    while (true) {
+      const data = await api(`/api/jobs/${jobId}`);
+      state.lastJobData = data;
+      renderProgress(data);
+      updateOverallProgress();
+      if (data.status === "done") return data;
+      if (data.status === "error" || data.status === "cancelled") {
+        const error = new Error(data.error || "");
+        error.code = data.error_code || "unknown";
+        error.log = data.log || [];
+        throw error;
+      }
+      await delay(1000);
+    }
+  }
+
+  function applyProgress(percent) {
+    const value = Math.max(0, Math.min(100, percent));
+    $("#progressPct").textContent = `${Math.round(value)}%`;
+    $("#progressBar").style.width = `${value}%`;
+    $(".progress").setAttribute("aria-valuenow", String(Math.round(value)));
+  }
+
+  function stopProgressAnimation() {
+    if (state.progressTimer) {
+      window.clearInterval(state.progressTimer);
+      state.progressTimer = null;
+    }
+  }
+
+  function tickProgress() {
+    if (!state.running) {
+      stopProgressAnimation();
+      return;
+    }
+    const target = state.targetPct;
+    let shown = state.displayPct;
+    if (shown < target) {
+      shown += Math.max((target - shown) * 0.09, 0.05);
+    } else {
+      const cap = Math.min(99, target + 6);
+      if (shown < cap) shown = Math.min(cap, shown + 0.035);
+    }
+    shown = Math.min(99, Math.max(state.displayPct, shown));
+    state.displayPct = shown;
+    applyProgress(shown);
+  }
+
+  function ensureProgressAnimation() {
+    if (state.progressTimer) return;
+    state.progressTimer = window.setInterval(tickProgress, 80);
+  }
+
+  function updateOverallProgress() {
+    const done = state.completed;
+    const total = state.total || 1;
+    const current =
+      state.lastJobData && state.lastJobData.status === "running"
+        ? Math.max(0, Math.min(100, Number(state.lastJobData.progress) || 0))
+        : 0;
+    const percent = Math.max(0, Math.min(100, ((done + current / 100) / total) * 100));
+    state.targetPct = Math.min(99.5, percent);
+    $("#stageLabel").textContent = `${t("startTest")} ${done}/${total}`;
+    $("#elapsed").textContent = formatDuration((Date.now() - state.startedAt) / 1000);
+    ensureProgressAnimation();
+  }
+
+  function finishTests() {
+    stopProgressAnimation();
+    state.displayPct = 100;
+    state.targetPct = 100;
+    applyProgress(100);
+    hide($("#progressCard"));
+    state.results.sort((a, b) => {
+      const subDiff = state.subs.indexOf(a.sub) - state.subs.indexOf(b.sub);
+      return subDiff !== 0 ? subDiff : a.pick - b.pick;
+    });
+    const successes = state.results.filter((item) => item.result);
+    if (successes.length) {
+      renderResults();
+      show($("#resultCard"));
+      $("#resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const last = state.results[state.results.length - 1];
+    const error = last && last.error ? last.error : { code: "unknown", message: "", log: [] };
+    show($("#selectCard"));
+    showError(error);
   }
 
   function resetProgress() {
-    $("#stageLabel").textContent = t("stage_queued");
+    stopProgressAnimation();
+    state.displayPct = 0;
+    state.targetPct = 0;
+    $("#stageLabel").textContent = `${t("startTest")} 0/${state.total || 0}`;
     $("#stageMessage").textContent = "";
-    $("#progressPct").textContent = "0%";
-    $("#progressBar").style.width = "0%";
+    applyProgress(0);
     $("#elapsed").textContent = "00:00";
     $("#logBox").textContent = "";
     hide($("#logBox"));
     $("#logToggle").textContent = t("showLog");
-    const bar = $(".progress");
-    bar.setAttribute("aria-valuenow", "0");
-  }
-
-  function startPolling() {
-    stopPolling();
-    state.pollTimer = window.setInterval(pollJob, 1000);
-    pollJob();
-  }
-
-  function stopPolling() {
-    if (state.pollTimer) {
-      window.clearInterval(state.pollTimer);
-      state.pollTimer = null;
-    }
-  }
-
-  async function pollJob() {
-    if (!state.jobId) return;
-    try {
-      const data = await api(`/api/jobs/${state.jobId}`);
-      state.lastJobData = data;
-      renderProgress(data);
-      if (data.status === "done") {
-        stopPolling();
-        state.jobId = null;
-        state.result = data.result;
-        hide($("#progressCard"));
-        hide($("#selectCard"));
-        renderResult();
-        show($("#resultCard"));
-        $("#resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
-        updateStartState();
-      } else if (data.status === "error" || data.status === "cancelled") {
-        stopPolling();
-        state.jobId = null;
-        hide($("#progressCard"));
-        show($("#selectCard"));
-        showError({
-          code: data.error_code || "unknown",
-          message: data.error || "",
-          log: data.log || [],
-        });
-        updateStartState();
-      }
-    } catch (error) {
-      stopPolling();
-      state.jobId = null;
-      hide($("#progressCard"));
-      show($("#selectCard"));
-      showError(error);
-      updateStartState();
-    }
   }
 
   function renderProgress(data) {
@@ -769,11 +1023,6 @@
     const stageKey = `stage_${data.stage || "queued"}`;
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");
-    const progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
-    const percent = `${Math.round(progress)}%`;
-    $("#progressPct").textContent = percent;
-    $("#progressBar").style.width = percent;
-    $(".progress").setAttribute("aria-valuenow", String(Math.round(progress)));
     $("#stageMessage").textContent = data.message || "";
     const elapsed =
       data.elapsed && data.elapsed > 0
@@ -791,12 +1040,14 @@
   }
 
   async function cancelTest() {
-    if (!state.jobId) return;
+    if (!state.activeJobs.size) return;
     $("#cancelBtn").disabled = true;
     try {
-      await api(`/api/jobs/${state.jobId}/cancel`, { method: "POST" });
-    } catch (error) {
-      showError(error);
+      await Promise.all(
+        [...state.activeJobs].map((jobId) =>
+          api(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null),
+        ),
+      );
     } finally {
       $("#cancelBtn").disabled = false;
     }
@@ -814,77 +1065,88 @@
     const detail = [state.error, ...state.errorLog.slice(-20)].filter(Boolean).join("\n");
     $("#errorDetail").textContent = detail || "—";
     $("#errorDetails").open = false;
-    if (state.configs.length) show($("#selectCard"));
+    const hasConfigs = state.subs.some((sub) => sub.configs.length);
+    if (hasConfigs) show($("#selectCard"));
     const probeLike = ["probe_failed", "resolve_failed", "timeout", "xray_failed"].includes(
       state.errorCode,
     );
-    $("#anotherBtn").classList.toggle("hidden", !probeLike || !state.configs.length);
+    $("#anotherBtn").classList.toggle("hidden", !probeLike || !hasConfigs);
     show($("#errorCard"));
     $("#errorCard").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  function renderResult() {
-    const result = state.result;
-    if (!result) return;
-    const ratio = Number(result.ratio) || 0;
+  function renderResults() {
+    const successes = state.results.filter((item) => item.result);
+    if (!successes.length) return;
+    const count = successes.length;
+    const avg =
+      successes.reduce((sum, item) => sum + (Number(item.result.ratio) || 0), 0) / count;
+    const downloaded = successes.reduce(
+      (sum, item) => sum + (Number(item.result.downloaded_bytes) || 0),
+      0,
+    );
+    const deducted = successes.reduce(
+      (sum, item) => sum + (Number(item.result.delta_total) || 0),
+      0,
+    );
+    const last = successes[successes.length - 1].result;
+    const claimed = state.claimed === undefined ? null : state.claimed;
+    const aggregate = {
+      ratio: avg,
+      downloaded_bytes: downloaded,
+      delta_total: deducted,
+      claimed_ratio: claimed,
+      claimed_matches: null,
+      remaining_bytes: last.remaining_bytes,
+      config: null,
+      core: last.core,
+      xray_version: last.xray_version,
+      duration_seconds: successes.reduce(
+        (sum, item) => sum + (Number(item.result.duration_seconds) || 0),
+        0,
+      ),
+      tested_at: last.tested_at,
+      configs_tested: count,
+    };
+    state.result = aggregate;
+
     const coef = $("#coef");
-    coef.textContent = formatRatio(ratio);
+    coef.textContent = formatRatio(avg);
     coef.classList.remove("warn", "bad");
-    if (ratio > 1.5) coef.classList.add("bad");
-    else if (ratio > 1.1) coef.classList.add("warn");
+    if (avg > 1.5) coef.classList.add("bad");
+    else if (avg > 1.1) coef.classList.add("warn");
+    hide($("#verdict"));
 
-    const verdict = $("#verdict");
-    const claimed = result.claimed_ratio;
-    if (claimed !== null && claimed !== undefined) {
-      const matches = Boolean(result.claimed_matches);
-      let key = "verdictMatch";
-      let cls = "good";
-      if (!matches) {
-        if (ratio > Number(claimed)) {
-          key = "verdictHigher";
-          cls = "bad";
-        } else {
-          key = "verdictLower";
-          cls = "good";
-        }
-      }
-      verdict.textContent = t(key);
-      verdict.className = `badge ${cls}`;
-      show(verdict);
-    } else {
-      hide(verdict);
-    }
-
-    $("#sentence").textContent = t("sentence", { n: ratio.toFixed(2) });
-    $("#statDownloaded").textContent = formatBytes(result.downloaded_bytes);
-    $("#statDeducted").textContent = formatBytes(result.delta_total);
+    $("#sentence").textContent = t("sentenceAvg", { n: count, r: avg.toFixed(2) });
+    $("#statDownloaded").textContent = formatBytes(downloaded);
+    $("#statDeducted").textContent = formatBytes(deducted);
     $("#statClaimed").textContent =
       claimed === null || claimed === undefined ? t("notClaimed") : formatRatio(claimed);
 
-    const remaining = result.remaining_bytes;
     const remainingEl = $("#statRemaining");
     remainingEl.replaceChildren();
-    if (remaining === null || remaining === undefined) {
+    if (last.remaining_bytes === null || last.remaining_bytes === undefined) {
       remainingEl.textContent = "—";
     } else {
-      remainingEl.textContent = formatBytes(remaining);
-      if (ratio > 0) {
+      remainingEl.textContent = formatBytes(last.remaining_bytes);
+      if (avg > 0) {
         const sub = document.createElement("span");
         sub.className = "stat-sub";
-        sub.textContent = t("realEquivalent", { v: formatBytes(remaining / ratio) });
+        sub.textContent = t("realEquivalent", { v: formatBytes(last.remaining_bytes / avg) });
         remainingEl.append(sub);
       }
     }
 
     const meta = $("#resultMeta");
     meta.replaceChildren();
-    const rows = [];
-    if (result.config) rows.push([t("configUsed"), result.config]);
-    if (result.core) {
-      const version = result.xray_version ? ` — ${result.xray_version}` : "";
-      rows.push([t("coreUsed"), `${result.core}${version}`]);
+    const rows = [[t("configsToTest"), String(count)]];
+    if (aggregate.core) {
+      const version = aggregate.xray_version ? ` — ${aggregate.xray_version}` : "";
+      rows.push([t("coreUsed"), `${aggregate.core}${version}`]);
     }
-    if (result.duration_seconds) rows.push([t("duration"), formatDuration(result.duration_seconds)]);
+    if (aggregate.duration_seconds) {
+      rows.push([t("duration"), formatDuration(aggregate.duration_seconds)]);
+    }
     rows.forEach(([label, value]) => {
       const row = document.createElement("span");
       row.className = "meta-row";
@@ -895,13 +1157,60 @@
       row.append(b, span);
       meta.append(row);
     });
+
+    const list = $("#resultList");
+    list.replaceChildren();
+    state.results.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const head = document.createElement("div");
+      head.className = "result-row-head";
+      const name = document.createElement("span");
+      name.className = "result-row-name";
+      const config = item.sub.configs.find((cfg) => cfg.index === item.pick);
+      name.textContent = config
+        ? config.remark || config.target || `#${item.pick}`
+        : `#${item.pick}`;
+      const host = document.createElement("span");
+      host.className = "result-row-sub";
+      host.textContent = item.sub.host || "";
+      head.append(name, host);
+      const value = document.createElement("span");
+      value.className = "result-row-value";
+      if (item.result) {
+        value.textContent = formatRatio(item.result.ratio);
+        const detail = document.createElement("span");
+        detail.className = "result-row-detail";
+        detail.textContent = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
+          item.result.delta_total,
+        )}`;
+        value.append(detail);
+      } else {
+        value.textContent = t("resultError");
+        value.classList.add("bad");
+      }
+      row.append(head, value);
+      if (item.error) {
+        const detail = document.createElement("p");
+        detail.className = "hint small";
+        detail.textContent = errorMessage(item.error.code);
+        row.append(detail);
+      }
+      list.append(row);
+    });
+    show($("#resultListWrap"));
   }
 
   function shareCaption(result) {
     const ratio = Number(result.ratio) || 0;
+    const count = Number(result.configs_tested) || 0;
+    const sentence =
+      count > 1
+        ? t("sentenceAvg", { n: count, r: ratio.toFixed(2) })
+        : t("sentence", { n: ratio.toFixed(2) });
     return [
       `${t("shareCaptionTitle")} — ${formatRatio(ratio)}`,
-      t("sentence", { n: ratio.toFixed(2) }),
+      sentence,
       SITE_URL,
     ].join("\n");
   }
@@ -1151,7 +1460,12 @@
 
     let verdictY = 470;
     const claimed = result.claimed_ratio;
-    if (claimed !== null && claimed !== undefined) {
+    if (
+      claimed !== null &&
+      claimed !== undefined &&
+      result.claimed_matches !== null &&
+      result.claimed_matches !== undefined
+    ) {
       const matches = Boolean(result.claimed_matches);
       let key = "verdictMatch";
       let tone = C.good;
@@ -1195,7 +1509,11 @@
       verdictY += 64;
     }
 
-    const sentence = t("sentence", { n: ratio.toFixed(2) });
+    const testedCount = Number(result.configs_tested) || 0;
+    const sentence =
+      testedCount > 1
+        ? t("sentenceAvg", { n: testedCount, r: ratio.toFixed(2) })
+        : t("sentence", { n: ratio.toFixed(2) });
     const maxTextWidth = W - pad * 2;
     setCanvasFont(ctx, 500, 33);
     const sentenceLines = wrapLines(ctx, sentence, maxTextWidth);
@@ -1418,19 +1736,25 @@
     hide($("#resultCard"));
     hide($("#errorCard"));
     hide($("#progressCard"));
+    hide($("#resultListWrap"));
     show($("#selectCard"));
     $("#agree").checked = true;
-    state.jobId = null;
+    state.results = [];
+    state.completed = 0;
+    state.total = 0;
     state.result = null;
     state.error = null;
     state.claimedTouched = false;
+    state.claimed = null;
+    $("#claimed").value = "";
+    renderSubs();
     updateStartState();
     $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function retry() {
     hide($("#errorCard"));
-    if (state.selected && state.configs.length) {
+    if (selectedCount() > 0) {
       if ($("#agree").checked) {
         startTest();
         return;
@@ -1440,7 +1764,7 @@
       $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-    if (state.configs.length) {
+    if (state.subs.some((sub) => sub.configs.length)) {
       show($("#selectCard"));
       updateStartState();
       $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1458,13 +1782,13 @@
       /* ignore */
     }
     applyI18n();
-    renderUsage();
-    renderConfigs();
+    renderSubs();
     renderClaim();
     updateStartState();
-    if (state.result) renderResult();
+    if (state.result) renderResults();
     if (state.lastJobData && !$("#progressCard").classList.contains("hidden")) {
       renderProgress(state.lastJobData);
+      updateOverallProgress();
     }
     if (state.errorCode && !$("#errorCard").classList.contains("hidden")) {
       showError({ code: state.errorCode, message: state.error, log: state.errorLog });
@@ -1474,22 +1798,28 @@
   function init() {
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
-    setSize(10);
+    setSize(5);
 
     $("#themeBtn").addEventListener("click", toggleTheme);
     $("#langBtn").addEventListener("click", () => {
       setLang(state.lang === "fa" ? "en" : "fa");
     });
-    $("#inspectBtn").addEventListener("click", inspect);
+    $("#inspectBtn").addEventListener("click", addSubFromInput);
     $("#subUrl").addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        inspect();
+        addSubFromInput();
       }
     });
-    $("#sizeGroup").addEventListener("click", (event) => {
-      const button = event.target.closest(".seg");
-      if (button) setSize(button.dataset.size);
+    $("#subUrl").addEventListener("paste", () => {
+      window.setTimeout(() => {
+        if ($("#subUrl").value.trim()) addSubFromInput();
+      }, 60);
+    });
+    $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
+    $("#testCount").addEventListener("change", (event) => {
+      state.testCount = Number(event.target.value) || 1;
+      selectConfigsForCount();
     });
     $("#claimed").addEventListener("input", () => {
       state.claimedTouched = true;

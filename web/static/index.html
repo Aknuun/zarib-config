@@ -7,10 +7,12 @@
   <meta name="theme-color" content="#f5f8fc">
   <script src="/static/theme-init.js?v=20261023"></script>
   <script src="/static/lang-init.js?v=20261023"></script>
-  <title>تست ضریب V2Ray | V2Ray Ratio Test</title>
-  <meta name="description" content="ضریب واقعی مصرف ترافیک سابسکریپشن V2Ray را با یک تست ۱۰ مگابایتی اندازه بگیر. Measure your real V2Ray subscription traffic ratio with a 10 MB test.">
+  <title>محاسبه ضریب واقعی ترافیک کانفیگ | Config Ratio Test</title>
+  <meta name="description" content="محاسبه ضریب واقعی مصرف ترافیک کانفیگ با یک تست ۵ مگابایتی. Measure the real traffic ratio of a config with a 5 MB test.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/styles.css?v=20261023">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+  <link rel="stylesheet" href="/static/styles.css?v=20261023b">
 </head>
 <body>
   <header class="topbar">
@@ -35,10 +37,10 @@
   <main class="wrap">
     <section class="hero">
       <h1>
-        <span data-i18n="heroTitle1">ضریب واقعی</span>
-        <span data-i18n="heroTitle2">ترافیک V2Ray</span>
+        <span data-i18n="heroTitle1">محاسبه ضریب واقعی</span>
+        <span data-i18n="heroTitle2">ترافیک کانفیگ</span>
       </h1>
-      <p class="hero-sub" data-i18n="heroSub">۱۰ مگابایت تست، بدون ذخیره لینک.</p>
+      <p class="hero-sub" data-i18n="heroSub">۵ مگابایت تست، بدون ذخیره لینک.</p>
     </section>
 
     <section id="inputCard" class="card">
@@ -48,7 +50,7 @@
           <input id="subUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" dir="ltr" placeholder="https://example.com/sub/xxxx">
         </div>
         <button id="inspectBtn" class="primary-btn" type="button">
-          <span class="btn-label" data-i18n="loadConfigs">دریافت کانفیگ‌ها</span>
+          <span class="btn-label" data-i18n="pasteSubLink">جاگذاری لینک ساب</span>
           <span class="spinner hidden" aria-hidden="true"></span>
         </button>
       </div>
@@ -64,24 +66,34 @@
         <span id="configCount" class="status-pill"></span>
       </div>
 
-      <div id="usageBox" class="usage-box"></div>
-      <div id="configList" class="config-list" role="radiogroup" aria-label="Configs"></div>
+      <div id="subsContainer"></div>
 
       <details class="advanced">
         <summary data-i18n="advanced">تنظیمات بیشتر</summary>
         <div class="advanced-body">
           <div class="field-label" data-i18n="sizeLabel">حجم تست</div>
-          <div id="sizeGroup" class="segmented">
-            <button type="button" class="seg" data-size="10">10 MB</button>
-            <button type="button" class="seg" data-size="20">20 MB</button>
-            <button type="button" class="seg" data-size="50">50 MB</button>
+          <div class="size-row">
+            <input id="sizeRange" class="size-range" type="range" min="2" max="10" step="1" value="5" aria-label="Test size">
+            <output id="sizeValue" class="size-value mono" for="sizeRange">5 MB</output>
           </div>
           <div class="grid2 advanced-grid">
+            <div>
+              <label class="field-label" for="testCount" data-i18n="configsToTest">تعداد کانفیگ تست</label>
+              <select id="testCount" class="text-input" dir="ltr">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
             <div>
               <label class="field-label" for="claimed" data-i18n="claimedLabel">ضریب ادعاشده (اختیاری)</label>
               <input id="claimed" class="text-input" type="number" step="0.01" min="0.1" max="100" dir="ltr" placeholder="1.20">
               <p id="claimHint" class="hint small"></p>
             </div>
+          </div>
+          <div class="grid2 advanced-grid">
             <div>
               <label class="field-label" for="coreSelect" data-i18n="coreLabel">هسته Xray</label>
               <select id="coreSelect" class="text-input" dir="ltr">
@@ -91,13 +103,14 @@
                 <option value="system" data-i18n="coreSystem">سیستم</option>
               </select>
             </div>
+            <div class="field-hint" data-i18n="configsHint">برای هر ساب، چند کانفیگ اول را هم‌زمان با ساب‌های دیگر تست می‌کنیم.</div>
           </div>
         </div>
       </details>
 
       <label class="check">
         <input id="agree" type="checkbox" checked>
-        <span id="agreeText" data-i18n="agreeText">می‌دانم حدود ۱۰ مگابایت مصرف می‌شود.</span>
+        <span id="agreeText" data-i18n="agreeText">می‌دانم حدود ۵ مگابایت مصرف می‌شود.</span>
       </label>
 
       <button id="startBtn" class="primary-btn wide" type="button" disabled>
@@ -143,6 +156,10 @@
         <div class="stat"><span data-i18n="remaining">باقی‌مانده</span><strong id="statRemaining">—</strong></div>
       </div>
       <div id="resultMeta" class="meta"></div>
+      <div id="resultListWrap" class="result-list-wrap hidden">
+        <div class="field-label" data-i18n="perConfigResults">نتیجه هر کانفیگ</div>
+        <div id="resultList" class="result-list"></div>
+      </div>
       <div class="result-actions">
         <button id="againBtn" class="primary-btn" type="button" data-i18n="testAnother">کانفیگ دیگر</button>
         <button id="shareBtn" class="ghost-btn" type="button">
@@ -178,6 +195,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261023"></script>
+  <script src="/static/app.js?v=20261023b"></script>
 </body>
 </html>

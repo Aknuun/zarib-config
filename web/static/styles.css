@@ -855,7 +855,7 @@ select.text-input option {
   width: 0%;
   border-radius: inherit;
   background: var(--btn-bg);
-  transition: width 0.5s ease;
+  transition: width 0.2s linear;
 }
 
 .stage-message {
@@ -1305,4 +1305,201 @@ select.text-input option {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+.sub-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--surface-1);
+}
+
+.sub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.sub-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sub-title strong {
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.sub-status {
+  font-size: 0.72rem;
+  color: var(--muted-2);
+}
+
+.sub-remove {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+}
+
+.size-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.size-range {
+  flex: 1;
+  accent-color: var(--btn-bg);
+}
+
+.size-value {
+  min-width: 64px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.field-hint {
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: var(--muted-2);
+  padding-top: 24px;
+}
+
+.result-list-wrap {
+  margin-top: 16px;
+}
+
+.result-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.result-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.result-row-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.result-row-name {
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(60vw, 420px);
+}
+
+.result-row-sub {
+  font-size: 0.7rem;
+  color: var(--muted-2);
+  direction: ltr;
+}
+
+.result-row-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.result-row-detail {
+  font-weight: 500;
+  font-size: 0.7rem;
+  color: var(--muted-2);
+  direction: ltr;
+}
+
+.result-row-value.bad {
+  color: var(--danger);
+}
+
+.result-row .hint {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+html[data-theme="dark"] .hint,
+html[data-theme="dark"] .hint.small,
+html[data-theme="dark"] .privacy-note,
+html[data-theme="dark"] .privacy-note a,
+html[data-theme="dark"] .config-target,
+html[data-theme="dark"] .config-remark,
+html[data-theme="dark"] .usage-top span,
+html[data-theme="dark"] .usage-meta,
+html[data-theme="dark"] .usage-meta b,
+html[data-theme="dark"] .stat span,
+html[data-theme="dark"] .stat-sub,
+html[data-theme="dark"] .meta,
+html[data-theme="dark"] .meta-row b,
+html[data-theme="dark"] .stage-message,
+html[data-theme="dark"] .footer,
+html[data-theme="dark"] .credit,
+html[data-theme="dark"] .details summary,
+html[data-theme="dark"] .details pre,
+html[data-theme="dark"] .log,
+html[data-theme="dark"] .sub-status,
+html[data-theme="dark"] .result-row-sub,
+html[data-theme="dark"] .result-row-detail,
+html[data-theme="dark"] .field-hint,
+html[data-theme="dark"] .field-label,
+html[data-theme="dark"] .advanced summary,
+html[data-theme="dark"] .check span,
+html[data-theme="dark"] .size-value,
+html[data-theme="dark"] .toast {
+  color: #ffffff;
+}
+
+html:not([data-theme="dark"]) .hint,
+html:not([data-theme="dark"]) .hint.small,
+html:not([data-theme="dark"]) .privacy-note,
+html:not([data-theme="dark"]) .privacy-note a,
+html:not([data-theme="dark"]) .config-target,
+html:not([data-theme="dark"]) .config-remark,
+html:not([data-theme="dark"]) .usage-top span,
+html:not([data-theme="dark"]) .usage-meta,
+html:not([data-theme="dark"]) .usage-meta b,
+html:not([data-theme="dark"]) .stat span,
+html:not([data-theme="dark"]) .stat-sub,
+html:not([data-theme="dark"]) .meta,
+html:not([data-theme="dark"]) .meta-row b,
+html:not([data-theme="dark"]) .stage-message,
+html:not([data-theme="dark"]) .footer,
+html:not([data-theme="dark"]) .credit,
+html:not([data-theme="dark"]) .details summary,
+html:not([data-theme="dark"]) .details pre,
+html:not([data-theme="dark"]) .log,
+html:not([data-theme="dark"]) .sub-status,
+html:not([data-theme="dark"]) .result-row-sub,
+html:not([data-theme="dark"]) .result-row-detail,
+html:not([data-theme="dark"]) .field-hint,
+html:not([data-theme="dark"]) .field-label,
+html:not([data-theme="dark"]) .advanced summary,
+html:not([data-theme="dark"]) .check span,
+html:not([data-theme="dark"]) .size-value,
+html:not([data-theme="dark"]) .toast {
+  color: #0b3b8c;
 }

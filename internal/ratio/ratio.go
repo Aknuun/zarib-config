@@ -12,12 +12,14 @@ import (
 )
 
 const (
-	Version             = "1.1.0"
+	Version             = "1.2.0"
 	UA                  = "v2rayNG/1.9.16"
-	MinSizeMB           = 10.0
-	DefaultSizeMB       = 10.0
-	DefaultWait         = 20
-	DefaultPollTimeout  = 60
+	MinSizeMB           = 2.0
+	MaxSizeMB           = 10.0
+	DefaultSizeMB       = 5.0
+	DefaultWait         = 2
+	DefaultPollTimeout  = 10
+	DefaultDriftWindow  = 5
 	DefaultChunkMB      = 5.0
 	DefaultTestURL      = "https://speed.cloudflare.com/__down?bytes={bytes}"
 	DefaultProbeURL     = "https://speed.cloudflare.com/__down?bytes=4096"

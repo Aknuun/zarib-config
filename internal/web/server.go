@@ -23,12 +23,12 @@ import (
 )
 
 const (
-	maxActive   = 2
-	maxQueued   = 8
+	maxActive   = 5
+	maxQueued   = 25
 	maxLogLines = 120
 	jobTimeout  = 30 * time.Minute
 	minSizeMB   = ratio.MinSizeMB
-	maxSizeMB   = 50.0
+	maxSizeMB   = ratio.MaxSizeMB
 )
 
 type job struct {
@@ -278,7 +278,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
-	if !s.rateLimit("jobs", ip, 5) {
+	if !s.rateLimit("jobs", ip, 60) {
 		apiError(w, "rate_limited", "Too many tests. Try again later.", http.StatusTooManyRequests)
 		return
 	}
@@ -300,15 +300,15 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	if payload.Pick != nil {
 		pick = *payload.Pick
 	}
-	sizeMB := 10.0
+	sizeMB := ratio.DefaultSizeMB
 	if payload.SizeMB != nil {
 		sizeMB = *payload.SizeMB
 	}
-	wait := 20
+	wait := ratio.DefaultWait
 	if payload.Wait != nil {
 		wait = *payload.Wait
 	}
-	drift := 10
+	drift := ratio.DefaultDriftWindow
 	if payload.Drift != nil {
 		drift = *payload.Drift
 	}
@@ -413,7 +413,8 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 	args := []string{
 		"--sub-file", subFile, "--pick", strconv.Itoa(pick),
 		"--size", strconv.FormatFloat(sizeMB, 'g', -1, 64),
-		"--wait", "20", "--drift-window", "10", "--json-out", resultFile,
+		"--chunk", strconv.FormatFloat(sizeMB, 'g', -1, 64),
+		"--wait", strconv.Itoa(wait), "--drift-window", strconv.Itoa(drift), "--json-out", resultFile,
 		"--core", core, "--probe-retries", "1", "--probe-wait", "5",
 	}
 	if claimed != nil {
