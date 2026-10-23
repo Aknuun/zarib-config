@@ -9,6 +9,10 @@
       heroTitle2: "ترافیک کانفیگ",
       heroSub: "۵ مگابایت تست، بدون ذخیره لینک.",
       privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
+      copyServerScript: "کپی اسکریپت تست روی سرور خودت",
+      copyServerHint: "روی سرور لینوکس یا مک اجرا کن؛ اگر Go نصب نباشد خودکار نصب می‌شود.",
+      copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
+      copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
       chip1: "مگابایت تست",
       chip2: "بدون ذخیره لینک",
       chip3: "مقایسه با ادعای پنل",
@@ -64,6 +68,7 @@
       stage_error: "خطا",
       usageSlowHint: "بعضی ساب‌ها دیر نتیجه می‌دهند؛ این ربطی به ماشین‌حساب ضریب ندارد.",
       resultEyebrow: "نتیجه تست",
+      resultDisclaimer: "امکان خطا و اشتباه وجود دارد.",
       sentence: "برای هر ۱ مگابایت دانلود، {n} مگابایت از سابسکریپشن شما کم می‌شود.",
       downloaded: "دانلود واقعی",
       deducted: "کسرشده",
@@ -80,6 +85,8 @@
       invalidLow: "تست نامعتبر: مصرف ثبت‌شده کمتر از حجم دانلود است",
       sentenceInvalid: "پنل برای {d} دانلود فقط {u} ثبت کرد؛ این تست معتبر نیست. کانفیگ دیگری را امتحان کن یا دوباره تست بگیر.",
       invalidRow: "تست نامعتبر",
+      claimedFallback: "ضریب ادعای پنل (مصرف ثبت نشد)",
+      excludedHint: "{n} کانفیگ به دلیل ثبت‌نشدن مصرف در محاسبه ضریب لحاظ نشد.",
       background: "اصلاح پس‌زمینه",
       raw: "خام",
       duration: "مدت تست",
@@ -141,6 +148,10 @@
       heroTitle2: "config traffic ratio",
       heroSub: "A 5 MB test. Link never stored.",
       privacyNote: "Per our GitHub docs, no config is retained or stored.",
+      copyServerScript: "Copy the self-host test script",
+      copyServerHint: "Run it on a Linux or macOS server; Go is installed automatically if missing.",
+      copyServerDone: "Script copied. Paste it into your server terminal.",
+      copyServerFailed: "Copy failed; select and copy the text manually.",
       chip1: "MB test",
       chip2: "Link never stored",
       chip3: "Compares with the claim",
@@ -196,6 +207,7 @@
       stage_error: "Error",
       usageSlowHint: "Some subscriptions report usage slowly; this is not caused by the ratio calculator.",
       resultEyebrow: "Test result",
+      resultDisclaimer: "Results may contain errors or inaccuracies.",
       sentence: "For every 1 MB downloaded, {n} MB is deducted from your subscription.",
       downloaded: "Downloaded",
       deducted: "Deducted",
@@ -212,6 +224,8 @@
       invalidLow: "Invalid test: recorded usage is less than downloaded",
       sentenceInvalid: "The panel recorded only {u} for {d} downloaded; this test is invalid. Try another config or retry.",
       invalidRow: "Invalid test",
+      claimedFallback: "Panel claim (usage not recorded)",
+      excludedHint: "{n} config(s) were excluded from the ratio because their usage was not recorded.",
       background: "Background correction",
       raw: "raw",
       duration: "Duration",
@@ -271,6 +285,8 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const SITE_URL = "https://zarib.appii.ir/";
+  const SELF_HOST_SCRIPT =
+    'bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"';
   const THEME_KEY = "ratio-theme";
 
   const state = {
@@ -357,6 +373,58 @@
 
   function ratioBig(value) {
     return ratioIsNo(value) ? "1.00x" : formatRatio(value);
+  }
+
+  function claimForResult(item) {
+    const result = item.result || {};
+    if (result.claimed_ratio !== null && result.claimed_ratio !== undefined) {
+      return Number(result.claimed_ratio);
+    }
+    const config = (item.sub.configs || []).find((cfg) => cfg.index === item.pick);
+    if (config && config.claimed !== null && config.claimed !== undefined) {
+      return Number(config.claimed);
+    }
+    return null;
+  }
+
+  function resultRatio(item) {
+    return item.result ? Number(item.result.ratio) || 0 : null;
+  }
+
+  function effectiveRatio(item) {
+    const measured = resultRatio(item);
+    if (measured === null) return null;
+    if (ratioIsInvalid(measured)) {
+      const claim = claimForResult(item);
+      if (claim !== null && Number.isFinite(claim)) return claim;
+    }
+    return measured;
+  }
+
+  function aggregateResults(successes) {
+    const measured = successes.filter((item) => !ratioIsInvalid(resultRatio(item)));
+    const basis = measured.length ? measured : successes;
+    let downloaded = 0;
+    let deducted = 0;
+    let weight = 0;
+    basis.forEach((item) => {
+      const bytes = Number(item.result.downloaded_bytes) || 0;
+      const ratio = effectiveRatio(item);
+      if (bytes <= 0 || ratio === null) return;
+      const measuredRatio = resultRatio(item);
+      downloaded += bytes;
+      weight += bytes;
+      deducted += ratioIsInvalid(measuredRatio)
+        ? ratio * bytes
+        : Number(item.result.delta_total) || ratio * bytes;
+    });
+    return {
+      basis,
+      excluded: successes.length - basis.length,
+      downloaded,
+      deducted,
+      ratio: weight > 0 ? deducted / weight : 0,
+    };
   }
 
   function formatDuration(seconds) {
@@ -1108,16 +1176,11 @@
     const successes = state.results.filter((item) => item.result);
     if (!successes.length) return;
     const count = successes.length;
-    const avg =
-      successes.reduce((sum, item) => sum + (Number(item.result.ratio) || 0), 0) / count;
-    const downloaded = successes.reduce(
-      (sum, item) => sum + (Number(item.result.downloaded_bytes) || 0),
-      0,
-    );
-    const deducted = successes.reduce(
-      (sum, item) => sum + (Number(item.result.delta_total) || 0),
-      0,
-    );
+    const agg = aggregateResults(successes);
+    const avg = agg.ratio;
+    const downloaded = agg.downloaded;
+    const deducted = agg.deducted;
+    const usableCount = agg.basis.length || count;
     const last = successes[successes.length - 1].result;
     const claimed = state.claimed === undefined ? null : state.claimed;
     const aggregate = {
@@ -1135,7 +1198,7 @@
         0,
       ),
       tested_at: last.tested_at,
-      configs_tested: count,
+      configs_tested: usableCount,
     };
     state.result = aggregate;
 
@@ -1170,7 +1233,7 @@
 
     $("#sentence").textContent = invalid
       ? t("sentenceInvalid", { d: formatBytes(downloaded), u: formatBytes(deducted) })
-      : t("sentenceAvg", { n: count, r: avg.toFixed(2) });
+      : t("sentenceAvg", { n: usableCount, r: avg.toFixed(2) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
     $("#statDeducted").textContent = formatBytes(deducted);
     $("#statClaimed").textContent =
@@ -1233,15 +1296,18 @@
       if (item.result) {
         const r = Number(item.result.ratio) || 0;
         const rowInvalid = ratioIsInvalid(r);
-        value.textContent = ratioBig(r);
-        if (rowInvalid) value.classList.add("bad");
+        const claim = rowInvalid ? claimForResult(item) : null;
+        const hasClaim = claim !== null && Number.isFinite(claim);
+        value.textContent = hasClaim ? formatRatio(claim) : ratioBig(r);
+        if (hasClaim) value.classList.add("warn");
+        else if (rowInvalid) value.classList.add("bad");
         const detail = document.createElement("span");
         detail.className = "result-row-detail";
         const bytes = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
           item.result.delta_total,
         )}`;
         if (rowInvalid) {
-          detail.textContent = `${t("invalidRow")} · ${bytes}`;
+          detail.textContent = `${hasClaim ? t("claimedFallback") : t("invalidRow")} · ${bytes}`;
         } else if (ratioIsNo(r) && !ratioIsUnit(r)) {
           detail.textContent = `${t("coefMeasured", { r: formatRatio(r) })} · ${bytes}`;
         } else {
@@ -1261,6 +1327,16 @@
       }
       list.append(row);
     });
+    const note = $("#resultNote");
+    if (note) {
+      if (agg.excluded > 0) {
+        note.textContent = t("excludedHint", { n: agg.excluded });
+        show(note);
+      } else {
+        note.textContent = "";
+        hide(note);
+      }
+    }
     show($("#resultListWrap"));
   }
 
@@ -1277,6 +1353,7 @@
     } else if (ratioIsNo(ratio)) {
       lines.push(ratioIsUnit(ratio) ? t("noRatioExact") : t("noRatioClose"));
     }
+    lines.push(t("resultDisclaimer"));
     lines.push(SITE_URL);
     return lines.join("\n");
   }
@@ -1949,6 +2026,13 @@
     });
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", shareResult);
+    const copyScriptBtn = $("#copyScriptBtn");
+    if (copyScriptBtn) {
+      copyScriptBtn.addEventListener("click", async () => {
+        const copied = await copyText(SELF_HOST_SCRIPT);
+        toast(copied ? t("copyServerDone") : t("copyServerFailed"), copied ? 4200 : 6500);
+      });
+    }
     $("#retryBtn").addEventListener("click", retry);
     $("#anotherBtn").addEventListener("click", testAnother);
   }

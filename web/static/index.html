@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261023g">
+  <link rel="stylesheet" href="/static/styles.css?v=20261024b">
 </head>
 <body>
   <header class="topbar">
@@ -59,6 +59,13 @@
       <p class="privacy-note">
         <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.</a>
       </p>
+      <div class="self-host">
+        <button id="copyScriptBtn" class="ghost-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span class="btn-label" data-i18n="copyServerScript">کپی اسکریپت تست روی سرور خودت</span>
+        </button>
+        <p class="hint small" data-i18n="copyServerHint">روی سرور لینوکس یا مک اجرا کن؛ اگر Go نصب نباشد خودکار نصب می‌شود.</p>
+      </div>
     </section>
 
     <section id="selectCard" class="card hidden">
@@ -157,6 +164,7 @@
       <div id="resultListWrap" class="result-list-wrap hidden">
         <div class="field-label" data-i18n="perConfigResults">نتیجه هر کانفیگ</div>
         <div id="resultList" class="result-list"></div>
+        <p id="resultNote" class="hint small hidden"></p>
       </div>
       <div class="result-actions">
         <button id="againBtn" class="primary-btn" type="button" data-i18n="testAnother">کانفیگ دیگری از همین ساب</button>
@@ -165,6 +173,7 @@
           <span class="btn-label" data-i18n="shareResult">اشتراک‌گذاری</span>
         </button>
       </div>
+      <p class="result-disclaimer" data-i18n="resultDisclaimer">امکان خطا و اشتباه وجود دارد.</p>
     </section>
 
     <section id="errorCard" class="card error-card hidden" role="alert">
@@ -193,6 +202,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261023j"></script>
+  <script src="/static/app.js?v=20261024b"></script>
 </body>
 </html>

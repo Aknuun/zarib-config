@@ -6,11 +6,23 @@ Hosted web UI: **https://zarib.appii.ir/**
 
 ## Quick start
 
+Run this on your own Linux or macOS machine/server. It downloads the source, installs Go automatically if it is missing, and starts the interactive test:
+
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
 ```
 
-Requirements: Go 1.22+, `curl`, and a subscription that exposes usage via `subscription-userinfo`. Xray is downloaded automatically.
+Requirements: `curl` and `tar`. Go 1.22+ is installed into `~/.cache/zarib-config/go` automatically when needed (no root required). Xray is downloaded automatically. Your subscription must expose usage via `subscription-userinfo`.
+
+To refresh the cached source after an update:
+
+```bash
+ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
+```
+
+You can also pin a release: `ZARIB_REF=v1.2.2`.
+
+> Results are estimates. There is a possibility of error or inaccuracy because panels may record usage with a delay or report it differently.
 
 ## Build
 
@@ -34,6 +46,14 @@ Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON fi
 ```bash
 ./zarib-config serve --addr 127.0.0.1:8000 --static-dir web/static
 ```
+
+Or start the self-hosted web UI directly from the one-liner:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)" _ serve --addr 0.0.0.0:8000
+```
+
+Binding to `0.0.0.0` exposes the UI to the network; put it behind a reverse proxy and authentication.
 
 ## How it works
 
