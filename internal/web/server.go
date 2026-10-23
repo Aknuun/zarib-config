@@ -128,6 +128,11 @@ func Run(addr, staticDir string) error {
 	if err := os.MkdirAll(jobsDir, 0o700); err != nil {
 		return err
 	}
+	if entries, err := os.ReadDir(jobsDir); err == nil {
+		for _, entry := range entries {
+			_ = os.RemoveAll(filepath.Join(jobsDir, entry.Name()))
+		}
+	}
 	s := &server{
 		staticDir:       absoluteStatic,
 		jobsDir:         jobsDir,
@@ -470,7 +475,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 		return
 	}
 	command.Stderr = command.Stdout
-	child, err := ratio.StartChild(command)
+	child, err := ratio.StartChildGroup(command)
 	if err != nil {
 		s.finishError(jobID, "unknown", err.Error())
 		os.RemoveAll(jobDir)
@@ -497,6 +502,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 		s.progressFromLine(jobID, line)
 	}
 	waitErr := child.Wait()
+	child.Stop()
 	timer.Stop()
 	s.mu.Lock()
 	current := s.jobs[jobID]
@@ -814,6 +820,25 @@ func (s *server) pruneLoop() {
 				delete(s.presence, id)
 			}
 		}
+		rateCutoff := time.Now().Add(-time.Hour)
+		for bucket, entries := range s.rates {
+			for ip, queue := range entries {
+				kept := queue[:0]
+				for _, at := range queue {
+					if at.After(rateCutoff) {
+						kept = append(kept, at)
+					}
+				}
+				if len(kept) == 0 {
+					delete(entries, ip)
+				} else {
+					entries[ip] = kept
+				}
+			}
+			if len(entries) == 0 {
+				delete(s.rates, bucket)
+			}
+		}
 		s.mu.Unlock()
 		s.geoMu.Lock()
 		for host, entry := range s.geoCache {
@@ -915,7 +940,7 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 		return "fetch_failed"
 	case strings.Contains(text, "no supported configs") || strings.Contains(text, "no configs found"):
 		return "no_configs"
-	case strings.Contains(text, "config number") || strings.Contains(text, "invalid config") || strings.Contains(text, "not found"):
+	case strings.Contains(text, "config number") || strings.Contains(text, "invalid config"):
 		return "pick_out_of_range"
 	case strings.Contains(text, "did not change") || strings.Contains(text, "no subscription-userinfo"):
 		return "usage_unchanged"

@@ -48,6 +48,25 @@ func DefaultOptions() Options {
 	}
 }
 
+func ensureOutboundTag(outbounds []any, outbound map[string]any) string {
+	tag := toString(outbound["tag"])
+	if tag != "" {
+		return tag
+	}
+	used := make(map[string]bool, len(outbounds))
+	for _, item := range outbounds {
+		if other := asObject(item); other != nil {
+			used[toString(other["tag"])] = true
+		}
+	}
+	tag = "ratio-test-proxy"
+	for suffix := 2; used[tag]; suffix++ {
+		tag = fmt.Sprintf("ratio-test-proxy-%d", suffix)
+	}
+	outbound["tag"] = tag
+	return tag
+}
+
 func BuildClientConfig(input string) (map[string]any, map[string]any, string, string, string, error) {
 	text := strings.TrimSpace(input)
 	remark := ""
@@ -71,10 +90,11 @@ func BuildClientConfig(input string) (map[string]any, map[string]any, string, st
 			if outbound == nil || DirectProtocols[toString(outbound["protocol"])] {
 				continue
 			}
-			if tag := toString(outbound["tag"]); tag != "" {
-				target = tag
-				break
-			}
+			target = ensureOutboundTag(outbounds, outbound)
+			break
+		}
+		if target == "" {
+			return nil, nil, "", "", "", ratioErrorf("The JSON config has no proxy outbound; provide a client config with a proxy outbound.")
 		}
 		for _, item := range outbounds {
 			outbound := asObject(item)

@@ -247,6 +247,10 @@ func (s *server) geoCheck(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "invalid_target", "Invalid target host.", http.StatusBadRequest)
 		return
 	}
+	if !ratio.IsPublicHost(host) {
+		apiError(w, "blocked_target", "The target must be publicly reachable.", http.StatusBadRequest)
+		return
+	}
 	entry, err := s.lookupGeo(host)
 	if err != nil {
 		apiError(w, "geo_failed", "Could not check the server location.", http.StatusBadGateway)

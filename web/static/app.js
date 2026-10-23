@@ -125,6 +125,7 @@
       reportSending: "در حال ارسال…",
       reportSent: "گزارش ارسال شد. ممنون!",
       reportRequired: "شرح مشکل را بنویس.",
+      reportTooLong: "شرح مشکل خیلی طولانی است؛ کوتاه‌ترش کن.",
       reportFailed: "ارسال گزارش ممکن نشد. کمی بعد دوباره تلاش کن.",
       reportDisabled: "ارسال گزارش در حال حاضر فعال نیست.",
       reportInvalidLink: "لینک ساب معتبر نیست.",
@@ -296,6 +297,7 @@
       reportSending: "Sending…",
       reportSent: "Report sent. Thanks!",
       reportRequired: "Describe the problem first.",
+      reportTooLong: "The description is too long; please shorten it.",
       reportFailed: "Could not send the report. Try again later.",
       reportDisabled: "Reporting is not enabled right now.",
       reportInvalidLink: "The subscription link is not valid.",
@@ -359,6 +361,7 @@
     testCount: 1,
     size: 5,
     running: false,
+    cancelRequested: false,
     activeJobs: new Set(),
     progressTimer: null,
     displayPct: 0,
@@ -627,8 +630,8 @@
       hide(status);
     }
     const subInput = $("#reportSub");
-    if (subInput && !subInput.value && state.subs.length === 1) {
-      subInput.value = state.subs[0].url || "";
+    if (subInput) {
+      subInput.value = state.subs.length === 1 ? state.subs[0].url || "" : "";
     }
     if (typeof dialog.showModal === "function") {
       if (!dialog.open) dialog.showModal();
@@ -656,6 +659,8 @@
         return t("reportRateLimited");
       case "invalid_input":
         return t("reportRequired");
+      case "description_too_long":
+        return t("reportTooLong");
       default:
         return t("reportFailed");
     }
@@ -767,6 +772,7 @@
     $$("[data-i18n-placeholder]").forEach((el) => {
       el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder));
     });
+    updateStartLabel();
     updateLogToggle();
     renderLive();
   }
@@ -1316,7 +1322,30 @@
     return state.subs.reduce((sum, sub) => sum + sub.selected.length, 0);
   }
 
+  function selectedConfigNames() {
+    const names = [];
+    state.subs.forEach((sub) => {
+      sub.selected.forEach((index) => {
+        const config = (sub.configs || []).find((item) => item.index === index);
+        names.push(config ? config.remark || config.target || `#${index}` : `#${index}`);
+      });
+    });
+    return names;
+  }
+
+  function updateStartLabel() {
+    const label = $(".btn-label", $("#startBtn"));
+    if (!label) return;
+    const names = selectedConfigNames();
+    let text = t("startTest");
+    if (names.length === 1) text += ` (${names[0]})`;
+    else if (names.length > 1) text += ` (${names.length})`;
+    label.textContent = text;
+    label.title = names.length === 1 ? names[0] : "";
+  }
+
   function updateStartState() {
+    updateStartLabel();
     const hasSelection = selectedCount() > 0;
     $("#startBtn").disabled = !hasSelection || state.running;
     $("#inspectBtn").disabled = state.subs.length >= 5 || state.running;
@@ -1347,6 +1376,7 @@
     hide($("#resultCard"));
     hide($("#selectCard"));
     state.running = true;
+    state.cancelRequested = false;
     state.results = [];
     state.completed = 0;
     state.total = groups.reduce((sum, sub) => sum + sub.selected.length, 0);
@@ -1372,6 +1402,7 @@
 
   async function runSubTests(sub) {
     for (const pick of [...sub.selected]) {
+      if (state.cancelRequested) break;
       try {
         const result = await runOne(sub, pick);
         state.results.push({ sub, pick, result, error: null });
@@ -1556,6 +1587,7 @@
   }
 
   async function cancelTest() {
+    state.cancelRequested = true;
     if (!state.activeJobs.size) return;
     $("#cancelBtn").disabled = true;
     try {

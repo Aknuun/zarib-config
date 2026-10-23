@@ -57,7 +57,7 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if utf8.RuneCountInString(description) > maxReportDescription {
-		apiError(w, "invalid_input", "The description is too long.", http.StatusBadRequest)
+		apiError(w, "description_too_long", "The description is too long.", http.StatusBadRequest)
 		return
 	}
 	subURL := strings.TrimSpace(payload.SubURL)

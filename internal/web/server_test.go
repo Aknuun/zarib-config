@@ -297,6 +297,25 @@ func TestReportRejectsEmptyDescription(t *testing.T) {
 	}
 }
 
+func TestReportRejectsLongDescription(t *testing.T) {
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = "http://127.0.0.1:1"
+	payload, _ := json.Marshal(map[string]any{"description": strings.Repeat("x", maxReportDescription+1)})
+	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(string(payload)))
+	response := httptest.NewRecorder()
+	s.report(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d", response.Code)
+	}
+	var data map[string]any
+	_ = json.Unmarshal(response.Body.Bytes(), &data)
+	if data["code"] != "description_too_long" {
+		t.Fatalf("unexpected code: %v", data["code"])
+	}
+}
+
 func TestReportRejectsInvalidSubURL(t *testing.T) {
 	s := testServer(t)
 	s.telegramToken = "test-token"

@@ -177,17 +177,26 @@ func FreePort() (int, error) {
 type Child struct {
 	Cmd     *exec.Cmd
 	Done    chan struct{}
+	group   bool
 	mu      sync.Mutex
 	waitErr error
 	exited  bool
 }
 
 func StartChild(cmd *exec.Cmd) (*Child, error) {
-	prepareChild(cmd)
+	return startChild(cmd, false)
+}
+
+func StartChildGroup(cmd *exec.Cmd) (*Child, error) {
+	return startChild(cmd, true)
+}
+
+func startChild(cmd *exec.Cmd, group bool) (*Child, error) {
+	prepareChild(cmd, group)
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	child := &Child{Cmd: cmd, Done: make(chan struct{})}
+	child := &Child{Cmd: cmd, Done: make(chan struct{}), group: group}
 	go func() {
 		err := cmd.Wait()
 		child.mu.Lock()
@@ -219,17 +228,23 @@ func (child *Child) Wait() error {
 }
 
 func (child *Child) Stop() {
-	if child == nil || child.Cmd == nil || child.Cmd.Process == nil || child.Exited() {
+	if child == nil || child.Cmd == nil || child.Cmd.Process == nil {
 		return
 	}
 	pid := child.Cmd.Process.Pid
-	_ = signalChild(pid, false)
+	if child.Exited() {
+		if child.group {
+			_ = signalChild(pid, true, true)
+		}
+		return
+	}
+	_ = signalChild(pid, child.group, false)
 	select {
 	case <-child.Done:
 		return
 	case <-time.After(5 * time.Second):
 	}
-	_ = signalChild(pid, true)
+	_ = signalChild(pid, child.group, true)
 	select {
 	case <-child.Done:
 	case <-time.After(5 * time.Second):

@@ -536,6 +536,13 @@ select.text-input option {
   margin-top: 16px;
 }
 
+#startBtn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .spinner {
   width: 16px;
   height: 16px;

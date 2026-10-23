@@ -353,6 +353,77 @@ func TestJSONRoutingIsReplaced(t *testing.T) {
 	}
 }
 
+func TestBuildClientConfigTagsUntaggedProxy(t *testing.T) {
+	input := `{"outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"vless","settings":{"vnext":[{"address":"example.com","port":443}]}}]}`
+	base, outbound, target, _, _, err := BuildClientConfig(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outbound != nil {
+		t.Fatalf("expected JSON config, got URI outbound: %+v", outbound)
+	}
+	if target == "" {
+		t.Fatal("expected a generated proxy tag")
+	}
+	proxy := findProxyOutbound(base, target)
+	if proxy == nil || toString(proxy["protocol"]) != "vless" {
+		t.Fatalf("target does not point at the proxy outbound: %+v", proxy)
+	}
+	config, err := PrepareConfig(base, outbound, target, 12345)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routing := mustObject(t, config["routing"])
+	rules := mustArray(t, routing["rules"])
+	rule := mustObject(t, rules[0])
+	if rule["outboundTag"] != target {
+		t.Fatalf("routing does not use the generated tag: %+v", rule)
+	}
+}
+
+func TestBuildClientConfigRejectsDirectOnlyJSON(t *testing.T) {
+	input := `{"outbounds":[{"protocol":"freedom","tag":"direct"}]}`
+	if _, _, _, _, _, err := BuildClientConfig(input); err == nil {
+		t.Fatal("expected an error for a JSON config without a proxy outbound")
+	}
+}
+
+func TestSplitHostPortIPv6(t *testing.T) {
+	cases := []struct {
+		input string
+		host  string
+		port  int
+	}{
+		{"example.com:443", "example.com", 443},
+		{"[2001:db8::1]:8443", "2001:db8::1", 8443},
+		{"2001:db8::1", "2001:db8::1", 443},
+		{"example.com", "example.com", 443},
+	}
+	for _, item := range cases {
+		host, port, err := splitHostPort(item.input)
+		if err != nil {
+			t.Fatalf("%s: %v", item.input, err)
+		}
+		if host != item.host || port != item.port {
+			t.Fatalf("%s: got %s:%d", item.input, host, port)
+		}
+	}
+	if _, _, err := splitHostPort("example.com:not-a-port"); err == nil {
+		t.Fatal("expected an error for an invalid port")
+	}
+}
+
+func TestOutboundTargetMissingPort(t *testing.T) {
+	outbound := map[string]any{
+		"settings": map[string]any{"vnext": []any{
+			map[string]any{"address": "example.com"},
+		}},
+	}
+	if target := OutboundTarget(outbound); target != "" {
+		t.Fatalf("expected an empty target, got %q", target)
+	}
+}
+
 func TestWaitForUsageRetriesUntilChange(t *testing.T) {
 	oldCountdown := countdownFn
 	oldRead := readUsageAfterFn

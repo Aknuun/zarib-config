@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -338,6 +337,9 @@ func splitHostPort(value string) (string, int, error) {
 			port = parsed
 		}
 		return host, port, nil
+	}
+	if strings.Count(value, ":") > 1 && net.ParseIP(strings.Trim(value, "[]")) != nil {
+		return strings.Trim(value, "[]"), 443, nil
 	}
 	index := strings.LastIndex(value, ":")
 	if index < 0 {
@@ -853,18 +855,25 @@ func OutboundTarget(outbound map[string]any) string {
 		return ""
 	}
 	if vnext := asArray(settings["vnext"]); len(vnext) > 0 {
-		server := asObject(vnext[0])
-		if server != nil {
-			return fmt.Sprintf("%s:%v", toString(server["address"]), server["port"])
+		if server := asObject(vnext[0]); server != nil {
+			return serverTarget(server)
 		}
 	}
 	if servers := asArray(settings["servers"]); len(servers) > 0 {
-		server := asObject(servers[0])
-		if server != nil {
-			return fmt.Sprintf("%s:%v", toString(server["address"]), server["port"])
+		if server := asObject(servers[0]); server != nil {
+			return serverTarget(server)
 		}
 	}
 	return ""
+}
+
+func serverTarget(server map[string]any) string {
+	host := strings.Trim(toString(server["address"]), "[]")
+	port := toString(server["port"])
+	if host == "" || port == "" {
+		return ""
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func ExtractConfigs(body []byte) []Config {
