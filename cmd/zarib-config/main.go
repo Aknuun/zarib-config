@@ -55,6 +55,8 @@ func runCLI(args []string) int {
 		probeOnly    = fs.Bool("probe-only", false, "Only check connectivity")
 		probeRetries = fs.Int("probe-retries", defaults.ProbeRetries, "Extra connection attempts")
 		probeWait    = fs.Int("probe-wait", defaults.ProbeWait, "Seconds between probe attempts")
+		syncMode     = fs.Bool("sync", false, "Align the test with the panel's usage update cycle")
+		controlFile  = fs.String("control-file", "", "Internal: file used to extend the usage wait")
 		core         = fs.String("core", defaults.Core, "Xray core: auto, latest, legacy, system")
 		claimed      = fs.Float64("claimed", 0, "Claimed coefficient")
 		jsonOut      = fs.String("json-out", "", "Save the result to a JSON file")
@@ -95,6 +97,8 @@ func runCLI(args []string) int {
 	opts.ProbeOnly = *probeOnly
 	opts.ProbeRetries = *probeRetries
 	opts.ProbeWait = *probeWait
+	opts.Sync = *syncMode
+	opts.ControlFile = *controlFile
 	opts.Core = *core
 	opts.JSONOut = *jsonOut
 	opts.KeepTemp = *keepTemp

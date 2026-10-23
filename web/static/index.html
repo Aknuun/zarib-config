@@ -8,11 +8,11 @@
   <script src="/static/theme-init.js?v=20261023"></script>
   <script src="/static/lang-init.js?v=20261023"></script>
   <title>محاسبه ضریب واقعی ترافیک کانفیگ | Config Ratio Test</title>
-  <meta name="description" content="محاسبه ضریب واقعی مصرف ترافیک کانفیگ با یک تست ۵ مگابایتی. Measure the real traffic ratio of a config with a 5 MB test.">
+  <meta name="description" content="محاسبه دقیق ضریب واقعی مصرف ترافیک کانفیگ با هم‌ترازی چرخه پنل. Measure the real traffic ratio of a config with panel-synced background correction.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261028c">
+  <link rel="stylesheet" href="/static/styles.css?v=20261028f">
 </head>
 <body>
   <header class="topbar">
@@ -68,7 +68,6 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           <span class="btn-label" data-i18n="copyServerScript">کپی و اجرای مستقیم در سرور خودت</span>
         </button>
-        <p class="hint small" data-i18n="copyServerHint">روی سرور لینوکس یا مک اجرا کن؛ اگر Go نصب نباشد خودکار نصب می‌شود.</p>
       </div>
     </section>
 
@@ -86,8 +85,8 @@
             <div class="advanced-field">
               <label class="field-label" for="sizeRange" data-i18n="sizeLabel">حجم تست</label>
               <div class="size-row">
-                <input id="sizeRange" class="size-range" type="range" min="2" max="10" step="1" value="5" aria-label="Test size">
-                <output id="sizeValue" class="size-value mono" for="sizeRange">5 MB</output>
+                <input id="sizeRange" class="size-range" type="range" min="2" max="50" step="1" value="10" aria-label="Test size">
+                <output id="sizeValue" class="size-value mono" for="sizeRange">10 MB</output>
               </div>
             </div>
             <div class="advanced-field">
@@ -130,7 +129,9 @@
       </div>
       <div id="stageMessage" class="stage-message" dir="ltr"></div>
       <div id="stageHint" class="stage-hint hidden"></div>
+      <div id="usagePendingHint" class="stage-hint hidden" data-i18n="usagePendingHint"></div>
       <div class="progress-actions">
+        <button id="extendWaitBtn" class="primary-btn hidden" type="button" data-i18n="extendWait">صبر می‌کنم (۵ دقیقه)</button>
         <button id="cancelBtn" class="ghost-btn" type="button" data-i18n="cancel">لغو</button>
         <button id="logToggle" class="ghost-btn" type="button" data-i18n="showLog">جزئیات</button>
         <span id="elapsed" class="mono muted">00:00</span>
@@ -240,6 +241,21 @@
     <p class="hint small" data-i18n="liveHint">این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.</p>
   </dialog>
 
+  <dialog id="startDialog" class="live-dialog start-dialog" aria-labelledby="startConfirmHeading">
+    <div class="live-dialog-head">
+      <div>
+        <div class="eyebrow"><span class="dot"></span><span data-i18n="startConfirmEyebrow">یادآوری</span></div>
+        <h2 id="startConfirmHeading" data-i18n="startConfirmHeading">قبل از شروع تست</h2>
+      </div>
+      <button id="startClose" class="ghost-btn icon-btn" type="button" aria-label="بستن" data-i18n-aria-label="liveClose">×</button>
+    </div>
+    <p class="start-warning" data-i18n="startConfirmBody">مطمئن شو هیچ دستگاه یا شخص دیگری از این سابسکریپشن و کانفیگ‌هایش استفاده نمی‌کند. استفاده هم‌زمان باعث می‌شود ضریب با خطا نشان داده شود.</p>
+    <div class="report-actions">
+      <button id="startConfirm" class="primary-btn" type="button" data-i18n="startConfirmGo">مطمئنم، شروع کن</button>
+      <button id="startCancel" class="ghost-btn" type="button" data-i18n="cancel">لغو</button>
+    </div>
+  </dialog>
+
   <dialog id="reportDialog" class="live-dialog report-dialog" aria-labelledby="reportHeading">
     <div class="live-dialog-head">
       <div>
@@ -267,6 +283,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261028c"></script>
+  <script src="/static/app.js?v=20261028f"></script>
 </body>
 </html>

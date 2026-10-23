@@ -6,7 +6,7 @@ Hosted web UI: **https://zarib.appii.ir/**
 
 ## Quick start
 
-Run this on your own Linux or macOS machine/server. It downloads the source, installs Go automatically if it is missing, and starts the interactive test:
+Run this on your own Linux or macOS server:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
@@ -20,7 +20,7 @@ To refresh the cached source after an update:
 ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
 ```
 
-You can also pin a release: `ZARIB_REF=v1.2.7`.
+You can also pin a release: `ZARIB_REF=v1.2.8`.
 
 > Results are estimates. There is a possibility of error or inaccuracy because panels may record usage with a delay or report it differently.
 
@@ -36,10 +36,13 @@ go build -o zarib-config ./cmd/zarib-config
 ./zarib-config
 ./zarib-config --sub "https://example.com/sub/xxxx" --list
 ./zarib-config --sub "https://example.com/sub/xxxx" --pick 5
+./zarib-config --sub "https://example.com/sub/xxxx" --pick 5 --sync --size 10
 ./zarib-config --sub "https://example.com/sub/xxxx" --config "vless://..." --json-out result.json
 ```
 
 Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON file. Run `./zarib-config --help` for all options.
+
+`--sync` waits for the panel's usage update cycle and measures background traffic across one full interval before testing. It is slower but avoids false coefficients on subscriptions that have other traffic. The web UI uses this mode by default. The default test size is 10 MB; larger tests (up to 50 MB) are more accurate.
 
 ## Web server
 
@@ -58,11 +61,12 @@ Binding to `0.0.0.0` exposes the UI to the network; put it behind a reverse prox
 ## How it works
 
 1. Read the subscription usage.
-2. Start Xray locally and download the test data through the selected config.
-3. Read usage again and calculate:
+2. In sync mode, observe one full panel update interval to measure background traffic.
+3. Start Xray locally and download the test data through the selected config.
+4. Read usage again, subtract the measured background, and calculate:
 
 ```
-coefficient = (upload delta + download delta) / downloaded bytes
+coefficient = (usage delta - background) / downloaded bytes
 ```
 
 ## Web extras
@@ -80,10 +84,13 @@ The tunnel check sends only the config server's hostname/IP to the geolocation s
 
 ## Notes
 
-- The test consumes real traffic.
+- The test consumes real traffic. The web UI asks you to confirm that no other device or person is using the subscription before each test.
 - The subscription must expose usage; otherwise the ratio cannot be measured.
-- Panels that record usage with a delay may need a longer wait.
-- For best accuracy, use a larger test size and disconnect other devices.
+- Panels that record usage with a delay may need a longer wait; sync mode handles the common one-minute update cycle.
+- The web UI waits 120 seconds for usage (every second for the first 10 seconds, then every 5 seconds). If usage is still missing, it offers a button to wait up to 5 more minutes (checked every 10 seconds) or cancel.
+- The connectivity probe has a 20-second budget. A TCP ping can succeed while the node blocks the test destination or is too slow, so the probe may fail even when the server is reachable.
+- Shared subscriptions can have background traffic. Sync mode measures and subtracts it, but a larger test size and disconnecting other devices still improve accuracy.
+- For best accuracy, use a larger test size (10-50 MB) and disconnect other devices.
 - SOCKS listens on `127.0.0.1` only; temporary files use `0600`.
 
 ## Tests

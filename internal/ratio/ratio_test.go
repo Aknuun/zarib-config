@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -464,6 +468,54 @@ func TestWaitForUsageRaisesAfterAllRounds(t *testing.T) {
 	}
 	if _, _, _, err := WaitForUsage(context.Background(), "https://example.com/sub", Usage{}, 20, 60, 3, false, 0); err == nil {
 		t.Fatal("expected an error")
+	}
+}
+
+func TestWaitForUsageWithControlExtends(t *testing.T) {
+	oldInitial, oldExtended, oldPoll := usageInitialWait, usageExtendedWait, usageExtendedPoll
+	usageInitialWait = 50 * time.Millisecond
+	usageExtendedWait = 2 * time.Second
+	usageExtendedPoll = 10 * time.Millisecond
+	defer func() {
+		usageInitialWait, usageExtendedWait, usageExtendedPoll = oldInitial, oldExtended, oldPoll
+	}()
+	var used atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("subscription-userinfo", fmt.Sprintf("upload=0; download=%d; total=10737418240", used.Load()))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	control, err := os.CreateTemp("", "zarib-control-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlPath := control.Name()
+	control.Close()
+	defer os.Remove(controlPath)
+	type outcome struct {
+		after *Usage
+		err   error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		after, _, _, err := WaitForUsageWithControl(context.Background(), server.URL, Usage{}, 1024, controlPath)
+		done <- outcome{after: after, err: err}
+	}()
+	time.Sleep(200 * time.Millisecond)
+	if err := os.WriteFile(controlPath, []byte("extend\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	used.Store(1024)
+	select {
+	case result := <-done:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if result.after == nil || result.after.Download != 1024 {
+			t.Fatalf("unexpected usage: %+v", result.after)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for usage")
 	}
 }
 

@@ -33,6 +33,8 @@ type Options struct {
 	ProbeOnly    bool
 	ProbeRetries int
 	ProbeWait    int
+	Sync         bool
+	ControlFile  string
 	Core         string
 	Claimed      *float64
 	JSONOut      string
@@ -264,8 +266,31 @@ func CurlProbe(ctx context.Context, port int, targetURL string, maxTime int) (in
 }
 
 func Probe(ctx context.Context, port int, urls []string, timeout int) (int64, error) {
-	for _, targetURL := range urls {
-		code, size, curlErr := CurlProbe(ctx, port, targetURL, timeout)
+	if timeout < 1 {
+		timeout = 1
+	}
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer cancel()
+	for index, targetURL := range urls {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		perURL := int(remaining.Seconds())
+		switch left := len(urls) - index; {
+		case left >= 3:
+			perURL = 8
+		case left == 2:
+			perURL = 6
+		}
+		if seconds := int(remaining.Seconds()); perURL > seconds {
+			perURL = seconds
+		}
+		if perURL < 1 {
+			perURL = 1
+		}
+		code, size, curlErr := CurlProbe(probeCtx, port, targetURL, perURL)
 		if code >= 200 && code < 400 {
 			return size, nil
 		}
@@ -279,7 +304,7 @@ func Probe(ctx context.Context, port int, urls []string, timeout int) (int64, er
 		}
 		fmt.Fprintf(os.Stderr, "  probe failed: %s (%s)\n", detail, targetURL)
 	}
-	return 0, probeFailuref("The config did not respond through the proxy. The node may be down, blocked, or too slow. Try another config with --pick N, or increase --probe-timeout.")
+	return 0, probeFailuref("The config did not respond through the proxy to our test server within %d seconds. TCP ping may still work, but the node may block the test destination or be too slow. Try another config.", timeout)
 }
 
 var probeFn = Probe
@@ -344,6 +369,10 @@ type usageReading struct {
 }
 
 func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, window int) (*Usage, []usageReading, time.Time, error) {
+	return readUsageAfterWithLabel(ctx, subURL, baseline, window, "Checking subscription usage ...")
+}
+
+func readUsageAfterWithLabel(ctx context.Context, subURL string, baseline Usage, window int, label string) (*Usage, []usageReading, time.Time, error) {
 	baseTotal := baseline.Used()
 	if window < 1 {
 		window = 1
@@ -351,7 +380,9 @@ func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, window i
 	deadline := time.Now().Add(time.Duration(window) * time.Second)
 	var readings []usageReading
 	for {
-		fmt.Println(C("Checking subscription usage ...", "dim"))
+		if label != "" {
+			fmt.Println(C(label, "dim"))
+		}
 		reading, err := ReadUsage(subURL, 1, 3*time.Second)
 		if err == nil && reading != nil {
 			readings = append(readings, usageReading{At: time.Now(), Usage: reading})
@@ -386,7 +417,7 @@ func ReadUsageAfter(ctx context.Context, subURL string, baseline Usage, window i
 
 var readUsageAfterFn = ReadUsageAfter
 
-var usageWaitStages = []int{2, 10, 20, 20}
+var usageWaitStages = []int{5, 15, 30, 30}
 
 func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTimeout, retries int, interactive bool, expectedBytes int64) (*Usage, []usageReading, time.Time, error) {
 	baseline := before.Used()
@@ -451,6 +482,107 @@ func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTi
 		}
 	}
 	return best, readings, bestTime, nil
+}
+
+func readControlAction(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+var (
+	usageInitialWait  = 120 * time.Second
+	usageExtendedWait = 5 * time.Minute
+	usageExtendedPoll = 10 * time.Second
+)
+
+func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, expectedBytes int64, controlFile string) (*Usage, []usageReading, time.Time, error) {
+	baseline := before.Used()
+	start := time.Now()
+	var best *Usage
+	var bestTime time.Time
+	var readings []usageReading
+	poll := func() bool {
+		fmt.Println(C("Checking subscription usage ...", "dim"))
+		reading, err := ReadUsage(subURL, 1, 3*time.Second)
+		if err != nil || reading == nil {
+			return false
+		}
+		readings = append(readings, usageReading{At: time.Now(), Usage: reading})
+		if reading.Used() > baseline {
+			if best == nil || reading.Used() > best.Used() {
+				best = reading
+				bestTime = time.Now()
+			}
+			if expectedBytes <= 0 || best.Used()-baseline >= expectedBytes {
+				return true
+			}
+		}
+		return false
+	}
+	for {
+		if poll() {
+			return best, readings, bestTime, nil
+		}
+		elapsed := time.Since(start)
+		if elapsed >= usageInitialWait {
+			break
+		}
+		interval := 5 * time.Second
+		if elapsed < 10*time.Second {
+			interval = time.Second
+		}
+		if remaining := usageInitialWait - elapsed; interval > remaining {
+			interval = remaining
+		}
+		select {
+		case <-ctx.Done():
+			return best, readings, bestTime, ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+	if best != nil {
+		return best, readings, bestTime, nil
+	}
+	if controlFile == "" {
+		return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 120 seconds. The panel may be delayed or may only show usage in its dashboard.")
+	}
+	fmt.Println(C("Usage did not change after 120 seconds. Waiting for user confirmation ...", "yellow"))
+	for {
+		switch readControlAction(controlFile) {
+		case "extend":
+			goto extended
+		case "cancel":
+			return nil, nil, time.Time{}, ratioErrorf("Cancelled.")
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, time.Time{}, ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
+extended:
+	fmt.Println(C("Continuing to wait for usage (up to 5 minutes) ...", "cyan"))
+	extendedStart := time.Now()
+	for {
+		if poll() {
+			return best, readings, bestTime, nil
+		}
+		if time.Since(extendedStart) >= usageExtendedWait {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return best, readings, bestTime, ctx.Err()
+		case <-time.After(usageExtendedPoll):
+		}
+	}
+	if best != nil {
+		return best, readings, bestTime, nil
+	}
+	return nil, nil, time.Time{}, ratioErrorf("Usage did not change after 5 minutes. The panel may be delayed; try again later.")
 }
 
 type Result struct {
@@ -653,7 +785,44 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		}
 		beforeTime := time.Now()
 		driftRate := 0.0
-		if opts.DriftWindow > 0 {
+		reportBackground := func(driftBytes int64, driftWindow float64) {
+			if driftBytes <= 0 {
+				fmt.Println(C("No background usage detected.", "dim"))
+				return
+			}
+			driftRate = float64(driftBytes) / driftWindow
+			if driftBytes >= 64*1024 {
+				fmt.Println(C(fmt.Sprintf("Warning: the subscription is consuming data while idle (%s in %.0fs, about %s/s).",
+					Human(driftBytes), driftWindow, HumanFloat(driftRate)), "yellow"))
+				fmt.Println(C("Results will be corrected using this background rate.", "dim"))
+			} else {
+				fmt.Println(C(fmt.Sprintf("Background usage is small (%s) and will be accounted for.", Human(driftBytes)), "dim"))
+			}
+		}
+		if opts.Sync {
+			fmt.Println(C("Measuring background usage across the panel's update cycle ...", "cyan"))
+			first, _, firstTime, readErr := readUsageAfterWithLabel(ctx, subURL, *before, 75, "Measuring background usage (waiting for the panel update) ...")
+			if readErr != nil {
+				return nil, readErr
+			}
+			if first.Used() == before.Used() {
+				fmt.Println(C("No background usage detected.", "dim"))
+				before = first
+				beforeTime = firstTime
+			} else {
+				second, _, secondTime, readErr := readUsageAfterWithLabel(ctx, subURL, *first, 75, "Measuring background usage (waiting for the next panel update) ...")
+				if readErr != nil {
+					return nil, readErr
+				}
+				driftWindow := secondTime.Sub(firstTime).Seconds()
+				if driftWindow < 0.001 {
+					driftWindow = 0.001
+				}
+				reportBackground(second.Used()-first.Used(), driftWindow)
+				before = second
+				beforeTime = secondTime
+			}
+		} else if opts.DriftWindow > 0 {
 			driftStart := *before
 			driftStartTime := beforeTime
 			Countdown(opts.DriftWindow, "Measuring background usage")
@@ -662,23 +831,11 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 				return nil, err
 			}
 			beforeTime = time.Now()
-			driftBytes := before.Used() - driftStart.Used()
 			driftWindow := beforeTime.Sub(driftStartTime).Seconds()
 			if driftWindow < 0.001 {
 				driftWindow = 0.001
 			}
-			if driftBytes > 0 {
-				driftRate = float64(driftBytes) / driftWindow
-				if driftBytes >= 64*1024 {
-					fmt.Println(C(fmt.Sprintf("Warning: the subscription is consuming data while idle (%s in %.0fs, about %s/s).",
-						Human(driftBytes), driftWindow, HumanFloat(driftRate)), "yellow"))
-					fmt.Println(C("Results will be corrected using this background rate.", "dim"))
-				} else {
-					fmt.Println(C(fmt.Sprintf("Background usage is small (%s) and will be accounted for.", Human(driftBytes)), "dim"))
-				}
-			} else {
-				fmt.Println(C("No background usage detected.", "dim"))
-			}
+			reportBackground(before.Used()-driftStart.Used(), driftWindow)
 		}
 		totalBytes := int64(0)
 		if opts.SizeMB != nil {
@@ -701,7 +858,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
 		}
 		fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
-		after, readings, afterTime, err := WaitForUsage(ctx, subURL, *before, opts.Wait, opts.PollTimeout, 3, IsInteractive(), downloaded)
+		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile)
 		if err != nil {
 			return nil, err
 		}
@@ -911,10 +1068,17 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, ratioErrorf("Usage reported by the subscription did not change. The panel may be delayed or may only show usage in its dashboard.")
 	}
 	rawRatio := float64(used) / float64(final.Downloaded)
-	ratio := rawRatio
-	if final.DriftUsed > 0 && used-final.DriftUsed > 0 {
-		ratio = float64(used-final.DriftUsed) / float64(final.Downloaded)
+	netUsed := used
+	if final.DriftUsed > 0 {
+		candidate := used - final.DriftUsed
+		if candidate > 0 && candidate >= final.Downloaded/4 {
+			netUsed = candidate
+		} else {
+			fmt.Println(C("Warning: the background estimate was too large to apply safely; showing the raw result.", "yellow"))
+			final.DriftUsed = 0
+		}
 	}
+	ratio := float64(netUsed) / float64(final.Downloaded)
 	matches := false
 	var verdict *string
 	var verdictColor string
@@ -963,7 +1127,11 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		fmt.Printf("  %s %s\n", C(fmt.Sprintf("%-24s", label), "dim"), C(value, color))
 	}
 	kv("Downloaded", Human(final.Downloaded), "bold")
-	kv("Deducted", Human(used), "bold")
+	kv("Deducted", Human(netUsed), "bold")
+	if final.DriftUsed > 0 {
+		kv("Panel recorded", Human(used), "dim")
+		kv("Background", Human(final.DriftUsed), "dim")
+	}
 	if claimed != nil {
 		fmt.Printf("  %s %s  %s\n", C(fmt.Sprintf("%-24s", "Claimed"), "dim"),
 			C(fmt.Sprintf("%.2fx", *claimed), "bold"), C(*verdict, verdictColor))

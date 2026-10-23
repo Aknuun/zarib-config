@@ -7,10 +7,9 @@
       eyebrow: "شفافیت حجم، بدون حدس",
       heroTitle1: "محاسبه ضریب واقعی",
       heroTitle2: "ترافیک کانفیگ",
-      heroSub: "۵ مگابایت تست، بدون ذخیره لینک.",
+      heroSub: "تست دقیق با هم‌ترازی چرخه پنل؛ لینک ذخیره نمی‌شود.",
       privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
       copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
-      copyServerHint: "روی سرور لینوکس یا مک اجرا کن؛ اگر Go نصب نباشد خودکار نصب می‌شود.",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
       chip1: "مگابایت تست",
@@ -71,9 +70,12 @@
       coreLegacy: "قدیمی",
       coreSystem: "سیستم",
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
-      coreUsed: "هسته Xray",
       chooseAnother: "کانفیگ دیگری از همین ساب",
       startTest: "شروع تست",
+      startConfirmEyebrow: "یادآوری",
+      startConfirmHeading: "قبل از شروع تست",
+      startConfirmBody: "مطمئن شو هیچ دستگاه یا شخص دیگری از این سابسکریپشن و کانفیگ‌هایش استفاده نمی‌کند. استفاده هم‌زمان باعث می‌شود ضریب با خطا نشان داده شود.",
+      startConfirmGo: "مطمئنم، شروع کن",
       privacyHint: "لینک و نتیجه فقط در حافظه نگهداری می‌شوند و بعد از پایان حذف می‌شوند.",
       progressTitle: "در حال تست…",
       cancel: "لغو",
@@ -83,9 +85,14 @@
       stage_reading: "خواندن اطلاعات سابسکریپشن…",
       stage_connecting: "اتصال به کانفیگ…",
       stage_baseline: "خواندن مصرف پایه…",
-      stage_drift: "اندازه‌گیری مصرف پس‌زمینه…",
+      stage_drift: "هم‌ترازی با چرخه پنل و اندازه‌گیری ترافیک پس‌زمینه…",
       stage_downloading: "دانلود داده تست…",
       stage_waiting: "انتظار برای ثبت مصرف در پنل…",
+      stage_usage_pending: "منتظر تأیید برای ادامه…",
+      stage_waiting_extended: "در حال انتظار بیشتر برای مصرف…",
+      usagePendingHint: "پنل هنوز مصرف را ثبت نکرده است. می‌توانی تا ۵ دقیقه دیگر صبر کنی یا تست را لغو کنی.",
+      extendWait: "صبر می‌کنم (۵ دقیقه)",
+      extendingWait: "در حال انتظار…",
       stage_done: "تمام شد",
       stage_cancelled: "لغو شد",
       stage_error: "خطا",
@@ -98,11 +105,13 @@
       coefMeasured: "اندازه‌گیری واقعی: {r}",
       noRatioClose: "کاملاً بدون ضریب است",
       noRatioExact: "این کانفیگ یا ساب ضریب ندارد",
+      nonRoundHint: "ضریب به‌دست‌آمده عدد رند نیست. احتمالاً خودت یا شخص دیگری در حال استفاده از این ساب یا کانفیگ است؛ مطمئن شو کسی استفاده نمی‌کند و دوباره تست بگیر.",
       invalidLow: "تست نامعتبر: مصرف ثبت‌شده کمتر از حجم دانلود است",
       sentenceInvalid: "پنل برای {d} دانلود فقط {u} ثبت کرد؛ این تست معتبر نیست. کانفیگ دیگری را امتحان کن یا دوباره تست بگیر.",
       invalidRow: "تست نامعتبر",
       excludedHint: "{n} کانفیگ به دلیل ثبت‌نشدن مصرف در محاسبه ضریب لحاظ نشد.",
       background: "اصلاح پس‌زمینه",
+      backgroundCorrected: "ترافیک پس‌زمینه اندازه‌گیری و {n} از کسرشده کم شد.",
       raw: "خام",
       duration: "مدت تست",
       configUsed: "کانفیگ",
@@ -141,7 +150,7 @@
       how1: "مصرف سابسکریپشن قبل از تست خوانده می‌شود.",
       how2: "حجم مشخصی از داده از طریق کانفیگ دانلود می‌شود.",
       how3: "مصرف بعد از تست خوانده و با حجم واقعی مقایسه می‌شود.",
-      howNote: "اگر پنل شما مصرف را با تاخیر ثبت کند، ممکن است نتیجه دقیق نباشد. لینک شما هرگز ذخیره نمی‌شود.",
+      howNote: "ابزار چرخه به‌روزرسانی پنل را هم‌تراز می‌کند و ترافیک پس‌زمینه را از نتیجه کم می‌کند. تست بزرگ‌تر دقیق‌تر است. لینک شما هرگز ذخیره نمی‌شود.",
       footer: "ساخته‌شده برای شفافیت حجم.",
       disclaimer: "فقط برای تست سابسکریپشن خودت.",
       unnamed: "(بدون نام)",
@@ -161,7 +170,7 @@
       err_blocked_url: "این لینک به آدرس عمومی اشاره نمی‌کند و مجاز نیست.",
       err_fetch_failed: "خواندن سابسکریپشن ممکن نشد. لینک را بررسی کن یا بعداً دوباره تلاش کن.",
       err_no_configs: "کانفیگ پشتیبانی‌شده‌ای در این ساب پیدا نشد.",
-      err_probe_failed: "کانفیگ وصل نشد. ممکن است نود خاموش، مسدود یا خیلی کند باشد.",
+      err_probe_failed: "کانفیگ نتوانست در ۲۰ ثانیه به سرور تست ما وصل شود. پینگ TCP ممکن است کار کند، اما نود ممکن است مقصد تست را مسدود کند یا خیلی کند باشد.",
       err_resolve_failed: "آدرس سرور کانفیگ پیدا نشد (DNS). کانفیگ دیگری را امتحان کن.",
       err_xray_failed: "Xray نتوانست کانفیگ را اجرا کند. جزئیات را ببین.",
       err_usage_unchanged: "پنل مصرف را ثبت نکرد. ممکن است تاخیر داشته باشد یا آمار مصرف ارائه نکند.",
@@ -179,10 +188,9 @@
       eyebrow: "Transparent data accounting",
       heroTitle1: "Calculate the real",
       heroTitle2: "config traffic ratio",
-      heroSub: "A 5 MB test. Link never stored.",
+      heroSub: "Accurate, panel-synced test. Link never stored.",
       privacyNote: "Per our GitHub docs, no config is retained or stored.",
       copyServerScript: "Copy and run it directly on your server",
-      copyServerHint: "Run it on a Linux or macOS server; Go is installed automatically if missing.",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
       chip1: "MB test",
@@ -243,9 +251,12 @@
       coreLegacy: "Legacy",
       coreSystem: "System",
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
-      coreUsed: "Xray core",
       chooseAnother: "Another config from this sub",
       startTest: "Start test",
+      startConfirmEyebrow: "Reminder",
+      startConfirmHeading: "Before you start",
+      startConfirmBody: "Make sure no other device or person is using this subscription or its configs. Simultaneous use makes the coefficient inaccurate.",
+      startConfirmGo: "I'm sure, start",
       privacyHint: "The link and result are kept in memory only and are removed after the test.",
       progressTitle: "Testing…",
       cancel: "Cancel",
@@ -255,9 +266,14 @@
       stage_reading: "Reading subscription…",
       stage_connecting: "Connecting through the config…",
       stage_baseline: "Reading baseline usage…",
-      stage_drift: "Measuring background usage…",
+      stage_drift: "Syncing with the panel and measuring background usage…",
       stage_downloading: "Downloading test data…",
       stage_waiting: "Waiting for the panel to record usage…",
+      stage_usage_pending: "Waiting for you to continue…",
+      stage_waiting_extended: "Waiting longer for usage…",
+      usagePendingHint: "The panel has not recorded usage yet. You can wait up to 5 more minutes or cancel the test.",
+      extendWait: "Wait 5 more minutes",
+      extendingWait: "Waiting…",
       stage_done: "Done",
       stage_cancelled: "Cancelled",
       stage_error: "Error",
@@ -270,11 +286,13 @@
       coefMeasured: "Measured: {r}",
       noRatioClose: "Completely without a coefficient",
       noRatioExact: "This config or sub has no coefficient",
+      nonRoundHint: "The coefficient is not a round number. You or someone else may be using this subscription or config; make sure it is idle, then test again.",
       invalidLow: "Invalid test: recorded usage is less than downloaded",
       sentenceInvalid: "The panel recorded only {u} for {d} downloaded; this test is invalid. Try another config or retry.",
       invalidRow: "Invalid test",
       excludedHint: "{n} config(s) were excluded from the ratio because their usage was not recorded.",
       background: "Background correction",
+      backgroundCorrected: "Background traffic was measured and {n} was subtracted from the deducted amount.",
       raw: "raw",
       duration: "Duration",
       configUsed: "Config",
@@ -313,7 +331,7 @@
       how1: "Subscription usage is read before the test.",
       how2: "A known amount of data is downloaded through the config.",
       how3: "Usage is read again and compared with the actual download.",
-      howNote: "If your panel records usage with a delay, the result may be inaccurate. Your link is never stored.",
+      howNote: "The tool syncs with the panel update cycle and subtracts background traffic. Larger tests are more accurate. Your link is never stored.",
       footer: "Built for transparent data accounting.",
       disclaimer: "Only test your own subscription.",
       unnamed: "(unnamed)",
@@ -333,7 +351,7 @@
       err_blocked_url: "This link does not point to a public address and is not allowed.",
       err_fetch_failed: "Could not read the subscription. Check the link or try again later.",
       err_no_configs: "No supported configs were found in this subscription.",
-      err_probe_failed: "The config did not connect. The node may be down, blocked, or too slow.",
+      err_probe_failed: "The config could not reach our test server within 20 seconds. TCP ping may still work, but the node may block the test destination or be too slow.",
       err_resolve_failed: "The config server hostname could not be resolved (DNS). Try another config.",
       err_xray_failed: "Xray could not start the config. See the technical details.",
       err_usage_unchanged: "The panel did not record usage. It may be delayed or may not expose usage.",
@@ -359,10 +377,12 @@
     lang: document.documentElement.lang === "en" ? "en" : "fa",
     subs: [],
     testCount: 1,
-    size: 5,
+    size: 10,
     running: false,
     cancelRequested: false,
     activeJobs: new Set(),
+    pendingJobs: new Set(),
+    extending: false,
     progressTimer: null,
     displayPct: 0,
     targetPct: 0,
@@ -421,9 +441,22 @@
     return `${n.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
   }
 
+  function isNonRoundRatio(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return false;
+    const cents = n * 100;
+    return Math.abs(cents - Math.round(cents)) > 0.0001;
+  }
+
+  function ratioNumber(value) {
+    const n = Number(value) || 0;
+    if (ratioIsNo(n)) return "1.00";
+    return n.toFixed(isNonRoundRatio(n) ? 3 : 2);
+  }
+
   function formatRatio(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-    return `${Number(value).toFixed(2)}x`;
+    return `${ratioNumber(value)}x`;
   }
 
   function ratioIsNo(value) {
@@ -457,23 +490,27 @@
     const basis = measured.length ? measured : successes;
     let downloaded = 0;
     let deducted = 0;
+    let background = 0;
     let weight = 0;
     basis.forEach((item) => {
       const bytes = Number(item.result.downloaded_bytes) || 0;
       const ratio = effectiveRatio(item);
       if (bytes <= 0 || ratio === null) return;
       const measuredRatio = resultRatio(item);
+      const bg = Number(item.result.background_bytes_in_test) || 0;
       downloaded += bytes;
       weight += bytes;
+      background += bg;
       deducted += ratioIsInvalid(measuredRatio)
         ? ratio * bytes
-        : Number(item.result.delta_total) || ratio * bytes;
+        : Math.max(0, (Number(item.result.delta_total) || ratio * bytes) - bg);
     });
     return {
       basis,
       excluded: successes.length - basis.length,
       downloaded,
       deducted,
+      background,
       ratio: weight > 0 ? deducted / weight : 0,
     };
   }
@@ -644,6 +681,33 @@
 
   function closeReportDialog() {
     const dialog = $("#reportDialog");
+    if (!dialog) return;
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function openStartDialog() {
+    if (state.running) return;
+    if (!selectedCount()) {
+      showInputError(t("err_no_selection"));
+      return;
+    }
+    const dialog = $("#startDialog");
+    if (!dialog) {
+      startTest();
+      return;
+    }
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+    const confirm = $("#startConfirm");
+    if (confirm) confirm.focus();
+  }
+
+  function closeStartDialog() {
+    const dialog = $("#startDialog");
     if (!dialog) return;
     if (typeof dialog.close === "function") dialog.close();
     else dialog.removeAttribute("open");
@@ -1355,7 +1419,7 @@
   }
 
   function setSize(size) {
-    const value = Math.max(2, Math.min(10, Math.round(Number(size) || 5)));
+    const value = Math.max(2, Math.min(50, Math.round(Number(size) || 10)));
     state.size = value;
     $("#sizeRange").value = String(value);
     $("#sizeValue").textContent = `${value} MB`;
@@ -1425,7 +1489,8 @@
         pick,
         size_mb: state.size,
         wait: 2,
-        drift: 5,
+        drift: 0,
+        sync: true,
         core: $("#coreSelect").value || "auto",
         tunnel,
       }),
@@ -1450,8 +1515,12 @@
       state.lastJobData = data;
       renderProgress(data);
       updateOverallProgress();
-      if (data.status === "done") return data;
+      if (data.status === "done") {
+        state.pendingJobs.delete(jobId);
+        return data;
+      }
       if (data.status === "error" || data.status === "cancelled") {
+        state.pendingJobs.delete(jobId);
         const error = new Error(data.error || "");
         error.code = data.error_code || "unknown";
         error.log = data.log || [];
@@ -1543,6 +1612,15 @@
     $("#stageMessage").textContent = "";
     $("#stageHint").textContent = "";
     hide($("#stageHint"));
+    state.pendingJobs.clear();
+    state.extending = false;
+    hide($("#usagePendingHint"));
+    const extendBtn = $("#extendWaitBtn");
+    if (extendBtn) {
+      hide(extendBtn);
+      extendBtn.disabled = false;
+      extendBtn.textContent = t("extendWait");
+    }
     state.usageWaitStarted = 0;
     applyProgress(0);
     $("#elapsed").textContent = "00:00";
@@ -1553,6 +1631,29 @@
 
   function renderProgress(data) {
     if (!data) return;
+    const pending = data.stage === "usage_pending";
+    if (data.id) {
+      if (pending) state.pendingJobs.add(data.id);
+      else state.pendingJobs.delete(data.id);
+    }
+    const pendingHint = $("#usagePendingHint");
+    if (pendingHint) {
+      if (pending) show(pendingHint);
+      else hide(pendingHint);
+    }
+    const extendBtn = $("#extendWaitBtn");
+    if (extendBtn) {
+      if (pending) {
+        show(extendBtn);
+        extendBtn.disabled = state.extending;
+        extendBtn.textContent = t(state.extending ? "extendingWait" : "extendWait");
+      } else {
+        hide(extendBtn);
+        extendBtn.disabled = false;
+        extendBtn.textContent = t("extendWait");
+        state.extending = false;
+      }
+    }
     const stageKey = `stage_${data.stage || "queued"}`;
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");
@@ -1583,6 +1684,26 @@
       const box = $("#logBox");
       box.textContent = log;
       box.scrollTop = box.scrollHeight;
+    }
+  }
+
+  async function extendWaiting() {
+    const ids = [...state.pendingJobs];
+    if (!ids.length || state.extending) return;
+    state.extending = true;
+    const button = $("#extendWaitBtn");
+    if (button) {
+      button.disabled = true;
+      button.textContent = t("extendingWait");
+    }
+    try {
+      await Promise.all(
+        ids.map((jobId) =>
+          api(`/api/jobs/${jobId}/extend`, { method: "POST" }).catch(() => null),
+        ),
+      );
+    } finally {
+      state.extending = false;
     }
   }
 
@@ -1629,6 +1750,9 @@
     const downloaded = agg.downloaded;
     const deducted = agg.deducted;
     const usableCount = agg.basis.length || count;
+    const nonRound = successes.some((item) =>
+      isNonRoundRatio(item.result.ratio_raw ?? item.result.ratio),
+    );
     const last = successes[successes.length - 1].result;
     const aggregate = {
       ratio: avg,
@@ -1677,17 +1801,13 @@
 
     $("#sentence").textContent = invalid
       ? t("sentenceInvalid", { d: formatBytes(downloaded), u: formatBytes(deducted) })
-      : t("sentenceAvg", { n: usableCount, r: avg.toFixed(2) });
+      : t("sentenceAvg", { n: usableCount, r: ratioNumber(avg) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
     $("#statDeducted").textContent = formatBytes(deducted);
 
     const meta = $("#resultMeta");
     meta.replaceChildren();
     const rows = [[t("configsToTest"), String(count)]];
-    if (aggregate.core) {
-      const version = aggregate.xray_version ? ` — ${aggregate.xray_version}` : "";
-      rows.push([t("coreUsed"), `${aggregate.core}${version}`]);
-    }
     if (aggregate.duration_seconds) {
       rows.push([t("duration"), formatDuration(aggregate.duration_seconds)]);
     }
@@ -1728,9 +1848,12 @@
         if (rowInvalid) value.classList.add("bad");
         const detail = document.createElement("span");
         detail.className = "result-row-detail";
-        const bytes = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(
-          item.result.delta_total,
-        )}`;
+        const deducted = Math.max(
+          0,
+          (Number(item.result.delta_total) || 0) -
+            (Number(item.result.background_bytes_in_test) || 0),
+        );
+        const bytes = `${formatBytes(item.result.downloaded_bytes)} → ${formatBytes(deducted)}`;
         if (rowInvalid) {
           detail.textContent = `${t("invalidRow")} · ${bytes}`;
         } else if (ratioIsNo(r) && !ratioIsUnit(r)) {
@@ -1754,8 +1877,14 @@
     });
     const note = $("#resultNote");
     if (note) {
-      if (agg.excluded > 0) {
-        note.textContent = t("excludedHint", { n: agg.excluded });
+      const notes = [];
+      if (agg.excluded > 0) notes.push(t("excludedHint", { n: agg.excluded }));
+      if (agg.background > 0) {
+        notes.push(t("backgroundCorrected", { n: formatBytes(agg.background) }));
+      }
+      if (nonRound) notes.push(t("nonRoundHint"));
+      if (notes.length) {
+        note.textContent = notes.join(" ");
         show(note);
       } else {
         note.textContent = "";
@@ -1770,8 +1899,8 @@
     const count = Number(result.configs_tested) || 0;
     const sentence =
       count > 1
-        ? t("sentenceAvg", { n: count, r: ratio.toFixed(2) })
-        : t("sentence", { n: ratio.toFixed(2) });
+        ? t("sentenceAvg", { n: count, r: ratioNumber(ratio) })
+        : t("sentence", { n: ratioNumber(ratio) });
     const lines = [`${t("shareCaptionTitle")} — ${ratioBig(ratio)}`, sentence];
     if (ratioIsInvalid(ratio)) {
       lines.push(t("invalidLow"));
@@ -2064,8 +2193,8 @@
     const testedCount = Number(result.configs_tested) || 0;
     const sentence =
       testedCount > 1
-        ? t("sentenceAvg", { n: testedCount, r: ratio.toFixed(2) })
-        : t("sentence", { n: ratio.toFixed(2) });
+        ? t("sentenceAvg", { n: testedCount, r: ratioNumber(ratio) })
+        : t("sentence", { n: ratioNumber(ratio) });
     const maxTextWidth = W - pad * 2;
     setCanvasFont(ctx, 500, 33);
     const sentenceLines = wrapLines(ctx, sentence, maxTextWidth);
@@ -2132,10 +2261,6 @@
     const metaY = statsTop + statRows * statH + (statRows - 1) * statGap + 44;
     const metaLines = [];
     if (result.config) metaLines.push(`${t("configUsed")}: ${result.config}`);
-    if (result.core) {
-      const version = result.xray_version ? ` — ${result.xray_version}` : "";
-      metaLines.push(`${t("coreUsed")}: ${result.core}${version}`);
-    }
     if (result.duration_seconds) {
       metaLines.push(`${t("duration")}: ${formatDuration(result.duration_seconds)}`);
     }
@@ -2339,7 +2464,7 @@
     loadVersion();
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
-    setSize(5);
+    setSize(10);
     initLive();
 
     $("#themeBtn").addEventListener("click", toggleTheme);
@@ -2364,8 +2489,27 @@
       state.testCount = Number(event.target.value) || 1;
       selectConfigsForCount();
     });
-    $("#startBtn").addEventListener("click", startTest);
+    $("#startBtn").addEventListener("click", openStartDialog);
+    const startConfirm = $("#startConfirm");
+    if (startConfirm) {
+      startConfirm.addEventListener("click", () => {
+        closeStartDialog();
+        startTest();
+      });
+    }
+    const startCancel = $("#startCancel");
+    if (startCancel) startCancel.addEventListener("click", closeStartDialog);
+    const startClose = $("#startClose");
+    if (startClose) startClose.addEventListener("click", closeStartDialog);
+    const startDialog = $("#startDialog");
+    if (startDialog) {
+      startDialog.addEventListener("click", (event) => {
+        if (event.target === startDialog) closeStartDialog();
+      });
+    }
     $("#cancelBtn").addEventListener("click", cancelTest);
+    const extendBtn = $("#extendWaitBtn");
+    if (extendBtn) extendBtn.addEventListener("click", extendWaiting);
     $("#logToggle").addEventListener("click", () => {
       state.logOpen = !state.logOpen;
       updateLogToggle();

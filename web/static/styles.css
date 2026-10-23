@@ -1516,6 +1516,18 @@ select.text-input option {
   width: min(560px, calc(100% - 28px));
 }
 
+.start-warning {
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border: 1px solid var(--warn-border);
+  border-radius: 14px;
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.9;
+}
+
 .report-form {
   display: flex;
   flex-direction: column;

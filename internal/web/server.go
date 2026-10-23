@@ -32,28 +32,29 @@ const (
 )
 
 type job struct {
-	ID         string
-	Status     string
-	Stage      string
-	Progress   float64
-	Message    string
-	Created    float64
-	Started    *float64
-	Finished   *float64
-	Result     *ratio.Result
-	Error      string
-	ErrorCode  string
-	Log        []string
-	Cancel     bool
-	TimedOut   bool
-	Pick       int
-	SizeMB     float64
-	Core       string
-	Tunnel     *bool
-	Dir        string
-	SubFile    string
-	ResultFile string
-	Child      *ratio.Child
+	ID          string
+	Status      string
+	Stage       string
+	Progress    float64
+	Message     string
+	Created     float64
+	Started     *float64
+	Finished    *float64
+	Result      *ratio.Result
+	Error       string
+	ErrorCode   string
+	Log         []string
+	Cancel      bool
+	TimedOut    bool
+	Pick        int
+	SizeMB      float64
+	Core        string
+	Tunnel      *bool
+	Dir         string
+	SubFile     string
+	ResultFile  string
+	ControlFile string
+	Child       *ratio.Child
 }
 
 var publicURLFn = ratio.IsPublicURL
@@ -103,6 +104,7 @@ type jobIn struct {
 	Claimed *float64 `json:"claimed"`
 	Wait    *int     `json:"wait"`
 	Drift   *int     `json:"drift"`
+	Sync    *bool    `json:"sync"`
 	Core    *string  `json:"core"`
 	Tunnel  *bool    `json:"tunnel"`
 }
@@ -354,6 +356,10 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	if payload.Drift != nil {
 		drift = *payload.Drift
 	}
+	syncMode := true
+	if payload.Sync != nil {
+		syncMode = *payload.Sync
+	}
 	core := "auto"
 	if payload.Core != nil {
 		core = *payload.Core
@@ -406,20 +412,27 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "unknown", "Could not create the test.", http.StatusInternalServerError)
 		return
 	}
+	controlFile := filepath.Join(jobDir, "control")
+	if err := os.WriteFile(controlFile, nil, 0o600); err != nil {
+		os.RemoveAll(jobDir)
+		apiError(w, "unknown", "Could not create the test.", http.StatusInternalServerError)
+		return
+	}
 	now := float64(time.Now().UnixNano()) / 1e9
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
 		Pick: pick, SizeMB: sizeMB, Core: core, Tunnel: payload.Tunnel,
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
+		ControlFile: controlFile,
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = item
 	s.mu.Unlock()
-	go s.runJob(jobID, wait, drift, payload.Claimed)
+	go s.runJob(jobID, wait, drift, payload.Claimed, syncMode)
 	writeJSON(w, http.StatusOK, map[string]any{"id": jobID, "status": "queued"})
 }
 
-func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
+func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMode bool) {
 	s.sem <- struct{}{}
 	defer func() { <-s.sem }()
 	s.mu.Lock()
@@ -443,7 +456,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 	item.Started = &started
 	item.Stage = "reading"
 	item.Progress = 3
-	subFile, resultFile, jobDir := item.SubFile, item.ResultFile, item.Dir
+	subFile, resultFile, jobDir, controlFile := item.SubFile, item.ResultFile, item.Dir, item.ControlFile
 	pick, sizeMB, core := item.Pick, item.SizeMB, item.Core
 	s.mu.Unlock()
 	executable, err := os.Executable()
@@ -457,7 +470,10 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64) {
 		"--size", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--chunk", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--wait", strconv.Itoa(wait), "--drift-window", strconv.Itoa(drift), "--json-out", resultFile,
-		"--core", core, "--probe-retries", "1", "--probe-wait", "5",
+		"--control-file", controlFile, "--core", core, "--probe-retries", "0", "--probe-wait", "0",
+	}
+	if syncMode {
+		args = append(args, "--sync")
 	}
 	if claimed != nil {
 		args = append(args, "--claimed", strconv.FormatFloat(*claimed, 'g', -1, 64))
@@ -642,6 +658,10 @@ func (s *server) progressFromLine(jobID, line string) {
 		stage, progress = "waiting", 85
 	case strings.Contains(stripped, "Waiting for the panel"):
 		stage, progress = "waiting", 85
+	case strings.Contains(stripped, "Waiting for user confirmation"):
+		stage, progress = "usage_pending", 90
+	case strings.Contains(stripped, "Continuing to wait for usage"):
+		stage, progress = "waiting_extended", 92
 	case strings.Contains(stripped, "Checking subscription usage"):
 		stage, progress = "waiting", 92
 	case strings.Contains(stripped, "did not change yet"):
@@ -705,7 +725,41 @@ func (s *server) jobRoute(w http.ResponseWriter, r *http.Request) {
 		s.cancelJob(w, jobID)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "extend" {
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.extendJob(w, jobID)
+		return
+	}
 	apiError(w, "not_found", "Job not found.", http.StatusNotFound)
+}
+
+func (s *server) extendJob(w http.ResponseWriter, jobID string) {
+	s.mu.Lock()
+	current := s.jobs[jobID]
+	if current == nil {
+		s.mu.Unlock()
+		apiError(w, "not_found", "Job not found.", http.StatusNotFound)
+		return
+	}
+	controlFile := current.ControlFile
+	status := current.Status
+	stage := current.Stage
+	s.mu.Unlock()
+	if status != "running" || controlFile == "" {
+		apiError(w, "invalid_state", "This test is not waiting for usage.", http.StatusConflict)
+		return
+	}
+	if stage != "usage_pending" && stage != "waiting_extended" {
+		apiError(w, "invalid_state", "This test is not waiting for usage.", http.StatusConflict)
+		return
+	}
+	if err := os.WriteFile(controlFile, []byte("extend\n"), 0o600); err != nil {
+		apiError(w, "unknown", "Could not extend the wait.", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *server) cancelJob(w http.ResponseWriter, jobID string) {

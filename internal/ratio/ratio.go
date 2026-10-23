@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	Version             = "1.2.7"
+	Version             = "1.2.8"
 	UA                  = "v2rayNG/1.9.16"
 	MinSizeMB           = 2.0
-	MaxSizeMB           = 10.0
-	DefaultSizeMB       = 5.0
+	MaxSizeMB           = 50.0
+	DefaultSizeMB       = 10.0
 	DefaultWait         = 2
 	DefaultPollTimeout  = 10
 	DefaultDriftWindow  = 5
