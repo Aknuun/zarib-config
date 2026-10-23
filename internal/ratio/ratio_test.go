@@ -371,7 +371,7 @@ func TestWaitForUsageRetriesUntilChange(t *testing.T) {
 		}
 		return changed, nil, time.Unix(2, 0), nil
 	}
-	after, _, _, err := WaitForUsage(context.Background(), "https://example.com/sub", Usage{}, 20, 60, 3, false)
+	after, _, _, err := WaitForUsage(context.Background(), "https://example.com/sub", Usage{}, 20, 60, 3, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +391,7 @@ func TestWaitForUsageRaisesAfterAllRounds(t *testing.T) {
 	readUsageAfterFn = func(context.Context, string, Usage, int) (*Usage, []usageReading, time.Time, error) {
 		return &Usage{}, nil, time.Unix(1, 0), nil
 	}
-	if _, _, _, err := WaitForUsage(context.Background(), "https://example.com/sub", Usage{}, 20, 60, 3, false); err == nil {
+	if _, _, _, err := WaitForUsage(context.Background(), "https://example.com/sub", Usage{}, 20, 60, 3, false, 0); err == nil {
 		t.Fatal("expected an error")
 	}
 }

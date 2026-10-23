@@ -2,7 +2,7 @@
 
 Measure the real traffic ratio of a V2Ray subscription. Download a known amount of data, compare it with the subscription usage delta, and get a coefficient such as `1.5x`.
 
-Hosted web UI: **https://zarib-config.videobazi.com**
+Hosted web UI: **https://zarib.appii.ir/**
 
 ## Quick start
 

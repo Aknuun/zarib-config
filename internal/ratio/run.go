@@ -368,16 +368,20 @@ var readUsageAfterFn = ReadUsageAfter
 
 var usageWaitStages = []int{2, 10, 20, 20}
 
-func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTimeout, retries int, interactive bool) (*Usage, []usageReading, time.Time, error) {
+func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTimeout, retries int, interactive bool, expectedBytes int64) (*Usage, []usageReading, time.Time, error) {
 	baseline := before.Used()
+	var best *Usage
+	var bestTime time.Time
+	var readings []usageReading
 	for index, window := range usageWaitStages {
 		if window < 1 {
 			window = 1
 		}
 		fmt.Println(C(fmt.Sprintf("Waiting for the panel to record usage (up to %ds) ...", window), "dim"))
-		after, readings, afterTime, err := readUsageAfterFn(ctx, subURL, before, window)
+		after, got, afterTime, err := readUsageAfterFn(ctx, subURL, before, window)
 		if err == nil && after != nil && after.Used() > baseline {
-			return after, readings, afterTime, nil
+			best, bestTime, readings = after, afterTime, got
+			break
 		}
 		if ctx.Err() != nil {
 			if err != nil {
@@ -392,7 +396,41 @@ func WaitForUsage(ctx context.Context, subURL string, before Usage, wait, pollTi
 			fmt.Println(C("Usage reported by the subscription did not change yet.", "yellow"))
 		}
 	}
-	return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 52 seconds. The panel may be delayed or may only show usage in its dashboard.")
+	if best == nil {
+		return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 52 seconds. The panel may be delayed or may only show usage in its dashboard.")
+	}
+	if expectedBytes <= 0 || best.Used()-baseline >= expectedBytes {
+		return best, readings, bestTime, nil
+	}
+	settle := time.Duration(wait) * time.Second
+	if settle < 4*time.Second {
+		settle = 4 * time.Second
+	}
+	if settle > 12*time.Second {
+		settle = 12 * time.Second
+	}
+	fmt.Println(C(fmt.Sprintf("Usage changed by %s; waiting up to %s for the panel to finish recording ...", Human(best.Used()-baseline), settle), "dim"))
+	stableSince := time.Now()
+	deadline := time.Now().Add(settle + 8*time.Second)
+	for {
+		if best.Used()-baseline >= expectedBytes || time.Since(stableSince) >= settle || time.Now().After(deadline) {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return best, readings, bestTime, ctx.Err()
+		case <-time.After(time.Second):
+		}
+		reading, got, at, err := readUsageAfterFn(ctx, subURL, before, 1)
+		if err == nil && reading != nil {
+			readings = append(readings, got...)
+			if reading.Used() > best.Used() {
+				best, bestTime = reading, at
+				stableSince = time.Now()
+			}
+		}
+	}
+	return best, readings, bestTime, nil
 }
 
 type Result struct {
@@ -643,7 +681,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
 		}
 		fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
-		after, readings, afterTime, err := WaitForUsage(ctx, subURL, *before, opts.Wait, opts.PollTimeout, 3, IsInteractive())
+		after, readings, afterTime, err := WaitForUsage(ctx, subURL, *before, opts.Wait, opts.PollTimeout, 3, IsInteractive(), downloaded)
 		if err != nil {
 			return nil, err
 		}
