@@ -624,12 +624,18 @@
 
   function renderSubs() {
     const container = $("#subsContainer");
+    const scrolls = new Map();
+    container.querySelectorAll(".sub-group").forEach((group) => {
+      const list = group.querySelector(".config-list");
+      if (list && group.dataset.subId) scrolls.set(group.dataset.subId, list.scrollTop);
+    });
     container.replaceChildren();
     let totalConfigs = 0;
     state.subs.forEach((sub) => {
       totalConfigs += sub.count || sub.configs.length;
       const group = document.createElement("section");
       group.className = "sub-group";
+      group.dataset.subId = sub.id;
 
       const head = document.createElement("div");
       head.className = "sub-head";
@@ -673,6 +679,7 @@
         sub.configs.forEach((config) => {
           const item = document.createElement("label");
           item.className = "config-item";
+          item.dataset.index = String(config.index);
           if (maxConfigs() > 1) item.classList.add("multi");
           if (sub.selected.includes(config.index)) item.classList.add("selected");
 
@@ -697,8 +704,27 @@
       container.append(group);
     });
 
+    container.querySelectorAll(".sub-group").forEach((group) => {
+      const list = group.querySelector(".config-list");
+      if (list && group.dataset.subId && scrolls.has(group.dataset.subId)) {
+        list.scrollTop = scrolls.get(group.dataset.subId);
+      }
+    });
+
     const count = $("#configCount");
     count.textContent = t("configCount", { n: totalConfigs });
+  }
+
+  function syncSelection(sub) {
+    const group = $("#subsContainer").querySelector(`[data-sub-id="${sub.id}"]`);
+    if (!group) return;
+    group.querySelectorAll(".config-item").forEach((item) => {
+      const index = Number(item.dataset.index);
+      const selected = sub.selected.includes(index);
+      item.classList.toggle("selected", selected);
+      const input = item.querySelector(".config-radio");
+      if (input) input.checked = selected;
+    });
   }
 
   function toggleConfig(sub, index) {
@@ -712,7 +738,7 @@
       while (next.length > limit) next.shift();
       sub.selected = next;
     }
-    renderSubs();
+    syncSelection(sub);
     renderClaim();
     updateStartState();
   }
