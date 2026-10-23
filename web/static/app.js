@@ -43,7 +43,7 @@
       coreSystem: "سیستم",
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
       coreUsed: "هسته Xray",
-      chooseAnother: "کانفیگ دیگر",
+      chooseAnother: "کانفیگ دیگری از همین ساب",
       claimOptional: "اختیاری",
       claimDetected: "ادعای این کانفیگ: {n}",
       startTest: "شروع تست",
@@ -77,7 +77,7 @@
       raw: "خام",
       duration: "مدت تست",
       configUsed: "کانفیگ",
-      testAnother: "کانفیگ دیگر",
+      testAnother: "کانفیگ دیگری از همین ساب",
       shareResult: "اشتراک‌گذاری",
       sharePreparing: "در حال ساخت تصویر…",
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
@@ -168,7 +168,7 @@
       coreSystem: "System",
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
       coreUsed: "Xray core",
-      chooseAnother: "Another config",
+      chooseAnother: "Another config from this sub",
       claimOptional: "Optional",
       claimDetected: "This config claims: {n}",
       startTest: "Start test",
@@ -202,7 +202,7 @@
       raw: "raw",
       duration: "Duration",
       configUsed: "Config",
-      testAnother: "Another config",
+      testAnother: "Another config from this sub",
       shareResult: "Share",
       sharePreparing: "Creating image…",
       shareFallback: "The result image was downloaded and the share text was copied. Attach it in Telegram.",
@@ -1011,10 +1011,7 @@
     $("#errorDetails").open = false;
     const hasConfigs = state.subs.some((sub) => sub.configs.length);
     if (hasConfigs) show($("#selectCard"));
-    const probeLike = ["probe_failed", "resolve_failed", "timeout", "xray_failed"].includes(
-      state.errorCode,
-    );
-    $("#anotherBtn").classList.toggle("hidden", !probeLike || !hasConfigs);
+    $("#anotherBtn").classList.toggle("hidden", !hasConfigs);
     show($("#errorCard"));
     $("#errorCard").scrollIntoView({ behavior: "smooth", block: "center" });
   }
