@@ -10,6 +10,11 @@ if ! command -v python3 >/dev/null 2>&1; then
     exit 1
 fi
 
+LOCAL_SCRIPT="$(cd "$(dirname "$0")" && pwd)/ratio_test.py"
+if [ -f "$LOCAL_SCRIPT" ]; then
+    exec python3 "$LOCAL_SCRIPT" "$@"
+fi
+
 mkdir -p "$CACHE"
 
 fetch_script() {

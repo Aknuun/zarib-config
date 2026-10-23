@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f8fc">
+  <script src="/static/theme-init.js"></script>
+  <script src="/static/lang-init.js"></script>
+  <title>تست ضریب V2Ray | V2Ray Ratio Test</title>
+  <meta name="description" content="ضریب واقعی مصرف ترافیک سابسکریپشن V2Ray را با یک تست ۱۰ مگابایتی اندازه بگیر. Measure your real V2Ray subscription traffic ratio with a 10 MB test.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="RatioTest">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><path d="M6 22.5 13.2 8l5.1 10.2L22.2 11 26 22.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="7" r="2.2" fill="currentColor"/></svg>
+      </span>
+      <span class="brand-name">Ratio<span>Test</span></span>
+    </a>
+    <div class="top-actions">
+      <button id="themeBtn" class="ghost-btn icon-btn" type="button" aria-label="تغییر تم" title="تغییر تم">
+        <svg class="theme-icon sun" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg class="theme-icon moon" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="langBtn" class="ghost-btn lang-btn" type="button" aria-label="Change language">EN</button>
+      <a class="ghost-btn icon-btn" href="https://github.com/Aknuun/v2ray-ratio-test" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.17c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.35.77 1.05.77 2.12v3.14c0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>
+        <span data-i18n="heroTitle1">ضریب واقعی</span>
+        <span data-i18n="heroTitle2">ترافیک V2Ray</span>
+      </h1>
+      <p class="hero-sub" data-i18n="heroSub">۱۰ مگابایت تست، بدون ذخیره لینک.</p>
+    </section>
+
+    <section id="inputCard" class="card">
+      <div class="input-row">
+        <div class="input-wrap">
+          <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93M14 11a5 5 0 0 0-7.07 0L5.51 12.42a5 5 0 0 0 7.07 7.07L14 18.07" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <input id="subUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" dir="ltr" placeholder="https://example.com/sub/xxxx">
+        </div>
+        <button id="inspectBtn" class="primary-btn" type="button">
+          <span class="btn-label" data-i18n="loadConfigs">دریافت کانفیگ‌ها</span>
+          <span class="spinner hidden" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div id="inputError" class="inline-error hidden" role="alert"></div>
+    </section>
+
+    <section id="selectCard" class="card hidden">
+      <div class="card-head">
+        <h2 data-i18n="selectTitle">انتخاب کانفیگ</h2>
+        <span id="configCount" class="status-pill"></span>
+      </div>
+
+      <div id="usageBox" class="usage-box"></div>
+      <div id="configList" class="config-list" role="radiogroup" aria-label="Configs"></div>
+
+      <details class="advanced">
+        <summary data-i18n="advanced">تنظیمات بیشتر</summary>
+        <div class="advanced-body">
+          <div class="field-label" data-i18n="sizeLabel">حجم تست</div>
+          <div id="sizeGroup" class="segmented">
+            <button type="button" class="seg" data-size="10">10 MB</button>
+            <button type="button" class="seg" data-size="20">20 MB</button>
+            <button type="button" class="seg" data-size="50">50 MB</button>
+          </div>
+          <div class="grid2 advanced-grid">
+            <div>
+              <label class="field-label" for="claimed" data-i18n="claimedLabel">ضریب ادعاشده (اختیاری)</label>
+              <input id="claimed" class="text-input" type="number" step="0.01" min="0.1" max="100" dir="ltr" placeholder="1.20">
+              <p id="claimHint" class="hint small"></p>
+            </div>
+            <div>
+              <label class="field-label" for="coreSelect" data-i18n="coreLabel">هسته Xray</label>
+              <select id="coreSelect" class="text-input" dir="ltr">
+                <option value="auto" data-i18n="coreAuto">خودکار</option>
+                <option value="latest" data-i18n="coreLatest">جدید</option>
+                <option value="legacy" data-i18n="coreLegacy">قدیمی</option>
+                <option value="system" data-i18n="coreSystem">سیستم</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <label class="check">
+        <input id="agree" type="checkbox" checked>
+        <span id="agreeText" data-i18n="agreeText">می‌دانم حدود ۱۰ مگابایت مصرف می‌شود.</span>
+      </label>
+
+      <button id="startBtn" class="primary-btn wide" type="button" disabled>
+        <span class="btn-label" data-i18n="startTest">شروع تست</span>
+        <span class="spinner hidden" aria-hidden="true"></span>
+      </button>
+    </section>
+
+    <section id="progressCard" class="card hidden" aria-live="polite">
+      <div class="stage-row">
+        <span id="stageLabel" class="stage-label">—</span>
+        <span id="progressPct" class="mono">0%</span>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+      <div id="stageMessage" class="stage-message" dir="ltr"></div>
+      <div class="progress-actions">
+        <button id="cancelBtn" class="ghost-btn" type="button" data-i18n="cancel">لغو</button>
+        <button id="logToggle" class="ghost-btn" type="button" data-i18n="showLog">جزئیات</button>
+        <span id="elapsed" class="mono muted">00:00</span>
+      </div>
+      <pre id="logBox" class="log hidden" dir="ltr" aria-label="Log"></pre>
+    </section>
+
+    <section id="resultCard" class="card result hidden" aria-live="polite">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow"><span class="dot"></span><span data-i18n="resultEyebrow">نتیجه تست</span></div>
+          <div id="coef" class="coef">—</div>
+          <div id="verdict" class="badge hidden"></div>
+        </div>
+        <div class="result-ring" aria-hidden="true">
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
+          <span>×</span>
+        </div>
+      </div>
+      <p id="sentence" class="sentence"></p>
+      <div class="stats">
+        <div class="stat"><span data-i18n="downloaded">دانلود واقعی</span><strong id="statDownloaded">—</strong></div>
+        <div class="stat"><span data-i18n="deducted">کسرشده</span><strong id="statDeducted">—</strong></div>
+        <div class="stat"><span data-i18n="claimed">ادعای پنل</span><strong id="statClaimed">—</strong></div>
+        <div class="stat"><span data-i18n="remaining">باقی‌مانده</span><strong id="statRemaining">—</strong></div>
+      </div>
+      <div id="resultMeta" class="meta"></div>
+      <div class="result-actions">
+        <button id="againBtn" class="primary-btn" type="button" data-i18n="testAnother">کانفیگ دیگر</button>
+        <button id="shareBtn" class="ghost-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-label" data-i18n="shareResult">اشتراک‌گذاری</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="errorCard" class="card error-card hidden" role="alert">
+      <div class="error-mark" aria-hidden="true">!</div>
+      <div class="error-body">
+        <h2 id="errorTitle" data-i18n="errorTitle">تست انجام نشد</h2>
+        <p id="errorText" class="error-text"></p>
+        <p id="errorSuggest" class="hint"></p>
+        <details id="errorDetails" class="details">
+          <summary data-i18n="details">جزئیات</summary>
+          <pre id="errorDetail" dir="ltr"></pre>
+        </details>
+        <div class="error-actions">
+          <button id="retryBtn" class="primary-btn" type="button" data-i18n="tryAgain">تلاش دوباره</button>
+          <button id="anotherBtn" class="ghost-btn hidden" type="button" data-i18n="chooseAnother">کانفیگ دیگر</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a class="credit" href="https://t.me/panelsazfilterbot" target="_blank" rel="noopener noreferrer">powered by t.me/panelsazfilterbot</a>
+  </footer>
+
+  <noscript>
+    <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
+  </noscript>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

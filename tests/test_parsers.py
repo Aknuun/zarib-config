@@ -3,10 +3,12 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ratio_test import (  # noqa: E402
+    ProbeFailure,
     RatioError,
     detect_claimed,
     extract_configs,
@@ -14,6 +16,8 @@ from ratio_test import (  # noqa: E402
     outbound_from_uri,
     parse_usage,
     prepare_config,
+    probe_with_retry,
+    wait_for_usage,
 )
 
 
@@ -95,6 +99,20 @@ class SubscriptionExtractionTests(unittest.TestCase):
         self.assertEqual(configs[0]["protocol"], "vless")
         self.assertEqual(configs[0]["target"], "example.com:443")
         self.assertEqual(configs[0]["remark"], "node ×1.2")
+        self.assertIsNotNone(configs[0]["config"])
+
+    def test_single_top_level_json_config(self):
+        config = {
+            "outbounds": [
+                {"protocol": "trojan", "tag": "proxy", "settings": {"servers": [{"address": "example.net", "port": 443}]}},
+                {"protocol": "freedom", "tag": "DIRECT"},
+            ],
+        }
+        configs = extract_configs(json.dumps(config).encode())
+        self.assertEqual(len(configs), 1)
+        self.assertEqual(configs[0]["protocol"], "trojan")
+        self.assertEqual(configs[0]["target"], "example.net:443")
+        self.assertEqual(configs[0]["remark"], "proxy")
         self.assertIsNotNone(configs[0]["config"])
 
     def test_unsupported_scheme_is_skipped(self):
@@ -216,3 +234,35 @@ class ConfigPreparationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class RetryTests(unittest.TestCase):
+    def test_usage_retries_until_it_changes(self):
+        before = {"upload": 0, "download": 0}
+        unchanged = ({"upload": 0, "download": 0}, [], 1.0)
+        changed = ({"upload": 0, "download": 10}, [], 2.0)
+        with mock.patch("ratio_test.countdown"), mock.patch(
+            "ratio_test.read_usage_after", side_effect=[unchanged, changed]
+        ) as read:
+            after, _, _ = wait_for_usage(
+                "https://example.com/sub", before, 20, 60, retries=3, interactive=False
+            )
+        self.assertEqual(after["download"], 10)
+        self.assertEqual(read.call_count, 2)
+
+    def test_usage_raises_after_all_rounds(self):
+        before = {"upload": 0, "download": 0}
+        unchanged = ({"upload": 0, "download": 0}, [], 1.0)
+        with mock.patch("ratio_test.countdown"), mock.patch(
+            "ratio_test.read_usage_after", return_value=unchanged
+        ):
+            with self.assertRaises(RatioError):
+                wait_for_usage(
+                    "https://example.com/sub", before, 20, 60, retries=3, interactive=False
+                )
+
+    def test_probe_retries_then_succeeds(self):
+        with mock.patch(
+            "ratio_test.probe", side_effect=[ProbeFailure("reset"), None]
+        ) as probe:
+            probe_with_retry(1080, ["https://example.com"], 5, 1, 0, False)
+        self.assertEqual(probe.call_count, 2)

@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 VERSION = "1.0.0"
 UA = "v2rayNG/1.9.16"
@@ -40,6 +40,19 @@ DEFAULT_CHUNK_MB = 5.0
 DEFAULT_TEST_URL = "https://speed.cloudflare.com/__down?bytes={bytes}"
 DEFAULT_PROBE_URL = "https://speed.cloudflare.com/__down?bytes=4096"
 DEFAULT_PROBE_TIMEOUT = 20
+DEFAULT_PROBE_RETRIES = 0
+DEFAULT_PROBE_WAIT = 10
+LEGACY_XRAY_VERSION = "v1.8.24"
+CORE_CHOICES = ("auto", "latest", "legacy", "system")
+MAX_SUB_BYTES = 4 * 1024 * 1024
+SAFE_FETCH = os.environ.get("RATIO_SAFE_FETCH") == "1"
+BLOCKED_HOSTS = {
+    "localhost",
+    "localhost.localdomain",
+    "metadata.google.internal",
+    "metadata",
+    "instance-data",
+}
 PROBE_URLS = [
     DEFAULT_PROBE_URL,
     "https://www.google.com/generate_204",
@@ -53,6 +66,10 @@ FA_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "012345678
 
 
 class RatioError(Exception):
+    pass
+
+
+class ProbeFailure(RatioError):
     pass
 
 
@@ -170,6 +187,45 @@ def parse_bool(value: str) -> bool:
     return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
+def ask_yes_no(prompt: str, default: bool = True) -> bool:
+    if not sys.stdin.isatty():
+        return default
+    raw = ask(prompt + " [y/n]", "y" if default else "n")
+    return parse_bool(raw)
+
+
+def is_public_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False
+    host = parsed.hostname.rstrip(".").lower()
+    if host in BLOCKED_HOSTS or host.endswith(".local") or host.endswith(".internal"):
+        return False
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, ValueError, OverflowError):
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if not ip.is_global:
+            return False
+    return True
+
+
+class SafeRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not is_public_url(newurl):
+            raise RatioError("Blocked a redirect to a non-public address.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def fetch(url: str, timeout: int = 30):
     headers = {
         "User-Agent": UA,
@@ -178,9 +234,24 @@ def fetch(url: str, timeout: int = 30):
         "Pragma": "no-cache",
     }
     req = Request(url, headers=headers)
+    if SAFE_FETCH:
+        if not is_public_url(url):
+            raise RatioError("Blocked: the subscription URL must be a public http(s) address.")
+        opener = build_opener(SafeRedirectHandler())
+    else:
+        opener = None
     try:
-        with urlopen(req, timeout=timeout) as resp:
-            return resp.read(), dict(resp.headers)
+        if opener is None:
+            response = urlopen(req, timeout=timeout)
+        else:
+            response = opener.open(req, timeout=timeout)
+        with response as resp:
+            body = resp.read(MAX_SUB_BYTES + 1)
+            if len(body) > MAX_SUB_BYTES:
+                raise RatioError("Subscription response is too large.")
+            return body, dict(resp.headers)
+    except RatioError:
+        raise
     except HTTPError as exc:
         raise RatioError(f"Subscription request failed with HTTP {exc.code}.")
     except URLError as exc:
@@ -573,10 +644,15 @@ def extract_configs(body: bytes):
         if isinstance(data, list):
             candidates = data
         elif isinstance(data, dict):
-            for key in ("configs", "links", "proxies", "data"):
-                if isinstance(data.get(key), list):
-                    candidates = data[key]
-                    break
+            if isinstance(data.get("outbounds"), list):
+                candidates = [data]
+            elif isinstance(data.get("data"), dict) and isinstance(data["data"].get("outbounds"), list):
+                candidates = [data["data"]]
+            else:
+                for key in ("configs", "links", "proxies", "data"):
+                    if isinstance(data.get(key), list):
+                        candidates = data[key]
+                        break
         for item in candidates:
             if isinstance(item, str):
                 lines.append(item)
@@ -606,7 +682,7 @@ def extract_configs(body: bytes):
                 ),
                 None,
             )
-            if not proxy or not config.get("remarks") and not proxy.get("tag"):
+            if not proxy:
                 continue
             if not is_usable_host(outbound_host(proxy)):
                 continue
@@ -710,37 +786,69 @@ def xray_runs(path: Path) -> bool:
         return False
 
 
-def ensure_xray() -> Path:
-    found = shutil.which("xray")
-    if found:
+def xray_version(path: Path) -> str:
+    try:
+        result = subprocess.run(
+            [str(path), "-version"], capture_output=True, text=True, timeout=15
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    output = (result.stdout or result.stderr or "").strip()
+    return output.splitlines()[0] if output else ""
+
+
+def core_candidates(choice: str):
+    choice = (choice or "auto").strip().lower()
+    if choice in ("latest", "legacy", "system"):
+        return [choice]
+    candidates = ["latest", "legacy"]
+    if shutil.which("xray"):
+        candidates.append("system")
+    return candidates
+
+
+def ensure_xray(core: str = "latest") -> Path:
+    core = (core or "latest").strip().lower()
+    if core not in ("latest", "legacy", "system"):
+        core = "latest"
+    if core == "system":
+        found = shutil.which("xray")
+        if not found:
+            raise RatioError("No system Xray binary was found in PATH.")
         return Path(found)
-    target = CACHE_DIR / "xray"
+    target = CACHE_DIR / ("xray" if core == "latest" else f"xray-{LEGACY_XRAY_VERSION}")
     if target.exists() and xray_runs(target):
         return target
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     asset = xray_asset_name()
-    url = f"https://github.com/XTLS/Xray-core/releases/latest/download/{asset}"
-    print(f"Xray not found; downloading from GitHub ({asset}) ...")
+    if core == "legacy":
+        url = f"https://github.com/XTLS/Xray-core/releases/download/{LEGACY_XRAY_VERSION}/{asset}"
+    else:
+        url = f"https://github.com/XTLS/Xray-core/releases/latest/download/{asset}"
+    print(f"Xray ({core}) not found; downloading from GitHub ({asset}) ...")
     request = Request(url, headers={"User-Agent": "ratio-test"})
     try:
         with urlopen(request, timeout=120) as response:
             payload = response.read()
     except (URLError, TimeoutError) as exc:
-        raise RatioError(f"Could not download Xray: {exc}")
-    archive = CACHE_DIR / asset
+        raise RatioError(f"Could not download Xray ({core}): {exc}")
+    archive = CACHE_DIR / f"{core}-{asset}.{os.getpid()}.zip"
     archive.write_bytes(payload)
+    temporary = target.with_name(f"{target.name}.{os.getpid()}.tmp")
     try:
         with zipfile.ZipFile(archive) as zf:
             member = next((name for name in zf.namelist() if name == "xray" or name.endswith("/xray")), None)
             if not member:
                 raise RatioError("The xray binary was not found inside the archive.")
-            with zf.open(member) as src, open(target, "wb") as dst:
+            with zf.open(member) as src, open(temporary, "wb") as dst:
                 shutil.copyfileobj(src, dst)
-        target.chmod(0o755)
+        temporary.chmod(0o755)
+        os.replace(temporary, target)
     finally:
         archive.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
     if not xray_runs(target):
-        raise RatioError("The downloaded Xray binary is not executable.")
+        raise RatioError(f"The downloaded Xray ({core}) binary is not executable.")
     return target
 
 
@@ -901,11 +1009,28 @@ def probe(port: int, urls, timeout: int):
             return size
         detail = error or (f"HTTP {code}" if code else "no response")
         print(f"  probe failed: {detail} ({url})", file=sys.stderr)
-    raise RatioError(
+    raise ProbeFailure(
         "The config did not respond through the proxy. "
         "The node may be down, blocked, or too slow. "
         "Try another config with --pick N, or increase --probe-timeout."
     )
+
+
+def probe_with_retry(port: int, urls, timeout: int, retries: int, wait_seconds: int, interactive: bool):
+    attempts = max(0, int(retries)) + 1
+    for attempt in range(1, attempts + 1):
+        try:
+            probe(port, urls, timeout)
+            return
+        except ProbeFailure as exc:
+            if attempt >= attempts:
+                raise
+            print(c(f"Connection probe failed: {exc}", "yellow"))
+            if interactive and not ask_yes_no(
+                f"Wait {wait_seconds}s and retry the connection?", True
+            ):
+                raise
+            countdown(wait_seconds, "Retrying connection")
 
 
 def download(port: int, template: str, total: int, chunk: int, chunk_timeout: int):
@@ -953,8 +1078,44 @@ def read_usage_after(sub_url: str, baseline, poll_timeout: int):
     return best, readings, best_time
 
 
+def wait_for_usage(sub_url: str, before, wait: int, poll_timeout: int, retries: int = 3, interactive: bool = False):
+    baseline = before["upload"] + before["download"]
+    countdown(wait, "Waiting for the panel to record usage")
+    for attempt in range(0, max(0, retries) + 1):
+        print(c("Checking subscription usage ...", "dim"))
+        window = poll_timeout if attempt == 0 else min(poll_timeout, max(wait, 5))
+        try:
+            after, readings, after_time = read_usage_after(sub_url, before, window)
+        except RatioError as exc:
+            if attempt >= retries:
+                raise
+            print(c(f"Could not read usage: {exc}", "yellow"))
+            after = None
+        if after is not None and after["upload"] + after["download"] > baseline:
+            return after, readings, after_time
+        if attempt >= retries:
+            break
+        if attempt > 0 and interactive and not ask_yes_no(
+            f"Usage has not changed. Wait another {wait}s?", True
+        ):
+            break
+        print(c("Usage reported by the subscription did not change yet.", "yellow"))
+        countdown(wait, "Waiting for the panel to record usage")
+    raise RatioError(
+        "Usage reported by the subscription did not change. "
+        "The panel may be delayed or may only show usage in its dashboard."
+    )
+
+
 def run(args) -> int:
-    sub_url = args.sub or ask("Subscription URL")
+    sub_url = args.sub
+    if getattr(args, "sub_file", None):
+        try:
+            sub_url = Path(args.sub_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise RatioError(f"Could not read the subscription URL file: {exc}")
+    if not sub_url:
+        sub_url = ask("Subscription URL")
     if not sub_url:
         raise RatioError("Subscription URL is required.")
 
@@ -970,6 +1131,7 @@ def run(args) -> int:
         return 0
 
     config_arg = args.config
+    available_configs = []
     if not config_arg:
         print("Reading configs from the subscription ...")
         configs = []
@@ -979,6 +1141,7 @@ def run(args) -> int:
         except RatioError as exc:
             print(f"Could not read configs from the subscription: {exc}")
         if configs:
+            available_configs = configs
             selected = choose_config(configs, args.pick)
             if selected.get("config") is not None:
                 config_arg = json.dumps(selected["config"], ensure_ascii=False)
@@ -1031,118 +1194,192 @@ def run(args) -> int:
         )
     )
 
-    base_config, outbound, target_tag, remark, scan_text = build_client_config(config_text)
-    claimed, claimed_source = detect_claimed(scan_text + " " + remark, args.claimed)
+    interactive = sys.stdin.isatty()
+    core_choice = getattr(args, "core", "auto") or "auto"
+    probe_retries = max(0, int(getattr(args, "probe_retries", DEFAULT_PROBE_RETRIES) or 0))
+    probe_wait = max(0, int(getattr(args, "probe_wait", DEFAULT_PROBE_WAIT) or 0))
 
-    if base_config is None:
-        proxy_outbound = outbound
-    else:
-        proxy_outbound = next(
-            (
-                item
-                for item in base_config.get("outbounds", [])
-                if isinstance(item, dict)
-                and item.get("protocol") not in DIRECT_PROTOCOLS
-                and (target_tag is None or item.get("tag") == target_tag)
-            ),
-            None,
-        )
-    if proxy_outbound:
-        ensure_resolvable(outbound_host(proxy_outbound))
+    while True:
+        base_config, outbound, target_tag, remark, scan_text = build_client_config(config_text)
+        claimed, claimed_source = detect_claimed(scan_text + " " + remark, args.claimed)
 
-    xray = ensure_xray()
-    port = free_port()
-    config = prepare_config(base_config, outbound, target_tag, port)
-    if base_config is not None:
-        print(c("Using a test-safe copy of the JSON config (custom routing rules removed).", "dim"))
+        if base_config is None:
+            proxy_outbound = outbound
+        else:
+            proxy_outbound = next(
+                (
+                    item
+                    for item in base_config.get("outbounds", [])
+                    if isinstance(item, dict)
+                    and item.get("protocol") not in DIRECT_PROTOCOLS
+                    and (target_tag is None or item.get("tag") == target_tag)
+                ),
+                None,
+            )
+        if proxy_outbound:
+            ensure_resolvable(outbound_host(proxy_outbound))
+        if base_config is not None:
+            print(c("Using a test-safe copy of the JSON config (custom routing rules removed).", "dim"))
 
-    tmpdir = Path(tempfile.mkdtemp(prefix="ratio-test-"))
-    cfg_path = tmpdir / "config.json"
-    log_path = tmpdir / "xray.log"
-    cfg_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
-    cfg_path.chmod(0o600)
-    process = None
-    try:
-        check = subprocess.run(
-            [str(xray), "run", "-test", "-c", str(cfg_path)],
-            capture_output=True,
-            text=True,
-            timeout=40,
-        )
-        if check.returncode != 0:
-            raise RatioError("The config is not valid for Xray:\n" + (check.stderr or check.stdout)[-2000:])
+        core_names = core_candidates(core_choice)
+        core_errors = []
+        core_used = None
+        xray = None
+        process = None
+        tmpdir = None
+        try:
+            for core_index, core_name in enumerate(core_names):
+                try:
+                    xray = ensure_xray(core_name)
+                except RatioError as exc:
+                    core_errors.append(f"{core_name}: {exc}")
+                    if len(core_names) > 1:
+                        print(c(f"Xray core '{core_name}' is unavailable: {exc}", "yellow"))
+                    continue
+                port = free_port()
+                config = prepare_config(base_config, outbound, target_tag, port)
+                tmpdir = Path(tempfile.mkdtemp(prefix="ratio-test-"))
+                cfg_path = tmpdir / "config.json"
+                log_path = tmpdir / "xray.log"
+                cfg_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+                cfg_path.chmod(0o600)
+                try:
+                    check = subprocess.run(
+                        [str(xray), "run", "-test", "-c", str(cfg_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=40,
+                    )
+                    if check.returncode != 0:
+                        raise RatioError(
+                            "The config is not valid for Xray:\n"
+                            + (check.stderr or check.stdout)[-2000:]
+                        )
+                    log_file = open(log_path, "wb")
+                    try:
+                        process = subprocess.Popen(
+                            [str(xray), "run", "-c", str(cfg_path)],
+                            stdout=log_file,
+                            stderr=log_file,
+                        )
+                    finally:
+                        log_file.close()
+                    wait_for_port(port, process, log_path)
+                    print(c(f"Xray ({core_name}) started; probing connectivity through the config ...", "cyan"))
+                    probe_urls = PROBE_URLS if args.probe_url == DEFAULT_PROBE_URL else [args.probe_url]
+                    probe_with_retry(
+                        port,
+                        probe_urls,
+                        args.probe_timeout,
+                        probe_retries,
+                        probe_wait,
+                        interactive,
+                    )
+                    core_used = core_name
+                    break
+                except RatioError as exc:
+                    core_errors.append(f"{core_name}: {exc}")
+                    if process is not None and process.poll() is None:
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait(timeout=5)
+                    process = None
+                    if tmpdir is not None:
+                        shutil.rmtree(tmpdir, ignore_errors=True)
+                        tmpdir = None
+                    if core_index < len(core_names) - 1:
+                        print(c(f"Xray core '{core_name}' failed: {exc}", "yellow"))
+                        print(c("Trying another Xray core ...", "cyan"))
+                        continue
+                    raise
 
-        log_file = open(log_path, "wb")
-        process = subprocess.Popen(
-            [str(xray), "run", "-c", str(cfg_path)],
-            stdout=log_file,
-            stderr=log_file,
-        )
-        wait_for_port(port, process, log_path)
-        print(c("Xray started; probing connectivity through the config ...", "cyan"))
-        probe_urls = PROBE_URLS if args.probe_url == DEFAULT_PROBE_URL else [args.probe_url]
-        probe(port, probe_urls, args.probe_timeout)
-        if args.probe_only:
-            print(c("Connection OK.", "green"))
-            return 0
-        print(c("Connection OK. Reading baseline usage ...", "green"))
-        time.sleep(2)
-        before = read_usage(sub_url)
-        before_time = time.time()
-        drift_rate = 0.0
-        drift_used = 0.0
-        if args.drift_window > 0:
-            drift_start = before
-            drift_start_time = before_time
-            countdown(args.drift_window, "Measuring background usage")
+            if process is None or core_used is None:
+                raise RatioError(
+                    "No Xray core could start the config. " + " | ".join(core_errors)
+                )
+
+            if args.probe_only:
+                print(c(f"Connection OK ({core_used}).", "green"))
+                return 0
+            print(c(f"Connection OK ({core_used}). Reading baseline usage ...", "green"))
+            time.sleep(2)
             before = read_usage(sub_url)
             before_time = time.time()
-            drift_bytes = (before["upload"] + before["download"]) - (
-                drift_start["upload"] + drift_start["download"]
-            )
-            drift_window = max(0.001, before_time - drift_start_time)
-            if drift_bytes > 0:
-                drift_rate = drift_bytes / drift_window
-                if drift_bytes >= 64 * 1024:
-                    print(
-                        c(
-                            f"Warning: the subscription is consuming data while idle "
-                            f"({human(drift_bytes)} in {drift_window:.0f}s, about {human(drift_rate)}/s).",
-                            "yellow",
+            drift_rate = 0.0
+            drift_used = 0.0
+            if args.drift_window > 0:
+                drift_start = before
+                drift_start_time = before_time
+                countdown(args.drift_window, "Measuring background usage")
+                before = read_usage(sub_url)
+                before_time = time.time()
+                drift_bytes = (before["upload"] + before["download"]) - (
+                    drift_start["upload"] + drift_start["download"]
+                )
+                drift_window = max(0.001, before_time - drift_start_time)
+                if drift_bytes > 0:
+                    drift_rate = drift_bytes / drift_window
+                    if drift_bytes >= 64 * 1024:
+                        print(
+                            c(
+                                f"Warning: the subscription is consuming data while idle "
+                                f"({human(drift_bytes)} in {drift_window:.0f}s, about {human(drift_rate)}/s).",
+                                "yellow",
+                            )
                         )
-                    )
-                    print(c("Results will be corrected using this background rate.", "dim"))
+                        print(c("Results will be corrected using this background rate.", "dim"))
+                    else:
+                        print(c(f"Background usage is small ({human(drift_bytes)}) and will be accounted for.", "dim"))
                 else:
-                    print(c(f"Background usage is small ({human(drift_bytes)}) and will be accounted for.", "dim"))
-            else:
-                print(c("No background usage detected.", "dim"))
+                    print(c("No background usage detected.", "dim"))
 
-        print(c(f"Starting test download ({human(total_bytes)}) ...", "cyan"))
-        started = time.time()
-        downloaded = download(port, args.test_url, total_bytes, chunk_bytes, int(args.timeout))
-        elapsed = time.time() - started
-        if downloaded <= 0:
-            raise RatioError("No data was downloaded through the config.")
-        if downloaded < total_bytes:
-            print(c(f"Warning: only {human(downloaded)} of {human(total_bytes)} was downloaded.", "yellow"))
-        print(c(f"Download finished: {human(downloaded)} in {elapsed:.1f}s.", "green"))
+            print(c(f"Starting test download ({human(total_bytes)}) ...", "cyan"))
+            started = time.time()
+            downloaded = download(port, args.test_url, total_bytes, chunk_bytes, int(args.timeout))
+            elapsed = time.time() - started
+            if downloaded <= 0:
+                raise RatioError("No data was downloaded through the config.")
+            if downloaded < total_bytes:
+                print(c(f"Warning: only {human(downloaded)} of {human(total_bytes)} was downloaded.", "yellow"))
+            print(c(f"Download finished: {human(downloaded)} in {elapsed:.1f}s.", "green"))
 
-        countdown(wait, "Waiting for the panel to record usage")
-        print(c("Checking subscription usage ...", "dim"))
-        after, readings, after_time = read_usage_after(sub_url, before, poll_timeout)
-        drift_used = drift_rate * max(0.0, after_time - before_time)
-    finally:
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
-        if args.keep_temp:
-            print(c(f"Temporary files: {tmpdir}", "dim"))
-        else:
-            shutil.rmtree(tmpdir, ignore_errors=True)
+            after, readings, after_time = wait_for_usage(
+                sub_url, before, wait, poll_timeout, retries=3, interactive=interactive
+            )
+            drift_used = drift_rate * max(0.0, after_time - before_time)
+        except ProbeFailure:
+            if interactive and available_configs:
+                print(c("The config did not connect.", "yellow"))
+                raw = ask("Enter another config number to try, or press Enter to stop", "")
+                try:
+                    index = int(normalize_digits(raw))
+                except ValueError:
+                    index = 0
+                if 1 <= index <= len(available_configs):
+                    selected = available_configs[index - 1]
+                    if selected.get("config") is not None:
+                        config_text = json.dumps(selected["config"], ensure_ascii=False)
+                    else:
+                        config_text = selected["uri"]
+                    continue
+            raise
+        finally:
+            if process is not None and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+            if tmpdir is not None:
+                if args.keep_temp:
+                    print(c(f"Temporary files: {tmpdir}", "dim"))
+                else:
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+        break
 
     delta_up = after["upload"] - before["upload"]
     delta_down = after["download"] - before["download"]
@@ -1159,6 +1396,7 @@ def run(args) -> int:
         ratio = (used - drift_used) / downloaded
     percent = (ratio - 1.0) * 100.0
 
+    matches = False
     if claimed:
         matches = abs(ratio - claimed) <= max(0.05, claimed * 0.03)
         if matches:
@@ -1216,6 +1454,8 @@ def run(args) -> int:
             "version": VERSION,
             "tested_at": datetime.now(timezone.utc).isoformat(),
             "config": remark or None,
+            "core": core_used,
+            "xray_version": xray_version(xray) if xray else None,
             "downloaded_bytes": downloaded,
             "usage_before": before,
             "usage_after": after,
@@ -1227,6 +1467,16 @@ def run(args) -> int:
             "background_bytes_per_second": round(drift_rate, 1),
             "background_bytes_in_test": int(drift_used),
             "claimed_ratio": claimed,
+            "claimed_matches": bool(matches) if claimed else None,
+            "verdict": verdict if claimed else None,
+            "remaining_bytes": (
+                after["total"] - after.get("upload", 0) - after.get("download", 0)
+                if after.get("total")
+                else None
+            ),
+            "total_bytes": after.get("total"),
+            "upload_after": after.get("upload"),
+            "download_after": after.get("download"),
             "duration_seconds": round(elapsed, 2),
         }
         Path(args.json_out).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1239,6 +1489,7 @@ def build_parser():
         description="Measure the real traffic coefficient of a V2Ray config by comparing actual downloads with subscription usage",
     )
     parser.add_argument("--sub", help="Subscription URL")
+    parser.add_argument("--sub-file", help="Read the subscription URL from a file (keeps it out of process arguments)")
     parser.add_argument("--config", help="Config link or JSON file path")
     parser.add_argument("--size", type=float, help=f"Test size in MB; minimum {MIN_SIZE_MB:g} (default {DEFAULT_SIZE_MB:g})")
     parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help=f"Seconds to wait before reading usage (default {DEFAULT_WAIT})")
@@ -1252,6 +1503,9 @@ def build_parser():
     parser.add_argument("--probe-url", default=DEFAULT_PROBE_URL, help="Probe URL used to check connectivity")
     parser.add_argument("--probe-timeout", type=int, default=DEFAULT_PROBE_TIMEOUT, help=f"Seconds per probe URL (default {DEFAULT_PROBE_TIMEOUT})")
     parser.add_argument("--probe-only", action="store_true", help="Only check that the config connects, without downloading test data")
+    parser.add_argument("--probe-retries", type=int, default=DEFAULT_PROBE_RETRIES, help=f"Extra connection attempts after a failed probe (default {DEFAULT_PROBE_RETRIES})")
+    parser.add_argument("--probe-wait", type=int, default=DEFAULT_PROBE_WAIT, help=f"Seconds to wait between probe attempts (default {DEFAULT_PROBE_WAIT})")
+    parser.add_argument("--core", choices=CORE_CHOICES, default="auto", help="Xray core to use; auto tries latest, legacy, then system")
     parser.add_argument("--claimed", type=float, help="Claimed coefficient, if not present in the config name")
     parser.add_argument("--json-out", help="Save the result to a JSON file")
     parser.add_argument("--keep-temp", action="store_true", help="Keep temporary files and the Xray log")

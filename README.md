@@ -4,6 +4,8 @@ This script downloads a known amount of data through a V2Ray config and compares
 
 Example: you download 10 MB and the subscription drops by 15 MB. The coefficient is `1.5x`, meaning 50% more than the real traffic is deducted.
 
+A hosted bilingual (Persian/English) version is available at **https://zarib-config.videobazi.com**. The web UI defaults to the browser language and a light theme, includes a dark-mode toggle, and can share a result image with the site address through the native share sheet.
+
 ## Requirements
 
 - Python 3.9 or newer
@@ -12,21 +14,27 @@ Example: you download 10 MB and the subscription drops by 15 MB. The coefficient
 - Xray: if it is not installed, the correct build is downloaded automatically from GitHub.
 - The subscription must expose the `subscription-userinfo` header (most Marzban-based panels do).
 
-## One-line run on a server
+## Run on a server
 
-Run this directly on the server:
+The repository is private. Clone it and use the local launcher:
+
+```bash
+git clone https://github.com/Aknuun/v2ray-ratio-test.git
+cd v2ray-ratio-test
+bash run.sh
+```
+
+The raw one-line commands below only work from a public fork:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh)"
 ```
 
-Or use the more robust form that keeps interactive input working:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Aknuun/v2ray-ratio-test/main/run.sh -o /tmp/ratio.sh && bash /tmp/ratio.sh
 ```
 
-`run.sh` downloads/updates the tester in `~/.cache/ratio-test` and then runs it. Xray is also downloaded automatically when needed.
+`run.sh` uses the local `ratio_test.py` when present; otherwise it downloads/updates the tester in `~/.cache/ratio-test`. Xray is also downloaded automatically when needed.
 
 ## Usage
 
@@ -88,11 +96,14 @@ python3 ratio_test.py --sub "..." --config "..." --json-out result.json
 | `--probe-url` | Probe URL used to check connectivity |
 | `--probe-timeout` | Seconds per probe URL (default 20) |
 | `--probe-only` | Only check that the config connects; do not download test data |
+| `--probe-retries` | Extra connection attempts after a failed probe (default 0) |
+| `--probe-wait` | Seconds to wait between probe attempts (default 10) |
+| `--core` | Xray core: `auto`, `latest`, `legacy` (v1.8.24), or `system` (default `auto`) |
 | `--claimed` | Claimed coefficient, if not present in the config name |
 | `--json-out` | Save the result to a JSON file |
 | `--keep-temp` | Keep temporary files and the Xray log for debugging |
 
-The subscription can be passed with `--sub` or entered interactively. Without `--config`, configs are read from the subscription and shown for selection. Both URI links (`vless://`, `vmess://`, `trojan://`, `ss://`) and full Xray JSON configs are supported. You can still pass a config manually as a link or a JSON file path.
+The subscription can be passed with `--sub` or entered interactively. Without `--config`, configs are read from the subscription and shown for selection. Both URI links (`vless://`, `vmess://`, `trojan://`, `ss://`) and full Xray JSON configs are supported. If a subscription contains a single top-level JSON client config (or a JSON array of them), it is accepted directly; you no longer need to paste it manually. You can still pass a config manually as a link or a JSON file path.
 
 Placeholder entries that some panels put in subscriptions (for example a host like `ParsConnection` with no real domain) are skipped automatically. Full JSON configs are copied for the test and their custom routing rules are replaced with one rule that sends the test traffic to the selected proxy. This avoids missing `geoip.dat`/`geosite.dat` errors and port conflicts with the original config.
 
@@ -102,7 +113,7 @@ Placeholder entries that some panels put in subscriptions (for example a host li
 2. Xray starts with the config and exposes a SOCKS proxy on `127.0.0.1` only.
 3. The test data is downloaded through the proxy and the real received bytes are counted.
 4. Before the test, background usage is sampled for 10 seconds. If the subscription is being used by another device, that rate is subtracted from the result.
-5. After 20 seconds, the subscription is read again to capture the upload/download delta.
+5. After 20 seconds, the subscription is read again to capture the upload/download delta. If usage has not changed, the wait is repeated up to three times; in interactive mode the script asks before the second and third retries.
 6. Formula:
 
 ```
@@ -111,7 +122,9 @@ coefficient = (upload delta + download delta) / actual downloaded bytes
 
 If the config name contains something like `1.5x`, `x1.5`, `×1.2`, `ratio 1.5`, or a Persian coefficient label, the script treats it as the claimed coefficient and compares it with the measured value. Use `--claimed` to set it manually.
 
-The connectivity probe tries Cloudflare first and then falls back to Google and Cloudflare's HTTP 204 endpoint. If all of them fail, the node is probably down, blocked, or too slow.
+The connectivity probe tries Cloudflare first and then falls back to Google and Cloudflare's HTTP 204 endpoint. If all of them fail, the node is probably down, blocked, or too slow. Use `--probe-retries` and `--probe-wait` to retry a transient failure, or choose another config when prompted.
+
+Some configs only work with a newer or older Xray core. `--core auto` tries the latest release, then the legacy v1.8.24 core, then any system binary. The JSON result includes the core that was actually used.
 
 ## Output
 
