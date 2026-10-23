@@ -15,8 +15,6 @@
   --violet: #7c3aed;
   --danger: #e11d48;
   --warn: #d97706;
-  --grad: linear-gradient(120deg, #06b6d4 0%, #10b981 48%, #8b5cf6 100%);
-  --grad-text: linear-gradient(120deg, #0891b2 0%, #059669 48%, #7c3aed 100%);
   --coef-good: linear-gradient(120deg, #059669, #0891b2);
   --coef-warn: linear-gradient(120deg, #d97706, #ea580c);
   --coef-bad: linear-gradient(120deg, #e11d48, #be123c);
@@ -26,6 +24,11 @@
   --font: "Vazirmatn", "Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, -apple-system, sans-serif;
   --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
   --primary-text: #041018;
+  --btn-bg: #0b3b8c;
+  --btn-bg-hover: #0a347a;
+  --btn-text: #ffffff;
+  --btn-shadow: rgba(11, 59, 140, 0.22);
+  --btn-shadow-strong: rgba(11, 59, 140, 0.32);
   --surface-1: rgba(15, 23, 42, 0.025);
   --surface-2: rgba(15, 23, 42, 0.045);
   --surface-3: rgba(15, 23, 42, 0.07);
@@ -86,12 +89,15 @@ html[data-theme="dark"] {
   --violet: #a78bfa;
   --danger: #fb7185;
   --warn: #fbbf24;
-  --grad: linear-gradient(120deg, #22d3ee 0%, #34d399 48%, #a78bfa 100%);
-  --grad-text: var(--grad);
   --coef-good: linear-gradient(120deg, #34d399, #22d3ee);
   --coef-warn: linear-gradient(120deg, #fbbf24, #fb923c);
   --coef-bad: linear-gradient(120deg, #fb7185, #f43f5e);
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --btn-bg: #1e40af;
+  --btn-bg-hover: #1d4ed8;
+  --btn-text: #ffffff;
+  --btn-shadow: rgba(30, 64, 175, 0.32);
+  --btn-shadow-strong: rgba(29, 78, 216, 0.42);
   --surface-1: rgba(255, 255, 255, 0.025);
   --surface-2: rgba(255, 255, 255, 0.06);
   --surface-3: rgba(255, 255, 255, 0.08);
@@ -183,9 +189,9 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  color: var(--primary-text);
-  background: var(--grad);
-  box-shadow: 0 8px 30px var(--accent-glow);
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  box-shadow: 0 8px 30px var(--btn-shadow);
 }
 
 .brand-mark svg {
@@ -429,8 +435,8 @@ select.text-input option {
   appearance: none;
   border: 0;
   border-radius: var(--radius-sm);
-  background: var(--grad);
-  color: var(--primary-text);
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font: inherit;
   font-weight: 800;
   font-size: 0.92rem;
@@ -442,13 +448,14 @@ select.text-input option {
   justify-content: center;
   gap: 8px;
   white-space: nowrap;
-  box-shadow: 0 12px 30px var(--accent-glow);
-  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 12px 30px var(--btn-shadow);
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s, background 0.2s;
 }
 
 .primary-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px var(--accent-glow-strong);
+  background: var(--btn-bg-hover);
+  box-shadow: 0 16px 40px var(--btn-shadow-strong);
 }
 
 .primary-btn:active:not(:disabled) {
@@ -469,8 +476,8 @@ select.text-input option {
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(4, 16, 24, 0.3);
-  border-top-color: #041018;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -581,7 +588,7 @@ select.text-input option {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--grad);
+  background: var(--btn-bg);
   transition: width 0.6s ease;
 }
 
@@ -830,15 +837,8 @@ select.text-input option {
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: var(--grad);
-  background-size: 200% 100%;
-  animation: shimmer 2.4s linear infinite;
+  background: var(--btn-bg);
   transition: width 0.5s ease;
-}
-
-@keyframes shimmer {
-  from { background-position: 0% 50%; }
-  to { background-position: 200% 50%; }
 }
 
 .stage-message {

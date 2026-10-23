@@ -1006,6 +1006,8 @@
         glow1: "rgba(34, 211, 238, 0.16)",
         glow2: "rgba(167, 139, 250, 0.12)",
         primary: "#041018",
+        button: "#1e40af",
+        buttonText: "#ffffff",
       };
     }
     return {
@@ -1030,6 +1032,8 @@
       glow1: "rgba(6, 182, 212, 0.12)",
       glow2: "rgba(139, 92, 246, 0.08)",
       primary: "#041018",
+      button: "#0b3b8c",
+      buttonText: "#ffffff",
     };
   }
 
@@ -1074,13 +1078,10 @@
     const markX = pad;
     const markY = 62;
     const markSize = 58;
-    const markGrad = ctx.createLinearGradient(markX, markY, markX + markSize, markY + markSize);
-    markGrad.addColorStop(0, C.accent);
-    markGrad.addColorStop(1, C.violet);
     roundRect(ctx, markX, markY, markSize, markSize, 16);
-    ctx.fillStyle = markGrad;
+    ctx.fillStyle = C.button;
     ctx.fill();
-    ctx.strokeStyle = C.primary;
+    ctx.strokeStyle = C.buttonText;
     ctx.lineWidth = 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -1319,11 +1320,7 @@
       rtl,
     });
 
-    const bar = ctx.createLinearGradient(pad, 0, W - pad, 0);
-    bar.addColorStop(0, C.accent);
-    bar.addColorStop(0.5, C.good);
-    bar.addColorStop(1, C.violet);
-    ctx.fillStyle = bar;
+    ctx.fillStyle = C.button;
     ctx.fillRect(pad, H - 12, W - pad * 2, 6);
 
     return canvasToBlob(canvas);
