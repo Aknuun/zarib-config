@@ -904,9 +904,6 @@
     renderSubs();
     updateStartState();
     await inspectSub(sub);
-    if (fresh && !sub.error && sub.configs.length && !state.running) {
-      startTest();
-    }
   }
 
   function addSubFromInput() {
@@ -985,7 +982,7 @@
     } finally {
       sub.loading = false;
       renderSubs();
-        updateStartState();
+      updateStartState();
       if (state.subs.some((item) => item.configs.length)) {
         $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
       }
