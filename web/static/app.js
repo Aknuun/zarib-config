@@ -67,6 +67,9 @@
       liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
+      sizeDialogTitle: "حجم تست",
+      sizeRangeHint: "از ۵ تا ۱۰۰ مگابایت",
+      done: "تأیید",
       coreLabel: "هسته Xray",
       coreAuto: "خودکار",
       coreLatest: "جدید",
@@ -75,6 +78,7 @@
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
       bgMeasure: "اندازه‌گیری پس‌زمینه",
       bgMeasureHint: "اگر تیک بزنی، پس‌زمینه را از نتیجه کم می‌کنیم.",
+      bgMeasureToast: "تست کمی کندتر پیش می‌رود ولی دقیق‌تر می‌شود.",
       chooseAnother: "کانفیگ دیگری از همین ساب",
       startTest: "شروع تست",
       startConfirmEyebrow: "یادآوری",
@@ -256,6 +260,9 @@
       liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
       advanced: "More settings",
       sizeLabel: "Test size",
+      sizeDialogTitle: "Test size",
+      sizeRangeHint: "5 to 100 MB",
+      done: "Done",
       coreLabel: "Xray core",
       coreAuto: "Auto",
       coreLatest: "Latest",
@@ -264,6 +271,7 @@
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
       bgMeasure: "Background measurement",
       bgMeasureHint: "If enabled, background usage is subtracted from the result.",
+      bgMeasureToast: "The test runs a little slower but is more accurate.",
       chooseAnother: "Another config from this sub",
       startTest: "Start test",
       startConfirmEyebrow: "Reminder",
@@ -393,6 +401,7 @@
     lang: document.documentElement.lang === "en" ? "en" : "fa",
     subs: [],
     size: 25,
+    bgMeasure: false,
     running: false,
     cancelRequested: false,
     activeJobs: new Set(),
@@ -1487,15 +1496,50 @@
     const hasSelection = selectedCount() > 0;
     $("#startBtn").disabled = !hasSelection || state.running;
     $("#inspectBtn").disabled = state.subs.length >= 5 || state.running;
+    $("#sizeBtn").disabled = state.running;
+    $("#bgToggle").disabled = state.running;
     $("#sizeRange").disabled = state.running;
-    $("#coreSelect").disabled = state.running;
   }
 
   function setSize(size) {
-    const value = Math.max(2, Math.min(50, Math.round(Number(size) || 25)));
+    const value = Math.max(5, Math.min(100, Math.round(Number(size) || 25)));
     state.size = value;
     $("#sizeRange").value = String(value);
     $("#sizeValue").textContent = `${value} MB`;
+    const chip = $("#sizeChipValue");
+    if (chip) chip.textContent = `${value} MB`;
+  }
+
+  function openSizeDialog() {
+    if (state.running) return;
+    const dialog = $("#sizeDialog");
+    if (!dialog) return;
+    const range = $("#sizeRange");
+    if (range) range.value = String(state.size);
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+    if (range) range.focus();
+  }
+
+  function closeSizeDialog() {
+    const dialog = $("#sizeDialog");
+    if (!dialog) return;
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function toggleBgMeasure() {
+    if (state.running) return;
+    state.bgMeasure = !state.bgMeasure;
+    const button = $("#bgToggle");
+    if (button) {
+      button.classList.toggle("active", state.bgMeasure);
+      button.setAttribute("aria-pressed", state.bgMeasure ? "true" : "false");
+    }
+    if (state.bgMeasure) toast(t("bgMeasureToast"));
   }
 
   async function startTest() {
@@ -1563,8 +1607,8 @@
         size_mb: state.size,
         wait: 2,
         drift: 0,
-        sync: Boolean($("#bgMeasure").checked),
-        core: $("#coreSelect").value || "auto",
+        sync: state.bgMeasure,
+        core: "auto",
         tunnel,
       }),
     });
@@ -2643,6 +2687,19 @@
       }
     });
     $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
+    $("#sizeBtn").addEventListener("click", openSizeDialog);
+    const sizeClose = $("#sizeClose");
+    if (sizeClose) sizeClose.addEventListener("click", closeSizeDialog);
+    const sizeDone = $("#sizeDone");
+    if (sizeDone) sizeDone.addEventListener("click", closeSizeDialog);
+    const sizeDialog = $("#sizeDialog");
+    if (sizeDialog) {
+      sizeDialog.addEventListener("click", (event) => {
+        if (event.target === sizeDialog) closeSizeDialog();
+      });
+    }
+    const bgToggle = $("#bgToggle");
+    if (bgToggle) bgToggle.addEventListener("click", toggleBgMeasure);
     $("#startBtn").addEventListener("click", openStartDialog);
     const startConfirm = $("#startConfirm");
     if (startConfirm) {

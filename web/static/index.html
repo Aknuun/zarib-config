@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030j">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030k">
 </head>
 <body>
   <header class="topbar">
@@ -77,37 +77,16 @@
 
       <div id="subsContainer"></div>
 
-      <details class="advanced">
-        <summary data-i18n="advanced">تنظیمات بیشتر</summary>
-        <div class="advanced-body">
-          <div class="advanced-grid">
-            <div class="advanced-field">
-              <label class="field-label" for="sizeRange" data-i18n="sizeLabel">حجم تست</label>
-              <div class="size-row">
-                <input id="sizeRange" class="size-range" type="range" min="2" max="50" step="1" value="25" aria-label="Test size">
-                <output id="sizeValue" class="size-value mono" for="sizeRange">25 MB</output>
-              </div>
-            </div>
-            <div class="advanced-field">
-              <label class="field-label" for="coreSelect" data-i18n="coreLabel">هسته Xray</label>
-              <select id="coreSelect" class="text-input" dir="ltr">
-                <option value="auto" data-i18n="coreAuto">خودکار</option>
-                <option value="latest" data-i18n="coreLatest">جدید</option>
-                <option value="legacy" data-i18n="coreLegacy">قدیمی</option>
-                <option value="system" data-i18n="coreSystem">سیستم</option>
-              </select>
-            </div>
-          </div>
-          <div class="toggle-row">
-            <label class="toggle-label" for="bgMeasure">
-              <input id="bgMeasure" type="checkbox">
-              <span data-i18n="bgMeasure">اندازه‌گیری پس‌زمینه</span>
-            </label>
-            <p class="hint small advanced-note" data-i18n="bgMeasureHint">اگر تیک بزنی، پس‌زمینه را از نتیجه کم می‌کنیم.</p>
-          </div>
-          <p class="hint small advanced-note" data-i18n="configsShortHint">کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان.</p>
-        </div>
-      </details>
+      <div class="test-options">
+        <button id="sizeBtn" class="option-chip" type="button" aria-haspopup="dialog" aria-controls="sizeDialog">
+          <span class="option-chip-label" data-i18n="sizeLabel">حجم تست</span>
+          <strong id="sizeChipValue" class="mono">25 MB</strong>
+        </button>
+        <button id="bgToggle" class="option-chip" type="button" aria-pressed="false">
+          <span class="option-chip-icon" aria-hidden="true">◐</span>
+          <span data-i18n="bgMeasure">اندازه‌گیری پس‌زمینه</span>
+        </button>
+      </div>
 
       <button id="startBtn" class="primary-btn wide" type="button" disabled>
         <span class="btn-label" data-i18n="startTest">شروع تست</span>
@@ -242,6 +221,24 @@
     <p class="hint small" data-i18n="liveHint">این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.</p>
   </dialog>
 
+  <dialog id="sizeDialog" class="live-dialog size-dialog" aria-labelledby="sizeDialogHeading">
+    <div class="live-dialog-head">
+      <div>
+        <div class="eyebrow"><span class="dot"></span><span data-i18n="sizeLabel">حجم تست</span></div>
+        <h2 id="sizeDialogHeading" data-i18n="sizeDialogTitle">حجم تست</h2>
+      </div>
+      <button id="sizeClose" class="ghost-btn icon-btn" type="button" aria-label="بستن" data-i18n-aria-label="liveClose">×</button>
+    </div>
+    <div class="size-row">
+      <input id="sizeRange" class="size-range" type="range" min="5" max="100" step="1" value="25" aria-label="Test size">
+      <output id="sizeValue" class="size-value mono" for="sizeRange">25 MB</output>
+    </div>
+    <p class="hint small" data-i18n="sizeRangeHint">از ۵ تا ۱۰۰ مگابایت</p>
+    <div class="report-actions">
+      <button id="sizeDone" class="primary-btn" type="button" data-i18n="done">تأیید</button>
+    </div>
+  </dialog>
+
   <dialog id="startDialog" class="live-dialog start-dialog" aria-labelledby="startConfirmHeading">
     <div class="live-dialog-head">
       <div>
@@ -284,6 +281,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030j"></script>
+  <script src="/static/app.js?v=20261030k"></script>
 </body>
 </html>

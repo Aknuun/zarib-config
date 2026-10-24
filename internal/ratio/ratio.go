@@ -14,8 +14,8 @@ import (
 const (
 	Version             = "1.2.12"
 	UA                  = "v2rayNG/1.9.16"
-	MinSizeMB           = 2.0
-	MaxSizeMB           = 50.0
+	MinSizeMB           = 5.0
+	MaxSizeMB           = 100.0
 	DefaultSizeMB       = 25.0
 	CLIDefaultSizeMB    = 100.0
 	DefaultWait         = 2

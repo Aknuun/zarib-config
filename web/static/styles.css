@@ -1865,6 +1865,54 @@ select.text-input option {
   color: var(--muted);
 }
 
+.test-options {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.option-chip:hover {
+  border-color: var(--accent-hover-border);
+}
+
+.option-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option-chip-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.option-chip-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.size-dialog .size-row {
+  margin: 18px 0 10px;
+}
+
 .field-hint {
   font-size: 0.76rem;
   line-height: 1.7;
