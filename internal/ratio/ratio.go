@@ -33,6 +33,13 @@ const (
 
 var CoreChoices = []string{"auto", "latest", "legacy", "system"}
 
+var FallbackTestURLs = []string{
+	"https://proof.ovh.net/files/1Gb.dat",
+	"https://ash-speed.hetzner.com/1GB.bin",
+	"https://download.thinkbroadband.com/1GB.zip",
+	"http://shahriar.iperf3.ir/files/1000mb.bin",
+}
+
 var ProbeURLs = []string{
 	DefaultProbeURL,
 	"https://www.google.com/generate_204",

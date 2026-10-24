@@ -99,6 +99,7 @@ The tunnel check sends only the config server's hostname/IP to the geolocation s
 - Panels that record usage with a delay may need a longer wait; sync mode handles the common one-minute update cycle.
 - The web UI waits 120 seconds for usage (every second for the first 10 seconds, then every 5 seconds). If usage is still missing, it offers a button to wait up to 5 more minutes (checked every 10 seconds) or cancel.
 - The connectivity probe has a 20-second budget. A TCP ping can succeed while the node blocks the test destination or is too slow, so the probe may fail even when the server is reachable.
+- If the primary speed-test host is blocked, the test tries fallback mirrors (OVH, Hetzner, ThinkBroadband) and an ArvanCloud Iranian mirror. Fallback downloads use HTTP range requests.
 - Shared subscriptions can have background traffic. Sync mode measures and subtracts it, but a larger test size and disconnecting other devices still improve accuracy.
 - For best accuracy, use a larger test size (10-50 MB) and disconnect other devices.
 - SOCKS listens on `127.0.0.1` only; temporary files use `0600`.

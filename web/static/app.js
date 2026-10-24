@@ -1739,6 +1739,8 @@
       [/^Results will be corrected using this background rate\.$/, "نتیجه با این نرخ پس‌زمینه اصلاح می‌شود."],
       [/^Background usage is small \((.+)\) and will be accounted for\.$/, "مصرف پس‌زمینه کم است ($1) و در محاسبه لحاظ می‌شود."],
       [/^Warning: the subscription is consuming data while idle \((.+)\)\.$/, "هشدار: سابسکریپشن در حالت بیکار مصرف دارد ($1)."],
+      [/^Primary test target failed; trying fallback (.*) \.\.\.$/, "مقصد اصلی تست ناموفق بود؛ تلاش با مقصد جایگزین $1 ..."],
+      [/^Using fallback test target: (.*)$/, "استفاده از مقصد جایگزین تست: $1"],
       [/^Starting test download \((.+)\) \.\.\.$/, "شروع دانلود تست ($1) ..."],
       [/^  received (.*) \| total (.*) of (.*)$/, "  دریافت $1 | مجموع $2 از $3"],
       [/^Download finished: (.*) in (.*)s\.$/, "دانلود تمام شد: $1 در $2 ثانیه."],

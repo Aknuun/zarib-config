@@ -234,6 +234,37 @@ func CurlSize(ctx context.Context, port int, targetURL string, maxTime int, spee
 	return int64(size), strings.TrimSpace(stderr.String())
 }
 
+func CurlSizeRange(ctx context.Context, port int, targetURL string, maxTime int, speedLimit int, start, end int64) (int64, string) {
+	args := []string{
+		"-sS", "--socks5-hostname", fmt.Sprintf("127.0.0.1:%d", port),
+		"--connect-timeout", "10", "--max-time", strconv.Itoa(maxTime),
+		"--range", fmt.Sprintf("%d-%d", start, end),
+		"--max-filesize", strconv.FormatInt(end-start+1, 10),
+	}
+	if speedLimit > 0 {
+		args = append(args, "--speed-limit", strconv.Itoa(speedLimit), "--speed-time", "30")
+	}
+	args = append(args, "-o", os.DevNull, "-w", "%{size_download}", targetURL)
+	requestCtx, cancel := context.WithTimeout(ctx, time.Duration(maxTime+15)*time.Second)
+	defer cancel()
+	command := exec.CommandContext(requestCtx, "curl", args...)
+	var stdout, stderr strings.Builder
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
+	if requestCtx.Err() != nil {
+		return 0, "timeout"
+	}
+	size, _ := strconv.ParseFloat(strings.TrimSpace(stdout.String()), 64)
+	if err != nil {
+		if stderr.Len() > 0 {
+			return int64(size), strings.TrimSpace(stderr.String())
+		}
+		return int64(size), err.Error()
+	}
+	return int64(size), strings.TrimSpace(stderr.String())
+}
+
 func CurlProbe(ctx context.Context, port int, targetURL string, maxTime int) (int, int64, string) {
 	args := []string{
 		"-sS", "--socks5-hostname", fmt.Sprintf("127.0.0.1:%d", port),
@@ -362,6 +393,53 @@ func Download(ctx context.Context, port int, template string, total, chunk int64
 		}
 	}
 	return done
+}
+
+func DownloadRange(ctx context.Context, port int, targetURL string, total, chunk int64, chunkTimeout int) int64 {
+	done := int64(0)
+	attempts := 0
+	for done < total {
+		if ctx.Err() != nil {
+			break
+		}
+		size := chunk
+		if remaining := total - done; remaining < size {
+			size = remaining
+		}
+		received, _ := CurlSizeRange(ctx, port, targetURL, chunkTimeout, 10240, done, done+size-1)
+		done += received
+		attempts++
+		fmt.Fprintf(os.Stderr, "%s\n", C(fmt.Sprintf("  received %s | total %s of %s",
+			Human(received), Human(done), Human(total)), "dim"))
+		if received <= 0 {
+			if attempts >= 3 {
+				break
+			}
+			time.Sleep(time.Duration(1+attempts) * time.Second)
+		} else if done < total && received < size/2 && attempts >= 6 {
+			break
+		}
+	}
+	return done
+}
+
+func DownloadWithFallback(ctx context.Context, port int, opts Options, total, chunk int64) (int64, string) {
+	downloaded := Download(ctx, port, opts.TestURL, total, chunk, int(opts.Timeout))
+	if downloaded > 0 && downloaded >= total/10 {
+		return downloaded, opts.TestURL
+	}
+	for _, targetURL := range FallbackTestURLs {
+		if ctx.Err() != nil {
+			break
+		}
+		fmt.Fprintln(os.Stderr, C(fmt.Sprintf("Primary test target failed; trying fallback %s ...", targetURL), "yellow"))
+		received := DownloadRange(ctx, port, targetURL, total, chunk, int(opts.Timeout))
+		downloaded += received
+		if received > 0 {
+			return downloaded, targetURL
+		}
+	}
+	return downloaded, opts.TestURL
 }
 
 type usageReading struct {
@@ -857,8 +935,11 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		}
 		fmt.Println(C(fmt.Sprintf("Starting test download (%s) ...", Human(totalBytes)), "cyan"))
 		started := time.Now()
-		downloaded := Download(ctx, port, opts.TestURL, totalBytes, chunkBytes, int(opts.Timeout))
+		downloaded, targetURL := DownloadWithFallback(ctx, port, opts, totalBytes, chunkBytes)
 		elapsed := time.Since(started).Seconds()
+		if targetURL != opts.TestURL {
+			fmt.Println(C(fmt.Sprintf("Using fallback test target: %s", targetURL), "yellow"))
+		}
 		if downloaded <= 0 {
 			return nil, ratioErrorf("No data was downloaded through the config.")
 		}
