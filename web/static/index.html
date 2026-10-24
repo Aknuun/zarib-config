@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261031l">
+  <link rel="stylesheet" href="/static/styles.css?v=20261031m">
 </head>
 <body>
   <header class="topbar">
@@ -111,15 +111,12 @@
     <section id="resultCard" class="card result hidden" aria-live="polite">
       <div class="result-head">
         <div>
-          <div class="result-eyebrow-row">
-            <div class="eyebrow"><span class="dot"></span><span data-i18n="resultEyebrow">نتیجه تست</span></div>
-            <button id="shareBtn" class="ghost-btn icon-btn share-inline" type="button" aria-label="اشتراک‌گذاری" data-i18n-aria-label="shareResult">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
+          <button id="shareBtn" class="share-result-btn" type="button">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="shareResultLabel">ارسال نتیجه:</span>
+          </button>
           <div id="coef" class="coef">—</div>
           <div id="coefExact" class="coef-exact hidden"></div>
-          <div id="verdict" class="badge hidden"></div>
         </div>
         <div class="brand-panel">
           <button id="brandLogoBtn" class="result-ring brand-ring" type="button" aria-label="افزودن لوگوی شما" data-i18n-aria-label="addYourLogo">
@@ -129,11 +126,11 @@
           </button>
           <button id="brandImageClear" class="brand-clear hidden" type="button" aria-label="حذف عکس برند" data-i18n-aria-label="brandImageClear">×</button>
           <strong id="brandNameDisplay" class="brand-name-display hidden"></strong>
-          <strong id="resultSubHost" class="result-sub-host"></strong>
           <input id="brandNameInput" class="brand-name-input" type="text" maxlength="60" placeholder="افزودن آدرس شما" data-i18n-placeholder="addYourAddress">
           <input id="brandImageInput" type="file" accept="image/*" class="hidden">
         </div>
       </div>
+      <div id="verdict" class="badge hidden"></div>
       <div class="stats">
         <div class="stat"><span data-i18n="downloaded">دانلود واقعی</span><strong id="statDownloaded">—</strong></div>
         <div class="stat"><span data-i18n="deducted">کسرشده</span><strong id="statDeducted">—</strong></div>
@@ -276,6 +273,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261031l"></script>
+  <script src="/static/app.js?v=20261031m"></script>
 </body>
 </html>

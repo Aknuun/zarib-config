@@ -1218,6 +1218,7 @@ select.text-input option {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
   position: relative;
 }
@@ -1316,23 +1317,33 @@ select.text-input option {
   color: var(--accent);
 }
 
-.result-eyebrow-row {
-  display: flex;
+.share-result-btn {
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-bottom: 6px;
 }
 
-.share-inline {
-  width: 32px;
-  height: 32px;
+.share-result-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-selected);
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 14px;
   font-size: 0.76rem;
   font-weight: 700;
   border-radius: 999px;

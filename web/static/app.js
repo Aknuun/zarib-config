@@ -127,6 +127,7 @@
       configUsed: "کانفیگ",
       testAnother: "کانفیگ دیگری از همین ساب",
       shareResult: "اشتراک‌گذاری",
+      shareResultLabel: "ارسال نتیجه:",
       sharePreparing: "در حال ساخت تصویر…",
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
       shareDownloaded: "تصویر نتیجه دانلود شد. متن اشتراک‌گذاری را دستی کپی کن.",
@@ -329,6 +330,7 @@
       configUsed: "Config",
       testAnother: "Another config from this sub",
       shareResult: "Share",
+      shareResultLabel: "Send result:",
       sharePreparing: "Creating image…",
       shareFallback: "The result image was downloaded and the share text was copied. Attach it in Telegram.",
       shareDownloaded: "The result image was downloaded. Copy the share text manually.",
@@ -2094,8 +2096,6 @@
       configs_tested: usableCount,
     };
     state.result = aggregate;
-    const subHostEl = $("#resultSubHost");
-    if (subHostEl) subHostEl.textContent = lastItem.sub.host || "";
     const brandNameEl = $("#brandNameDisplay");
     if (brandNameEl) {
       const brandName = String(state.brandName || "").trim();
@@ -2432,28 +2432,6 @@
     });
 
     const customBrand = String(state.brandName || "").trim();
-    const subHost = String(result.host || "").trim();
-    if (subHost) {
-      setCanvasFont(ctx, 600, 20);
-      const hostLabel = fitText(ctx, subHost, W * 0.34);
-      const hostW = ctx.measureText(hostLabel).width + 28;
-      const hostH = 40;
-      const hostX = W - pad - hostW;
-      const hostY = 74;
-      roundRect(ctx, hostX, hostY, hostW, hostH, 20);
-      ctx.fillStyle = C.chip;
-      ctx.fill();
-      ctx.strokeStyle = C.chipBorder;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      drawCanvasText(ctx, hostLabel, hostX + hostW / 2, hostY + 27, {
-        size: 20,
-        weight: 600,
-        color: C.muted,
-        align: "center",
-        mono: true,
-      });
-    }
 
     if (brandImg) {
       const logoSize = 280;
@@ -2468,7 +2446,7 @@
       ctx.lineWidth = 2;
       roundRect(ctx, logoX, logoY, logoSize, logoSize, 44);
       ctx.stroke();
-      const logoLabel = customBrand || subHost;
+      const logoLabel = customBrand;
       if (logoLabel) {
         drawCanvasText(ctx, fitText(ctx, logoLabel, logoSize), logoX + logoSize / 2, logoY + logoSize + 46, {
           size: 28,
