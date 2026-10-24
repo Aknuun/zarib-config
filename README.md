@@ -20,7 +20,7 @@ To refresh the cached source after an update:
 ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
-You can also pin a release: `ZARIB_REF=v1.2.13`.
+You can also pin a release: `ZARIB_REF=v1.2.14`.
 
 > Results are estimates. There is a possibility of error or inaccuracy because panels may record usage with a delay or report it differently.
 
