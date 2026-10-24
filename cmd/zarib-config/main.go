@@ -114,6 +114,19 @@ func parsePicks(raw string, count int) ([]int, error) {
 		}
 		return picks, nil
 	}
+	for _, prefix := range []string{"first ", "count:", "count "} {
+		if strings.HasPrefix(raw, prefix) {
+			value, err := strconv.Atoi(ratio.NormalizeDigits(strings.TrimSpace(strings.TrimPrefix(raw, prefix))))
+			if err != nil || value < 1 || value > count {
+				return nil, fmt.Errorf("count must be between 1 and %d", count)
+			}
+			picks := make([]int, value)
+			for index := range picks {
+				picks[index] = index + 1
+			}
+			return picks, nil
+		}
+	}
 	parts := strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == ';' || r == ' ' || r == '\t'
 	})
@@ -136,15 +149,15 @@ func parsePicks(raw string, count int) ([]int, error) {
 }
 
 func askSize() float64 {
-	def := fmt.Sprintf("%g", ratio.DefaultSizeMB)
-	raw, err := ratio.Ask(fmt.Sprintf("Test size in MB (%g-%g)", ratio.MinSizeMB, ratio.MaxSizeMB), &def)
+	def := fmt.Sprintf("%g", ratio.CLIDefaultSizeMB)
+	raw, err := ratio.Ask("Test size in MB", &def)
 	if err != nil {
-		return ratio.DefaultSizeMB
+		return ratio.CLIDefaultSizeMB
 	}
 	value, err := ratio.ParseFloat(raw)
-	if err != nil || value < ratio.MinSizeMB || value > ratio.MaxSizeMB {
-		fmt.Printf("Invalid size; using %g MB.\n", ratio.DefaultSizeMB)
-		return ratio.DefaultSizeMB
+	if err != nil || value <= 0 {
+		fmt.Printf("Invalid size; using %g MB.\n", ratio.CLIDefaultSizeMB)
+		return ratio.CLIDefaultSizeMB
 	}
 	return value
 }
@@ -199,6 +212,7 @@ func menuProbe(ctx context.Context) {
 	opts.Sub = sub
 	opts.Pick = pick
 	opts.ProbeOnly = true
+	opts.FreeSize = true
 	opts.Core = askCore()
 	if _, err := ratio.Run(ctx, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -216,7 +230,7 @@ func menuTest(ctx context.Context) {
 		return
 	}
 	def := "1"
-	raw, err := ratio.Ask("Config numbers (comma-separated, or all)", &def)
+	raw, err := ratio.Ask("Configs (e.g. 1,2,3 / all / first 3)", &def)
 	if err != nil {
 		return
 	}
@@ -239,6 +253,7 @@ func menuTest(ctx context.Context) {
 		opts.Sub = sub
 		opts.Pick = pick
 		opts.SizeMB = &size
+		opts.FreeSize = true
 		opts.Core = core
 		opts.Sync = background
 		opts.DriftWindow = 0
@@ -260,7 +275,7 @@ func runCLI(args []string) int {
 		sub          = fs.String("sub", "", "Subscription URL")
 		subFile      = fs.String("sub-file", "", "Read the subscription URL from a file")
 		config       = fs.String("config", "", "Config link or JSON file path")
-		size         = fs.Float64("size", ratio.DefaultSizeMB, "Test size in MB")
+		size         = fs.Float64("size", ratio.CLIDefaultSizeMB, "Test size in MB (default 100)")
 		wait         = fs.Int("wait", defaults.Wait, "Seconds to wait before reading usage")
 		pollTimeout  = fs.Int("poll-timeout", defaults.PollTimeout, "Maximum seconds to wait for usage")
 		driftWindow  = fs.Int("drift-window", defaults.DriftWindow, "Seconds to sample background usage")
@@ -322,12 +337,11 @@ func runCLI(args []string) int {
 	opts.Sync = *syncMode
 	opts.ControlFile = *controlFile
 	opts.Core = *core
+	opts.FreeSize = true
 	opts.JSONOut = *jsonOut
 	opts.KeepTemp = *keepTemp
-	if provided["size"] {
-		value := *size
-		opts.SizeMB = &value
-	}
+	sizeValue := *size
+	opts.SizeMB = &sizeValue
 	if provided["pick"] {
 		opts.Pick = *pick
 		if opts.Pick == 0 {

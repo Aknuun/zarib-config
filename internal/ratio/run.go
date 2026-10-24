@@ -20,6 +20,7 @@ type Options struct {
 	SubFile      string
 	Config       string
 	SizeMB       *float64
+	FreeSize     bool
 	Wait         int
 	PollTimeout  int
 	DriftWindow  int
@@ -993,11 +994,16 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		}
 		sizeMB = value
 	}
-	if sizeMB < MinSizeMB {
-		return nil, ratioErrorf("Minimum test size is %g MB.", MinSizeMB)
+	if sizeMB <= 0 {
+		return nil, ratioErrorf("Test size must be greater than zero.")
 	}
-	if sizeMB > MaxSizeMB {
-		return nil, ratioErrorf("Maximum test size is %g MB.", MaxSizeMB)
+	if !opts.FreeSize {
+		if sizeMB < MinSizeMB {
+			return nil, ratioErrorf("Minimum test size is %g MB.", MinSizeMB)
+		}
+		if sizeMB > MaxSizeMB {
+			return nil, ratioErrorf("Maximum test size is %g MB.", MaxSizeMB)
+		}
 	}
 	opts.SizeMB = &sizeMB
 	wait := opts.Wait
