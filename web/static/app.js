@@ -2114,26 +2114,11 @@
 
     $("#sentence").textContent = invalid
       ? t("sentenceInvalid", { d: formatBytes(downloaded), u: formatBytes(deducted) })
-      : t("sentenceAvg", { n: usableCount, r: ratioNumber(avg) });
+      : count > 1
+        ? t("sentenceAvg", { n: usableCount, r: ratioNumber(avg) })
+        : t("sentence", { n: ratioNumber(avg) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
     $("#statDeducted").textContent = formatBytes(deducted);
-
-    const meta = $("#resultMeta");
-    meta.replaceChildren();
-    const rows = [[t("configsToTest"), String(count)]];
-    if (aggregate.duration_seconds) {
-      rows.push([t("duration"), formatDuration(aggregate.duration_seconds)]);
-    }
-    rows.forEach(([label, value]) => {
-      const row = document.createElement("span");
-      row.className = "meta-row";
-      const b = document.createElement("b");
-      b.textContent = `${label}:`;
-      const span = document.createElement("span");
-      span.textContent = value;
-      row.append(b, span);
-      meta.append(row);
-    });
 
     const list = $("#resultList");
     list.replaceChildren();
@@ -2574,9 +2559,6 @@
     const metaY = statsTop + statRows * statH + (statRows - 1) * statGap + 44;
     const metaLines = [];
     if (result.config) metaLines.push(`${t("configUsed")}: ${result.config}`);
-    if (result.duration_seconds) {
-      metaLines.push(`${t("duration")}: ${formatDuration(result.duration_seconds)}`);
-    }
     if (result.tested_at) {
       metaLines.push(`${t("resultEyebrow")}: ${formatDate(result.tested_at)}`);
     }
