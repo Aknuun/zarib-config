@@ -167,15 +167,16 @@ body {
   width: min(1080px, calc(100% - 40px));
   margin: 0 auto;
   padding: 22px 0 8px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
   gap: 10px;
   color: var(--text);
   text-decoration: none;
@@ -200,7 +201,7 @@ body {
 }
 
 .brand-name {
-  font-size: 0.32rem;
+  font-size: 0.43rem;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.02em;
@@ -209,6 +210,8 @@ body {
 .top-actions {
   display: flex;
   align-items: center;
+  justify-self: center;
+  direction: ltr;
   gap: 8px;
 }
 
@@ -465,6 +468,32 @@ input[type="number"],
 
 .input-wrap input {
   padding-inline-start: 44px;
+  padding-inline-end: 38px;
+}
+
+.input-clear {
+  position: absolute;
+  z-index: 5;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.input-clear:hover {
+  color: var(--danger-text);
+  background: var(--danger-soft);
 }
 
 .sub-history {

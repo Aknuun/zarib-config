@@ -8,7 +8,7 @@
       heroTitle1: "محاسبه ضریب",
       heroTitle2: "کانفیگ",
       heroSub: "تست دقیق با هم‌ترازی چرخه پنل.",
-      privacyNote: "لینک‌های قبلی فقط در مرورگر خودت ذخیره می‌شوند.",
+      privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
       copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
@@ -22,6 +22,7 @@
       pasteHint: "لینک ساب را در کادر بچسبان (Ctrl+V).",
       subLimit: "حداکثر ۵ لینک ساب می‌توانی اضافه کنی.",
       removeSub: "حذف لینک",
+      clearLink: "پاک کردن لینک",
       pingAll: "پینگ همه",
       checkSelect: "چک",
       selectMultiple: "انتخاب چند کانفیگ برای تست",
@@ -201,7 +202,7 @@
       heroTitle1: "Calculate",
       heroTitle2: "config ratio",
       heroSub: "Accurate, panel-synced test.",
-      privacyNote: "Previous links are stored only in your browser.",
+      privacyNote: "Per our GitHub docs, no config is retained or stored.",
       copyServerScript: "Copy and run it directly on your server",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
@@ -215,6 +216,7 @@
       pasteHint: "Paste the subscription link in the box (Ctrl+V).",
       subLimit: "You can add up to 5 subscription links.",
       removeSub: "Remove link",
+      clearLink: "Clear link",
       pingAll: "Ping all",
       checkSelect: "Check",
       selectMultiple: "Select multiple configs for testing",
@@ -981,6 +983,13 @@
     return value;
   }
 
+  function updateClearButton() {
+    const input = $("#subUrl");
+    const button = $("#clearSubUrl");
+    if (!input || !button) return;
+    button.classList.toggle("hidden", !input.value.trim());
+  }
+
   function loadSubHistory() {
     try {
       const raw = localStorage.getItem(SUB_HISTORY_KEY);
@@ -1031,6 +1040,7 @@
       button.addEventListener("click", () => {
         const input = $("#subUrl");
         input.value = item;
+        updateClearButton();
         input.focus();
         hideSubHistory();
       });
@@ -1094,6 +1104,7 @@
     }
     if (!fresh && state.subs.some((sub) => sub.url === normalized)) {
       $("#subUrl").value = "";
+      updateClearButton();
       return;
     }
     if (fresh) prepareFreshTest();
@@ -1110,6 +1121,7 @@
     };
     state.subs.push(sub);
     $("#subUrl").value = "";
+    updateClearButton();
     hideSubHistory();
     show($("#selectCard"));
     hide($("#resultCard"));
@@ -1151,6 +1163,7 @@
     if (parts.length > 1) {
       event.preventDefault();
       $("#subUrl").value = "";
+      updateClearButton();
       if (resultIsShowing()) prepareFreshTest();
       parts.forEach((part) => addSub(part));
       return;
@@ -2758,6 +2771,7 @@
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
     setSize(25);
+    updateClearButton();
     initLive();
 
     $("#themeBtn").addEventListener("click", toggleTheme);
@@ -2775,8 +2789,19 @@
     });
     $("#subUrl").addEventListener("focus", showSubHistory);
     $("#subUrl").addEventListener("click", showSubHistory);
+    const clearSubUrl = $("#clearSubUrl");
+    if (clearSubUrl) {
+      clearSubUrl.addEventListener("click", () => {
+        const input = $("#subUrl");
+        input.value = "";
+        updateClearButton();
+        input.focus();
+        hideSubHistory();
+      });
+    }
     $("#subUrl").addEventListener("paste", handlePaste);
     $("#subUrl").addEventListener("input", (event) => {
+      updateClearButton();
       renderSubHistory(event.target.value);
       if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
         scheduleAutoAddFromPaste();

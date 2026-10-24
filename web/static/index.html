@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030m">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030n">
 </head>
 <body>
   <header class="topbar">
@@ -49,6 +49,7 @@
         <div class="input-wrap">
           <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93M14 11a5 5 0 0 0-7.07 0L5.51 12.42a5 5 0 0 0 7.07 7.07L14 18.07" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           <input id="subUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" dir="ltr" placeholder="https://example.com/sub/xxxx">
+          <button id="clearSubUrl" class="input-clear hidden" type="button" aria-label="پاک کردن لینک" data-i18n-aria-label="clearLink">×</button>
           <div id="subHistory" class="sub-history hidden" role="listbox"></div>
         </div>
         <button id="inspectBtn" class="primary-btn" type="button">
@@ -58,7 +59,7 @@
       </div>
       <div id="inputError" class="inline-error hidden" role="alert"></div>
       <p class="privacy-note">
-        <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">لینک‌های قبلی فقط در مرورگر خودت ذخیره می‌شوند.</a>
+        <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.</a>
       </p>
       <div class="self-host">
         <button id="copyScriptBtn" class="ghost-btn" type="button">
@@ -169,7 +170,7 @@
   </main>
 
   <footer class="footer">
-    <a class="credit" href="https://t.me/aknuun" target="_blank" rel="noopener noreferrer">powered by t.me/aknuun</a>
+    <a class="credit" href="https://t.me/PanelSazFilterRobot" target="_blank" rel="noopener noreferrer">powered by @PanelSazFilterRobot</a>
   </footer>
 
   <dialog id="liveDialog" class="live-dialog" aria-labelledby="liveHeading">
@@ -272,6 +273,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030m"></script>
+  <script src="/static/app.js?v=20261030n"></script>
 </body>
 </html>
