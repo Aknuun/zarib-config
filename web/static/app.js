@@ -151,6 +151,7 @@
       reportInvalidLink: "لینک ساب معتبر نیست.",
       reportRateLimited: "گزارش‌های زیادی فرستادی. کمی بعد دوباره تلاش کن.",
       shareCaptionTitle: "نتیجه محاسبه ضریب ترافیک کانفیگ من",
+      shareCaptionOnly: "نتیجه تست ضریب کانفیگ از سایت zarib.appii.ir",
       shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
       themeToDark: "تغییر به تم تاریک",
       themeToLight: "تغییر به تم روشن",
@@ -346,6 +347,7 @@
       reportInvalidLink: "The subscription link is not valid.",
       reportRateLimited: "You sent too many reports. Try again later.",
       shareCaptionTitle: "My config traffic ratio result",
+      shareCaptionOnly: "Config ratio test result from zarib.appii.ir",
       shareFooter: "Real config traffic ratio calculator",
       themeToDark: "Switch to dark theme",
       themeToLight: "Switch to light theme",
@@ -396,7 +398,7 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const SITE_URL = "https://zarib.appii.ir/";
+  const SITE_HOST = "zarib.appii.ir";
   const SUB_HISTORY_KEY = "ratio-sub-history";
   const SUB_HISTORY_LIMIT = 8;
   const LTR_MARK = "\u200E";
@@ -2055,12 +2057,14 @@
     const nonRound = successes.some((item) =>
       isNonRoundRatio(item.result.ratio_raw ?? item.result.ratio),
     );
-    const last = successes[successes.length - 1].result;
+    const lastItem = successes[successes.length - 1];
+    const last = lastItem.result;
     const aggregate = {
       ratio: avg,
       downloaded_bytes: downloaded,
       delta_total: deducted,
-      config: null,
+      config: last.config,
+      host: lastItem.sub.host || "",
       core: last.core,
       xray_version: last.xray_version,
       duration_seconds: successes.reduce(
@@ -2182,22 +2186,8 @@
     show($("#resultListWrap"));
   }
 
-  function shareCaption(result) {
-    const ratio = Number(result.ratio) || 0;
-    const count = Number(result.configs_tested) || 0;
-    const sentence =
-      count > 1
-        ? t("sentenceAvg", { n: count, r: ratioNumber(ratio) })
-        : t("sentence", { n: ratioNumber(ratio) });
-    const lines = [`${t("shareCaptionTitle")} — ${ratioBig(ratio)}`, sentence];
-    if (ratioIsInvalid(ratio)) {
-      lines.push(t("invalidLow"));
-    } else if (ratioIsNo(ratio)) {
-      lines.push(ratioIsUnit(ratio) ? t("noRatioExact") : t("noRatioClose"));
-    }
-    lines.push(t("resultDisclaimer"));
-    lines.push(SITE_URL);
-    return lines.join("\n");
+  function shareCaption() {
+    return t("shareCaptionOnly");
   }
 
   function roundRect(ctx, x, y, w, h, r) {
@@ -2389,25 +2379,34 @@
     ctx.lineTo(markX + 46, markY + 40);
     ctx.stroke();
 
-    setCanvasFont(ctx, 900, 40);
-    const ratioWidth = ctx.measureText("Ratio").width;
-    drawCanvasText(ctx, "Ratio", markX + markSize + 18, 106, {
-      size: 40,
-      weight: 900,
+    drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
+      size: 34,
+      weight: 800,
       color: C.text,
-    });
-    drawCanvasText(ctx, "Test", markX + markSize + 18 + ratioWidth, 106, {
-      size: 40,
-      weight: 900,
-      color: C.accent,
-    });
-    drawCanvasText(ctx, SITE_URL, W - pad, 104, {
-      size: 22,
-      weight: 600,
-      color: C.muted2,
-      align: "right",
       mono: true,
     });
+    const subHost = String(result.host || "").trim();
+    if (subHost) {
+      setCanvasFont(ctx, 600, 20);
+      const hostLabel = fitText(ctx, subHost, W * 0.34);
+      const hostW = ctx.measureText(hostLabel).width + 28;
+      const hostH = 40;
+      const hostX = W - pad - hostW;
+      const hostY = 74;
+      roundRect(ctx, hostX, hostY, hostW, hostH, 20);
+      ctx.fillStyle = C.chip;
+      ctx.fill();
+      ctx.strokeStyle = C.chipBorder;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      drawCanvasText(ctx, hostLabel, hostX + hostW / 2, hostY + 27, {
+        size: 20,
+        weight: 600,
+        color: C.muted,
+        align: "center",
+        mono: true,
+      });
+    }
 
     ctx.strokeStyle = C.line;
     ctx.lineWidth = 2;
@@ -2478,27 +2477,8 @@
       );
       verdictY += 64;
     }
-    const testedCount = Number(result.configs_tested) || 0;
-    const sentence =
-      testedCount > 1
-        ? t("sentenceAvg", { n: testedCount, r: ratioNumber(ratio) })
-        : t("sentence", { n: ratioNumber(ratio) });
     const maxTextWidth = W - pad * 2;
-    setCanvasFont(ctx, 500, 33);
-    const sentenceLines = wrapLines(ctx, sentence, maxTextWidth);
-    let textY = Math.max(555, verdictY + 34);
-    sentenceLines.forEach((line) => {
-      drawCanvasText(ctx, line, rtl ? W - pad : pad, textY, {
-        size: 33,
-        weight: 500,
-        color: C.muted,
-        align: rtl ? "right" : "left",
-        rtl,
-      });
-      textY += 52;
-    });
-
-    const statsTop = Math.max(690, textY + 28);
+    const statsTop = Math.max(600, verdictY + 44);
     const statGap = 20;
     const statW = (W - pad * 2 - statGap) / 2;
     const statH = 150;
@@ -2574,16 +2554,9 @@
     ctx.lineTo(W - pad, footerLineY);
     ctx.stroke();
 
-    drawCanvasText(ctx, SITE_URL, W / 2, footerLineY + 62, {
-      size: 36,
-      weight: 800,
-      color: C.accent,
-      align: "center",
-      mono: true,
-    });
-    drawCanvasText(ctx, t("shareFooter"), W / 2, footerLineY + 108, {
-      size: 23,
-      weight: 500,
+    drawCanvasText(ctx, t("shareFooter"), W / 2, footerLineY + 74, {
+      size: 24,
+      weight: 600,
       color: C.muted2,
       align: "center",
       rtl,
@@ -2648,8 +2621,8 @@
     if (label) label.textContent = t("sharePreparing");
     try {
       const blob = await renderShareImage(state.result);
-      const file = new File([blob], "ratiotest-result.png", { type: "image/png" });
-      const caption = shareCaption(state.result);
+      const file = new File([blob], "zarib-result.png", { type: "image/png" });
+      const caption = shareCaption();
       let shared = false;
       if (navigator.canShare) {
         try {
@@ -2668,7 +2641,7 @@
         }
       }
       if (!shared) {
-        downloadBlob(blob, "ratiotest-result.png");
+        downloadBlob(blob, "zarib-result.png");
         const copied = await copyText(caption);
         toast(copied ? t("shareFallback") : t("shareDownloaded"), 6000);
       }
