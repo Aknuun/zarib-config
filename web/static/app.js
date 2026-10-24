@@ -1390,8 +1390,8 @@
       status.className = "sub-status";
       if (sub.loading) status.textContent = t("subLoading");
       else if (sub.error) status.textContent = errorMessage(sub.error.code);
-      else status.textContent = t("subConfigs", { n: sub.count || sub.configs.length });
-      title.append(nameRow, status);
+      if (status.textContent) title.append(nameRow, status);
+      else title.append(nameRow);
 
       const actions = document.createElement("div");
       actions.className = "sub-actions";

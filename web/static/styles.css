@@ -1914,6 +1914,7 @@ select.text-input option {
 
 .sub-name-row strong {
   min-width: 0;
+  flex: 1;
   font-size: 0.95rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1931,14 +1932,14 @@ select.text-input option {
   display: grid;
   place-items: center;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--danger-border);
   border-radius: 999px;
-  background: transparent;
-  color: var(--muted-2);
-  font-size: 0.9rem;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 1.17rem;
   line-height: 1;
   cursor: pointer;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
