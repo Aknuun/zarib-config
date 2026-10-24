@@ -200,16 +200,7 @@ body {
 }
 
 .brand-name {
-  font-size: 1.1rem;
-}
-
-.brand-name > span {
-  color: var(--accent);
-}
-
-.brand-version {
-  margin-inline-start: 6px;
-  font-size: 0.68rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.02em;
@@ -1711,10 +1702,6 @@ select.text-input option {
 
   .sub-action {
     flex: 1;
-  }
-
-  .brand-version {
-    display: none;
   }
 
   .live-dialog {

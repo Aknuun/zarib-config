@@ -77,7 +77,7 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 
 func buildReportMessage(description, subURL string, result *reportResultIn) string {
 	var b strings.Builder
-	b.WriteString("🚨 گزارش خطا — RatioTest\n")
+	b.WriteString("🚨 گزارش خطا — Zarib Config\n")
 	fmt.Fprintf(&b, "نسخه: %s\n\n", ratio.Version)
 	b.WriteString("شرح مشکل:\n")
 	b.WriteString(description)

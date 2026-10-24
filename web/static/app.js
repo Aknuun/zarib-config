@@ -3,7 +3,7 @@
 
   const I18N = {
     fa: {
-      pageTitle: "محاسبه ضریب واقعی ترافیک کانفیگ | RatioTest",
+      pageTitle: "محاسبه ضریب واقعی ترافیک کانفیگ",
       eyebrow: "شفافیت حجم، بدون حدس",
       heroTitle1: "محاسبه ضریب واقعی",
       heroTitle2: "ترافیک کانفیگ",
@@ -184,7 +184,7 @@
       err_unknown: "خطای پیش‌بینی‌نشده‌ای رخ داد.",
     },
     en: {
-      pageTitle: "Config Traffic Ratio Calculator | RatioTest",
+      pageTitle: "Config Traffic Ratio Calculator",
       eyebrow: "Transparent data accounting",
       heroTitle1: "Calculate the real",
       heroTitle2: "config traffic ratio",
