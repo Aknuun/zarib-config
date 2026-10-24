@@ -2737,30 +2737,36 @@
   }
 
   function handleBrandImage(file) {
-    if (!file || !file.type || !file.type.startsWith("image/")) {
+    if (!file) return;
+    const isImage = (file.type && file.type.startsWith("image/")) ||
+      /\.(png|jpe?g|webp|gif|svg|bmp|heic)$/i.test(file.name || "");
+    if (!isImage) {
       toast(t("brandImageInvalid"));
       return;
     }
-    if (state.brandImage && state.brandImage.src) {
-      URL.revokeObjectURL(state.brandImage.src);
-    }
-    const src = URL.createObjectURL(file);
-    state.brandImage = { src, name: file.name };
-    const preview = $("#brandLogoPreview");
-    if (preview) {
-      preview.src = src;
-      show(preview);
-    }
-    const text = $("#brandLogoText");
-    if (text) hide(text);
-    const clear = $("#brandImageClear");
-    if (clear) show(clear);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      if (!src.startsWith("data:image/")) {
+        toast(t("brandImageInvalid"));
+        return;
+      }
+      state.brandImage = { src, name: file.name };
+      const preview = $("#brandLogoPreview");
+      if (preview) {
+        preview.src = src;
+        show(preview);
+      }
+      const text = $("#brandLogoText");
+      if (text) hide(text);
+      const clear = $("#brandImageClear");
+      if (clear) show(clear);
+    };
+    reader.onerror = () => toast(t("brandImageInvalid"));
+    reader.readAsDataURL(file);
   }
 
   function clearBrandImage() {
-    if (state.brandImage && state.brandImage.src) {
-      URL.revokeObjectURL(state.brandImage.src);
-    }
     state.brandImage = null;
     const preview = $("#brandLogoPreview");
     if (preview) {
