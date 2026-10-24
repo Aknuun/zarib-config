@@ -1368,28 +1368,80 @@ select.text-input option {
   color: var(--accent-2);
 }
 
-.brand-row {
+.brand-panel {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 14px 0 16px;
+  gap: 6px;
+  flex: none;
+  width: 150px;
 }
 
-.brand-btn {
-  height: 38px;
+.brand-ring {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
 }
 
-.brand-preview {
-  width: 44px;
-  height: 44px;
+.ring-upload-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 18px;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ring-brand-img {
+  position: relative;
+  z-index: 2;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--accent);
+}
+
+.result-sub-host {
+  max-width: 150px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  direction: ltr;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-name-input {
+  width: 150px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 6px 8px;
+}
+
+.brand-name-input::placeholder {
+  color: var(--muted-2);
 }
 
 .brand-clear {
   appearance: none;
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  right: 14px;
   display: grid;
   place-items: center;
   width: 24px;
@@ -1826,6 +1878,21 @@ select.text-input option {
   .result-ring {
     width: 82px;
     height: 82px;
+  }
+
+  .brand-panel {
+    width: 122px;
+  }
+
+  .ring-brand-img {
+    width: 68px;
+    height: 68px;
+  }
+
+  .result-sub-host,
+  .brand-name-input {
+    width: 122px;
+    max-width: 122px;
   }
 
   .ring-icon {

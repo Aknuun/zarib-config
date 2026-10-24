@@ -154,6 +154,8 @@
       shareCaptionOnly: "نتیجه تست ضریب کانفیگ از سایت zarib.appii.ir",
       shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
       brandImageUpload: "بارگزاری عکس برند شما در نتیجه",
+      addYourLogo: "افزودن لوگوی شما",
+      addYourAddress: "افزودن آدرس شما",
       brandImageInvalid: "فایل تصویری معتبر انتخاب کن.",
       brandImageClear: "حذف عکس برند",
       configsOverview: "کاتفیگ‌ها",
@@ -354,6 +356,8 @@
       shareCaptionOnly: "Config ratio test result from zarib.appii.ir",
       shareFooter: "Real config traffic ratio calculator",
       brandImageUpload: "Upload your brand image to the result",
+      addYourLogo: "Add your logo",
+      addYourAddress: "Add your address",
       brandImageInvalid: "Please choose a valid image file.",
       brandImageClear: "Remove brand image",
       configsOverview: "Configs",
@@ -438,6 +442,7 @@
     total: 0,
     result: null,
     brandImage: null,
+    brandName: "",
     error: null,
     errorCode: null,
     errorLog: [],
@@ -2084,6 +2089,8 @@
       configs_tested: usableCount,
     };
     state.result = aggregate;
+    const subHostEl = $("#resultSubHost");
+    if (subHostEl) subHostEl.textContent = lastItem.sub.host || "";
 
     const coef = $("#coef");
     const coefExact = $("#coefExact");
@@ -2091,12 +2098,6 @@
     const noRatio = ratioIsNo(avg);
     const unitRatio = ratioIsUnit(avg);
     const invalid = ratioIsInvalid(avg);
-    const glyph = $("#resultGlyph");
-    if (glyph) {
-      glyph.textContent = noRatio ? "✓" : "×";
-      glyph.classList.toggle("is-check", noRatio);
-      glyph.classList.toggle("is-multiply", !noRatio);
-    }
     coef.textContent = ratioBig(avg);
     coef.classList.remove("warn", "bad");
     if (invalid || avg > 1.5) coef.classList.add("bad");
@@ -2420,12 +2421,22 @@
       ctx.stroke();
     }
 
-    drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
-      size: 34,
+    const customBrand = String(state.brandName || "").trim();
+    const brandLabel = customBrand || SITE_HOST;
+    drawCanvasText(ctx, fitText(ctx, brandLabel, W * 0.46), markX + markSize + 18, 106, {
+      size: customBrand ? 32 : 34,
       weight: 800,
       color: C.text,
       mono: true,
     });
+    if (customBrand) {
+      drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 134, {
+        size: 18,
+        weight: 600,
+        color: C.muted2,
+        mono: true,
+      });
+    }
 
     const subHost = String(result.host || "").trim();
     if (subHost) {
@@ -2735,11 +2746,13 @@
     }
     const src = URL.createObjectURL(file);
     state.brandImage = { src, name: file.name };
-    const preview = $("#brandImagePreview");
+    const preview = $("#brandLogoPreview");
     if (preview) {
       preview.src = src;
       show(preview);
     }
+    const text = $("#brandLogoText");
+    if (text) hide(text);
     const clear = $("#brandImageClear");
     if (clear) show(clear);
   }
@@ -2749,11 +2762,13 @@
       URL.revokeObjectURL(state.brandImage.src);
     }
     state.brandImage = null;
-    const preview = $("#brandImagePreview");
+    const preview = $("#brandLogoPreview");
     if (preview) {
       preview.removeAttribute("src");
       hide(preview);
     }
+    const text = $("#brandLogoText");
+    if (text) show(text);
     const clear = $("#brandImageClear");
     if (clear) hide(clear);
     const input = $("#brandImageInput");
@@ -2972,14 +2987,18 @@
     });
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", () => shareResult());
-    const brandImageBtn = $("#brandImageBtn");
-    if (brandImageBtn) brandImageBtn.addEventListener("click", () => $("#brandImageInput").click());
+    const brandLogoBtn = $("#brandLogoBtn");
+    if (brandLogoBtn) brandLogoBtn.addEventListener("click", () => $("#brandImageInput").click());
     const brandImageInput = $("#brandImageInput");
     if (brandImageInput) brandImageInput.addEventListener("change", (event) => {
       handleBrandImage(event.target.files && event.target.files[0]);
     });
     const brandImageClear = $("#brandImageClear");
     if (brandImageClear) brandImageClear.addEventListener("click", clearBrandImage);
+    const brandNameInput = $("#brandNameInput");
+    if (brandNameInput) brandNameInput.addEventListener("input", (event) => {
+      state.brandName = event.target.value;
+    });
     $("#reportBtn").addEventListener("click", openReportDialog);
     const footerReport = $("#footerReportBtn");
     if (footerReport) footerReport.addEventListener("click", openReportDialog);
