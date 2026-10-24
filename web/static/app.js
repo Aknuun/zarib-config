@@ -1733,6 +1733,69 @@
     $("#logToggle").textContent = t("showLog");
   }
 
+  function localizeLogLine(value) {
+    const line = String(value || "");
+    if (state.lang !== "fa") return line;
+    const rules = [
+      [/^Reading configs from the subscription \.\.\.$/, "در حال خواندن کانفیگ‌ها از سابسکریپشن ..."],
+      [/^Reading subscription info \.\.\.$/, "در حال خواندن اطلاعات سابسکریپشن ..."],
+      [/^Current subscription usage: upload (.*) \| download (.*) \| remaining (.*)$/, "مصرف فعلی سابسکریپشن: آپلود $1 | دانلود $2 | باقی‌مانده $3"],
+      [/^Current subscription usage: upload (.*) \| download (.*)$/, "مصرف فعلی سابسکریپشن: آپلود $1 | دانلود $2"],
+      [/^Using a test-safe copy of the JSON config \(custom routing rules removed\)\.$/, "استفاده از نسخه امن کانفیگ JSON (قوانین مسیریابی سفارشی حذف شد)."],
+      [/^Xray \((.+)\) started; probing connectivity through the config \.\.\.$/, "Xray ($1) اجرا شد؛ در حال بررسی اتصال از طریق کانفیگ ..."],
+      [/^Connection OK \((.+)\)\. Reading baseline usage \.\.\.$/, "اتصال برقرار شد ($1). خواندن مصرف پایه ..."],
+      [/^Connection OK \((.+)\)\.$/, "اتصال برقرار شد ($1)."],
+      [/^Measuring background usage across the panel's update cycle \.\.\.$/, "در حال اندازه‌گیری مصرف پس‌زمینه در چرخه به‌روزرسانی پنل ..."],
+      [/^No background usage detected\.$/, "مصرف پس‌زمینه‌ای تشخیص داده نشد."],
+      [/^Results will be corrected using this background rate\.$/, "نتیجه با این نرخ پس‌زمینه اصلاح می‌شود."],
+      [/^Background usage is small \((.+)\) and will be accounted for\.$/, "مصرف پس‌زمینه کم است ($1) و در محاسبه لحاظ می‌شود."],
+      [/^Warning: the subscription is consuming data while idle \((.+)\)\.$/, "هشدار: سابسکریپشن در حالت بیکار مصرف دارد ($1)."],
+      [/^Starting test download \((.+)\) \.\.\.$/, "شروع دانلود تست ($1) ..."],
+      [/^  received (.*) \| total (.*) of (.*)$/, "  دریافت $1 | مجموع $2 از $3"],
+      [/^Download finished: (.*) in (.*)s\.$/, "دانلود تمام شد: $1 در $2 ثانیه."],
+      [/^Waiting for the panel to record usage \(up to (.*)s\) \.\.\.$/, "در انتظار ثبت مصرف توسط پنل (تا $1 ثانیه) ..."],
+      [/^Checking subscription usage \.\.\.$/, "بررسی مصرف سابسکریپشن ..."],
+      [/^Usage reported by the subscription did not change yet\.$/, "مصرف گزارش‌شده توسط سابسکریپشن هنوز تغییر نکرده است."],
+      [/^Usage changed by (.*); waiting up to (.*) for the panel to finish recording \.\.\.$/, "مصرف $1 تغییر کرد؛ تا $2 برای تکمیل ثبت پنل صبر می‌کنیم ..."],
+      [/^Usage did not change after 120 seconds\. Waiting for user confirmation \.\.\.$/, "مصرف بعد از ۱۲۰ ثانیه تغییر نکرد. در انتظار تأیید کاربر ..."],
+      [/^Usage did not change after 120 seconds\.$/, "مصرف بعد از ۱۲۰ ثانیه تغییر نکرد."],
+      [/^Continuing to wait for usage \(up to 5 minutes\) \.\.\.$/, "ادامه انتظار برای مصرف (تا ۵ دقیقه) ..."],
+      [/^Connection probe failed: (.*)$/, "بررسی اتصال ناموفق بود: $1"],
+      [/^Retrying connection(.*)$/, "تلاش دوباره برای اتصال$1"],
+      [/^Trying another Xray core \.\.\.$/, "تلاش با هسته دیگر Xray ..."],
+      [/^Xray core '(.+)' failed: (.*)$/, "هسته Xray '$1' ناموفق بود: $2"],
+      [/^Xray core '(.+)' is unavailable: (.*)$/, "هسته Xray '$1' در دسترس نیست: $2"],
+      [/^Xray \((.+)\) not found; downloading from GitHub \((.+)\) \.\.\.$/, "Xray ($1) پیدا نشد؛ دانلود از گیت‌هاب ($2) ..."],
+      [/^Warning: only (.*) of (.*) was downloaded\.$/, "هشدار: فقط $1 از $2 دانلود شد."],
+      [/^Warning: remaining subscription volume \((.+)\) is less than the test size\.$/, "هشدار: حجم باقی‌مانده سابسکریپشن ($1) از حجم تست کمتر است."],
+      [/^Temporary files: (.*)$/, "فایل‌های موقت: $1"],
+      [/^JSON result saved to (.*)\.$/, "نتیجه JSON در $1 ذخیره شد."],
+      [/^The config did not connect\.$/, "کانفیگ وصل نشد."],
+      [/^Could not read usage: (.*)$/, "خواندن مصرف ممکن نشد: $1"],
+      [/^  probe failed: (.*)$/, "  بررسی اتصال ناموفق: $1"],
+      [/^              COEFFICIENT TEST RESULT$/, "              نتیجه تست ضریب"],
+      [/^  REAL COEFFICIENT$/, "  ضریب واقعی"],
+      [/^Config: (.*)$/, "کانفیگ: $1"],
+      [/^  For every 1 MB downloaded, (.*) is deducted from your subscription\.$/, "  برای هر ۱ مگابایت دانلود، $1 از سابسکریپشن کم می‌شود."],
+      [/^  Downloaded\s+(.*)$/, "  دانلود شده $1"],
+      [/^  Deducted\s+(.*)$/, "  کسرشده $1"],
+      [/^  Claimed\s+not found$/, "  ادعاشده: یافت نشد"],
+      [/^  Claimed\s+(.*)$/, "  ادعاشده $1"],
+      [/^  Remaining\s+(.*)  \(~(.*) real\)$/, "  باقی‌مانده $1  (~$2 واقعی)"],
+      [/^  Remaining\s+(.*)$/, "  باقی‌مانده $1"],
+      [/^  Panel recorded\s+(.*)$/, "  ثبت‌شده در پنل $1"],
+      [/^  Background\s+(.*)$/, "  پس‌زمینه $1"],
+      [/^  background corrected by (.*) \(raw (.*)x\)$/, "  اصلاح پس‌زمینه: $1 (خام $2x)"],
+      [/^  Warning: coefficient is below 1; usage may be recorded late\.$/, "  هشدار: ضریب کمتر از ۱ است؛ ممکن است مصرف دیر ثبت شده باشد."],
+      [/^Done$/, "تمام شد"],
+      [/^Cancelled\.$/, "لغو شد."],
+    ];
+    for (const [pattern, replacement] of rules) {
+      if (pattern.test(line)) return line.replace(pattern, replacement);
+    }
+    return line;
+  }
+
   function renderProgress(data) {
     if (!data) return;
     const pending = data.stage === "usage_pending";
@@ -1761,7 +1824,7 @@
     const stageKey = `stage_${data.stage || "queued"}`;
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");
-    $("#stageMessage").textContent = data.message || "";
+    $("#stageMessage").textContent = localizeLogLine(data.message || "");
     const checkingUsage =
       data.stage === "waiting" && /Checking subscription usage/i.test(data.message || "");
     const hint = $("#stageHint");
@@ -1784,7 +1847,7 @@
           : 0;
     $("#elapsed").textContent = formatDuration(elapsed);
     if (state.logOpen) {
-      const log = (data.log || []).join("\n");
+      const log = (data.log || []).map(localizeLogLine).join("\n");
       const box = $("#logBox");
       box.textContent = log;
       box.scrollTop = box.scrollHeight;
@@ -1835,7 +1898,7 @@
     hide($("#errorCard"));
     $("#errorText").textContent = errorMessage(state.errorCode);
     $("#errorSuggest").textContent = errorSuggestion(state.errorCode);
-    const detail = [state.error, ...state.errorLog.slice(-20)].filter(Boolean).join("\n");
+    const detail = [localizeLogLine(state.error), ...state.errorLog.slice(-20).map(localizeLogLine)].filter(Boolean).join("\n");
     $("#errorDetail").textContent = detail || "—";
     $("#errorDetails").open = false;
     const hasConfigs = state.subs.some((sub) => sub.configs.length);
