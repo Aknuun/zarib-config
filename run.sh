@@ -123,6 +123,7 @@ pick_go() {
         return
     fi
     if command -v go >/dev/null 2>&1 && go_ok "$(command -v go)"; then
+        GO_BIN="$(command -v go)"
         return
     fi
     install_go
@@ -164,7 +165,7 @@ main() {
     else
         src="$CACHE/src-${REF//\//_}"
         stamp="$src/.downloaded"
-        if [ ! -d "$src" ] || [ -z "$(find "$stamp" -mtime -1 2>/dev/null)" ] || [ -n "${ZARIB_UPDATE:-}" ]; then
+        if [ "$REF" = "main" ] || [ ! -d "$src" ] || [ -z "$(find "$stamp" -mtime -1 2>/dev/null)" ] || [ -n "${ZARIB_UPDATE:-}" ]; then
             SRC="$src"
             fetch_source
         fi
@@ -173,7 +174,7 @@ main() {
     cd "$src"
     mkdir -p "$CACHE/bin"
     log "Building zarib-config..."
-    "$GO_BIN" build -trimpath -ldflags="-s -w" -o "$CACHE/bin/zarib-config" ./cmd/zarib-config
+    CGO_ENABLED=0 "$GO_BIN" build -trimpath -ldflags="-s -w" -o "$CACHE/bin/zarib-config" ./cmd/zarib-config
     exec "$CACHE/bin/zarib-config" "$@"
 }
 

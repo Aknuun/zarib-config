@@ -44,7 +44,7 @@ Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON fi
 
 Running without arguments opens an English-only terminal menu:
 
-- **Test a subscription**: list configs, select one or many (comma-separated or `all`), choose size/core, optionally enable background measurement, and confirm before testing.
+- **Test a subscription**: list configs, select one or many (`1,2,3`, `all`, or `first 3`), choose any positive test size (default 100 MB), choose a core, optionally enable background measurement, and confirm before testing.
 - **List configs**: print the available configs with protocol, target, and remark.
 - **Check connectivity**: probe one config through Xray.
 - **Exit**.
