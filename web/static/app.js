@@ -1211,6 +1211,7 @@
     sub.error = null;
     renderSubs();
     updateStartState();
+    let failed = false;
     try {
       const data = await api("/api/inspect", {
         method: "POST",
@@ -1223,17 +1224,21 @@
       rememberSubUrl(sub.url);
       hideSubHistory();
     } catch (error) {
+      failed = true;
       sub.error = error;
       sub.configs = [];
       sub.count = 0;
       sub.selected = [];
+      state.subs = state.subs.filter((item) => item.id !== sub.id);
+      toast(errorMessage(error.code), 5000);
     } finally {
       sub.loading = false;
       renderSubs();
       updateStartState();
-      if (state.subs.some((item) => item.configs.length)) {
+      if (!failed && state.subs.some((item) => item.configs.length)) {
         $("#selectCard").scrollIntoView({ behavior: "smooth", block: "start" });
       }
+      if (!state.subs.length) hide($("#selectCard"));
     }
   }
 
