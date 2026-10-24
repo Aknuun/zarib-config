@@ -1216,7 +1216,7 @@ select.text-input option {
 
 .result-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 20px;
@@ -1891,7 +1891,7 @@ select.text-input option {
   }
 
   .result-head {
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: nowrap;
     gap: 8px;
   }
