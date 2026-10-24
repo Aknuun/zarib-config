@@ -198,6 +198,15 @@ body {
   box-shadow: 0 8px 30px var(--btn-shadow);
 }
 
+.brand-image {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
 .brand-mark svg {
   width: 24px;
   height: 24px;

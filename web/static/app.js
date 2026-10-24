@@ -2770,6 +2770,13 @@
       }
       const text = $("#brandLogoText");
       if (text) hide(text);
+      const headerImage = $("#headerBrandImage");
+      if (headerImage) {
+        headerImage.src = src;
+        show(headerImage);
+      }
+      const brandMark = $(".brand-mark");
+      if (brandMark) hide(brandMark);
       const clear = $("#brandImageClear");
       if (clear) show(clear);
     };
@@ -2786,6 +2793,13 @@
     }
     const text = $("#brandLogoText");
     if (text) show(text);
+    const headerImage = $("#headerBrandImage");
+    if (headerImage) {
+      headerImage.removeAttribute("src");
+      hide(headerImage);
+    }
+    const brandMark = $(".brand-mark");
+    if (brandMark) show(brandMark);
     const clear = $("#brandImageClear");
     if (clear) hide(clear);
     const input = $("#brandImageInput");
