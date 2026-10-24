@@ -1891,7 +1891,9 @@ select.text-input option {
   }
 
   .result-head {
-    align-items: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .result-actions {
@@ -1899,24 +1901,43 @@ select.text-input option {
   }
 
   .result-ring {
-    width: 130px;
-    height: 130px;
+    width: 124px;
+    height: 124px;
   }
 
   .brand-panel {
-    width: 150px;
+    width: 144px;
+    gap: 4px;
   }
 
   .ring-brand-img {
-    width: 116px;
-    height: 116px;
+    width: 108px;
+    height: 108px;
+  }
+
+  .ring-upload-text {
+    padding: 0 8px;
+    font-size: 0.55rem;
+    line-height: 1.4;
   }
 
   .brand-name-display,
   .result-sub-host,
   .brand-name-input {
-    width: 150px;
-    max-width: 150px;
+    width: 144px;
+    max-width: 144px;
+  }
+
+  .brand-name-input {
+    font-size: 0.62rem;
+    padding: 5px 6px;
+  }
+
+  .brand-clear {
+    right: 0;
+    width: 20px;
+    height: 20px;
+    font-size: 0.82rem;
   }
 
   .ring-icon {
@@ -1925,7 +1946,7 @@ select.text-input option {
   }
 
   .coef {
-    font-size: clamp(3rem, 18vw, 4.6rem);
+    font-size: clamp(2.8rem, 15vw, 4.4rem);
   }
 
   .config-list {
