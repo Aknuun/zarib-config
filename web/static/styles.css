@@ -1505,11 +1505,12 @@ select.text-input option {
 .footer {
   width: min(1080px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 22px 0 36px;
+  padding: 22px 0 60px;
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 10px;
   color: var(--muted-2);
   font-size: 0.78rem;
 }
@@ -1528,6 +1529,12 @@ select.text-input option {
 .footer-report:hover {
   color: var(--accent);
   text-decoration: underline;
+}
+
+.footer-version {
+  color: var(--muted-2);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .noscript {
@@ -1807,7 +1814,7 @@ select.text-input option {
   }
 
   .footer {
-    padding-bottom: 28px;
+    padding-bottom: 52px;
   }
 }
 
