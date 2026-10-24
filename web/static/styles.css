@@ -1858,6 +1858,13 @@ select.text-input option {
   background: var(--accent-soft);
 }
 
+.sub-action.icon-only {
+  min-width: 30px;
+  padding: 4px 8px;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
 .size-row {
   display: flex;
   align-items: center;

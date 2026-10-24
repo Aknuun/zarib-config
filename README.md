@@ -94,6 +94,7 @@ The tunnel check sends only the config server's hostname/IP to the geolocation s
 ## Notes
 
 - The test consumes real traffic. The web UI asks you to confirm that no other device or person is using the subscription before each test.
+- The CLI downloads in 20 MB chunks by default; the web UI uses a single request for the selected test size.
 - The subscription must expose usage; otherwise the ratio cannot be measured.
 - Panels that record usage with a delay may need a longer wait; sync mode handles the common one-minute update cycle.
 - The web UI waits 120 seconds for usage (every second for the first 10 seconds, then every 5 seconds). If usage is still missing, it offers a button to wait up to 5 more minutes (checked every 10 seconds) or cancel.

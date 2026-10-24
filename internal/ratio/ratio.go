@@ -21,7 +21,7 @@ const (
 	DefaultWait         = 2
 	DefaultPollTimeout  = 10
 	DefaultDriftWindow  = 0
-	DefaultChunkMB      = 5.0
+	DefaultChunkMB      = 20.0
 	DefaultTestURL      = "https://speed.cloudflare.com/__down?bytes={bytes}"
 	DefaultProbeURL     = "https://speed.cloudflare.com/__down?bytes=4096"
 	DefaultProbeTimeout = 20

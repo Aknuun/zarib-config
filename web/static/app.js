@@ -1315,9 +1315,11 @@
       const checkSelect = document.createElement("button");
       checkSelect.type = "button";
       checkSelect.className = "ghost-btn sub-action";
-      checkSelect.textContent = t("checkSelect");
+      checkSelect.textContent = sub.multi ? "☑️" : "🔲";
       checkSelect.title = t("selectMultiple");
+      checkSelect.setAttribute("aria-label", t("selectMultiple"));
       checkSelect.setAttribute("aria-pressed", sub.multi ? "true" : "false");
+      checkSelect.classList.add("icon-only");
       checkSelect.classList.toggle("active", !!sub.multi);
       checkSelect.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       checkSelect.addEventListener("click", () => toggleMulti(sub));
@@ -1327,7 +1329,7 @@
       tunnelAll.textContent = t("checkAllTunnels");
       tunnelAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       tunnelAll.addEventListener("click", () => runSubAction(sub, "geo", tunnelAll));
-      actions.append(pingAll, checkSelect, tunnelAll);
+      actions.append(checkSelect, pingAll, tunnelAll);
 
       head.append(title, actions);
       group.append(head);
