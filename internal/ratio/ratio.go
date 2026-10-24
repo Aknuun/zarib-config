@@ -208,7 +208,7 @@ func Ask(prompt string, defaultValue *string) (string, error) {
 
 func ParseBool(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1", "true", "yes", "on":
+	case "1", "true", "yes", "y", "on":
 		return true
 	default:
 		return false

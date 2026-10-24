@@ -569,3 +569,15 @@ func mustJSON(t *testing.T, value any) string {
 	}
 	return string(payload)
 }
+
+func TestParseBool(t *testing.T) {
+	cases := map[string]bool{
+		"y": true, "yes": true, "true": true, "1": true, "on": true,
+		"n": false, "no": false, "false": false, "0": false, "": false,
+	}
+	for input, want := range cases {
+		if got := ParseBool(input); got != want {
+			t.Fatalf("ParseBool(%q) = %v, want %v", input, got, want)
+		}
+	}
+}
