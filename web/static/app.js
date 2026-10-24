@@ -2091,6 +2091,12 @@
     state.result = aggregate;
     const subHostEl = $("#resultSubHost");
     if (subHostEl) subHostEl.textContent = lastItem.sub.host || "";
+    const brandNameEl = $("#brandNameDisplay");
+    if (brandNameEl) {
+      const brandName = String(state.brandName || "").trim();
+      brandNameEl.textContent = brandName;
+      brandNameEl.classList.toggle("hidden", !brandName);
+    }
 
     const coef = $("#coef");
     const coefExact = $("#coefExact");
@@ -3004,6 +3010,12 @@
     const brandNameInput = $("#brandNameInput");
     if (brandNameInput) brandNameInput.addEventListener("input", (event) => {
       state.brandName = event.target.value;
+      const display = $("#brandNameDisplay");
+      if (display) {
+        const value = String(event.target.value || "").trim();
+        display.textContent = value;
+        display.classList.toggle("hidden", !value);
+      }
     });
     $("#reportBtn").addEventListener("click", openReportDialog);
     const footerReport = $("#footerReportBtn");
