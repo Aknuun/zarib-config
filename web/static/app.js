@@ -8,7 +8,7 @@
       heroTitle1: "محاسبه ضریب",
       heroTitle2: "کانفیگ",
       heroSub: "تست دقیق با هم‌ترازی چرخه پنل.",
-      privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی ذخیره نمی‌شود.",
+      privacyNote: "لینک‌های قبلی فقط در مرورگر خودت ذخیره می‌شوند.",
       copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
@@ -36,7 +36,7 @@
       sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
       err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
       resultError: "خطا",
-      subHint: "لینک فقط برای همین تست استفاده می‌شود و ذخیره نمی‌شود.",
+      subHint: "لینک‌های قبلی برای استفاده سریع در مرورگر ذخیره می‌شوند.",
       selectTitle: "انتخاب کانفیگ",
       configLabel: "کانفیگ مورد تست",
       tunnelYes: "تانل",
@@ -85,7 +85,7 @@
       startConfirmHeading: "قبل از شروع تست",
       startConfirmBody: "مطمئن شو هیچ دستگاه یا شخص دیگری از این سابسکریپشن و کانفیگ‌هایش استفاده نمی‌کند. استفاده هم‌زمان باعث می‌شود ضریب با خطا نشان داده شود.",
       startConfirmGo: "مطمئنم، شروع کن",
-      privacyHint: "لینک و نتیجه فقط در حافظه نگهداری می‌شوند و بعد از پایان حذف می‌شوند.",
+      privacyHint: "نتیجه فقط در حافظه می‌ماند؛ تاریخچه لینک‌ها در مرورگر خودت ذخیره می‌شود.",
       progressTitle: "در حال تست…",
       cancel: "لغو",
       showLog: "جزئیات",
@@ -201,7 +201,7 @@
       heroTitle1: "Calculate",
       heroTitle2: "config ratio",
       heroSub: "Accurate, panel-synced test.",
-      privacyNote: "Per our GitHub docs, no config is stored.",
+      privacyNote: "Previous links are stored only in your browser.",
       copyServerScript: "Copy and run it directly on your server",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
@@ -229,7 +229,7 @@
       sentenceAvg: "Average across {n} configs: {r}×",
       err_no_selection: "Select at least one config to test.",
       resultError: "Error",
-      subHint: "The link is used only for this test and is never stored.",
+      subHint: "Previous links are stored in your browser for quick reuse.",
       selectTitle: "Choose a config",
       configLabel: "Config to test",
       tunnelYes: "Tunnel",
@@ -278,7 +278,7 @@
       startConfirmHeading: "Before you start",
       startConfirmBody: "Make sure no other device or person is using this subscription or its configs. Simultaneous use makes the coefficient inaccurate.",
       startConfirmGo: "I'm sure, start",
-      privacyHint: "The link and result are kept in memory only and are removed after the test.",
+      privacyHint: "The result stays in memory; previous links are stored in your browser.",
       progressTitle: "Testing…",
       cancel: "Cancel",
       showLog: "Details",
@@ -393,6 +393,8 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const SITE_URL = "https://zarib.appii.ir/";
+  const SUB_HISTORY_KEY = "ratio-sub-history";
+  const SUB_HISTORY_LIMIT = 8;
   const SELF_HOST_SCRIPT =
     'bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"';
   const THEME_KEY = "ratio-theme";
@@ -864,7 +866,7 @@
     document.documentElement.lang = state.lang;
     document.documentElement.dir = state.lang === "fa" ? "rtl" : "ltr";
     document.title = t("pageTitle");
-    $("#langBtn").textContent = state.lang === "fa" ? "EN" : "فارسی";
+    $("#langBtn").textContent = state.lang === "fa" ? "EN" : "FA";
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
     $$("[data-i18n]").forEach((el) => {
       el.textContent = t(el.dataset.i18n);
@@ -977,6 +979,68 @@
     return value;
   }
 
+  function loadSubHistory() {
+    try {
+      const raw = localStorage.getItem(SUB_HISTORY_KEY);
+      const items = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(items)) return [];
+      return items.filter((item) => typeof item === "string" && item.trim()).slice(0, SUB_HISTORY_LIMIT);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function rememberSubUrl(url) {
+    const value = String(url || "").trim();
+    if (!value) return;
+    try {
+      const items = loadSubHistory().filter((item) => item !== value);
+      items.unshift(value);
+      localStorage.setItem(SUB_HISTORY_KEY, JSON.stringify(items.slice(0, SUB_HISTORY_LIMIT)));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function hideSubHistory() {
+    const box = $("#subHistory");
+    if (!box) return;
+    box.replaceChildren();
+    hide(box);
+  }
+
+  function renderSubHistory(filter = "") {
+    const box = $("#subHistory");
+    if (!box) return;
+    const query = String(filter || "").trim().toLowerCase();
+    const items = loadSubHistory().filter((item) => !query || item.toLowerCase().includes(query));
+    if (!items.length) {
+      hideSubHistory();
+      return;
+    }
+    box.replaceChildren();
+    items.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "sub-history-item";
+      button.setAttribute("role", "option");
+      button.textContent = item;
+      button.title = item;
+      button.addEventListener("click", () => {
+        const input = $("#subUrl");
+        input.value = item;
+        input.focus();
+        hideSubHistory();
+      });
+      box.append(button);
+    });
+    show(box);
+  }
+
+  function showSubHistory() {
+    renderSubHistory("");
+  }
+
   function defaultSelection(sub) {
     return sub.configs.slice(0, 1).map((config) => config.index);
   }
@@ -1044,6 +1108,7 @@
     };
     state.subs.push(sub);
     $("#subUrl").value = "";
+    hideSubHistory();
     show($("#selectCard"));
     hide($("#resultCard"));
     hide($("#errorCard"));
@@ -1122,6 +1187,8 @@
       sub.configs = data.configs || [];
       sub.count = data.count || sub.configs.length;
       sub.selected = defaultSelection(sub);
+      rememberSubUrl(sub.url);
+      hideSubHistory();
     } catch (error) {
       sub.error = error;
       sub.configs = [];
@@ -2678,13 +2745,21 @@
       if (event.key === "Enter") {
         event.preventDefault();
         addSubFromInput();
+      } else if (event.key === "Escape") {
+        hideSubHistory();
       }
     });
+    $("#subUrl").addEventListener("focus", showSubHistory);
+    $("#subUrl").addEventListener("click", showSubHistory);
     $("#subUrl").addEventListener("paste", handlePaste);
     $("#subUrl").addEventListener("input", (event) => {
+      renderSubHistory(event.target.value);
       if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
         scheduleAutoAddFromPaste();
       }
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".input-wrap")) hideSubHistory();
     });
     $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
     $("#sizeBtn").addEventListener("click", openSizeDialog);
