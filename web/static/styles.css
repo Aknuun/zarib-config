@@ -148,6 +148,8 @@ html[data-theme="dark"] {
 body {
   margin: 0;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: var(--bg);
   background-image:
     radial-gradient(900px 500px at 15% -10%, var(--body-glow-1), transparent 60%),
@@ -336,6 +338,7 @@ html:not([data-theme="dark"]) .theme-icon.moon {
   width: min(860px, calc(100% - 40px));
   margin: 0 auto;
   padding: 42px 0 70px;
+  flex: 1;
 }
 
 .hero {
@@ -1511,15 +1514,20 @@ select.text-input option {
   font-size: 0.78rem;
 }
 
-.credit {
+.footer-report {
+  appearance: none;
+  border: 0;
+  background: transparent;
   color: var(--muted-2);
-  text-decoration: none;
-  direction: ltr;
-  unicode-bidi: isolate;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0;
+  cursor: pointer;
 }
 
-.credit:hover {
+.footer-report:hover {
   color: var(--accent);
+  text-decoration: underline;
 }
 
 .noscript {

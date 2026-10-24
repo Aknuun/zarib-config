@@ -131,8 +131,9 @@
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
       shareDownloaded: "تصویر نتیجه دانلود شد. متن اشتراک‌گذاری را دستی کپی کن.",
       shareFailed: "ساخت یا اشتراک‌گذاری تصویر ممکن نشد.",
-      reportError: "گزارش خطا",
-      reportTitle: "گزارش خطا",
+      reportError: "گزارش مشکل",
+      footerReport: "گزارش مشکل",
+      reportTitle: "گزارش مشکل",
       reportHeading: "چه مشکلی دیدی؟",
       reportDescriptionLabel: "شرح مشکل",
       reportDescriptionPlaceholder: "مثلاً ضریب اشتباه بود یا تست نامعتبر شد…",
@@ -326,6 +327,7 @@
       shareDownloaded: "The result image was downloaded. Copy the share text manually.",
       shareFailed: "Could not create or share the result image.",
       reportError: "Report a problem",
+      footerReport: "Report a problem",
       reportTitle: "Report a problem",
       reportHeading: "What went wrong?",
       reportDescriptionLabel: "Describe the problem",
@@ -2874,6 +2876,8 @@
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", shareResult);
     $("#reportBtn").addEventListener("click", openReportDialog);
+    const footerReport = $("#footerReportBtn");
+    if (footerReport) footerReport.addEventListener("click", openReportDialog);
     $("#reportClose").addEventListener("click", closeReportDialog);
     $("#reportCancel").addEventListener("click", closeReportDialog);
     $("#reportForm").addEventListener("submit", submitReport);
