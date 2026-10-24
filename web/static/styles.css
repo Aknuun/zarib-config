@@ -632,6 +632,21 @@ select.text-input option {
   color: var(--muted-2);
 }
 
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .privacy-note {
   margin: 12px 0 0;
   text-align: center;

@@ -352,11 +352,11 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	if payload.Wait != nil {
 		wait = *payload.Wait
 	}
-	drift := ratio.DefaultDriftWindow
+	drift := 0
 	if payload.Drift != nil {
 		drift = *payload.Drift
 	}
-	syncMode := true
+	syncMode := false
 	if payload.Sync != nil {
 		syncMode = *payload.Sync
 	}

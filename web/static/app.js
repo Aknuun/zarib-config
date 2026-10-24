@@ -70,6 +70,8 @@
       coreLegacy: "قدیمی",
       coreSystem: "سیستم",
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
+      bgMeasure: "اندازه‌گیری پس‌زمینه",
+      bgMeasureHint: "اگر تیک بزنی، ترافیک پس‌زمینه پنل اندازه‌گیری و از نتیجه کم می‌شود.",
       chooseAnother: "کانفیگ دیگری از همین ساب",
       startTest: "شروع تست",
       startConfirmEyebrow: "یادآوری",
@@ -150,7 +152,7 @@
       how1: "مصرف سابسکریپشن قبل از تست خوانده می‌شود.",
       how2: "حجم مشخصی از داده از طریق کانفیگ دانلود می‌شود.",
       how3: "مصرف بعد از تست خوانده و با حجم واقعی مقایسه می‌شود.",
-      howNote: "ابزار چرخه به‌روزرسانی پنل را هم‌تراز می‌کند و ترافیک پس‌زمینه را از نتیجه کم می‌کند. تست بزرگ‌تر دقیق‌تر است. لینک شما هرگز ذخیره نمی‌شود.",
+      howNote: "این ابزار چرخه به‌روزرسانی پنل را می‌سنجد و اگر تیک بخوری ترافیک پس‌زمینه را از نتیجه کم می‌کند. تست بزرگ‌تر دقیق‌تر است. لینک شما هرگز ذخیره نمی‌شود.",
       footer: "ساخته‌شده برای شفافیت حجم.",
       disclaimer: "فقط برای تست سابسکریپشن خودت.",
       unnamed: "(بدون نام)",
@@ -183,6 +185,7 @@
       err_not_found: "تست پیدا نشد؛ ممکن است سرور ری‌استارت شده باشد.",
       err_unknown: "خطای پیش‌بینی‌نشده‌ای رخ داد.",
       err_network: "ارتباط با سرور برقرار نشد. اتصال اینترنت یا فیلترشکن را بررسی کن و دوباره تلاش کن.",
+      err_aborted: "درخواست قطع شد؛ دوباره تلاش کن.",
       reconnecting: "اتصال قطع شد؛ دوباره تلاش می‌کنم…",
     },
     en: {
@@ -253,6 +256,8 @@
       coreLegacy: "Legacy",
       coreSystem: "System",
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
+      bgMeasure: "Background measurement",
+      bgMeasureHint: "If you enable it, the panel’s background traffic is measured and subtracted from the result.",
       chooseAnother: "Another config from this sub",
       startTest: "Start test",
       startConfirmEyebrow: "Reminder",
@@ -333,7 +338,7 @@
       how1: "Subscription usage is read before the test.",
       how2: "A known amount of data is downloaded through the config.",
       how3: "Usage is read again and compared with the actual download.",
-      howNote: "The tool syncs with the panel update cycle and subtracts background traffic. Larger tests are more accurate. Your link is never stored.",
+      howNote: "The tool detects the panel update cycle; if you enable background measurement, it subtracts background traffic. Larger tests are more accurate. Your link is never stored.",
       footer: "Built for transparent data accounting.",
       disclaimer: "Only test your own subscription.",
       unnamed: "(unnamed)",
@@ -366,6 +371,7 @@
       err_not_found: "The test was not found; the server may have restarted.",
       err_unknown: "An unexpected error occurred.",
       err_network: "Could not reach the server. Check your internet or VPN and try again.",
+      err_aborted: "The request was interrupted; please try again.",
       reconnecting: "Connection lost; retrying…",
     },
   };
@@ -907,8 +913,19 @@
         return data;
       } catch (error) {
         window.clearTimeout(timer);
+        if (error && error.name === "AbortError") {
+          error.code = "aborted";
+          error.retryable = true;
+          throw error;
+        }
         if (error && error.code) throw error;
         lastError = error;
+        if (lastError && typeof lastError.message === "string") {
+          lastError.code = /signal is aborted|Failed to fetch|aborted/i.test(lastError.message)
+            ? "network"
+            : "unknown";
+          lastError.retryable = true;
+        }
         if (attempt + 1 < attempts) {
           await delay(600 * (attempt + 1));
           continue;
@@ -1523,7 +1540,7 @@
         size_mb: state.size,
         wait: 2,
         drift: 0,
-        sync: true,
+        sync: Boolean($("#bgMeasure").checked),
         core: $("#coreSelect").value || "auto",
         tunnel,
       }),
@@ -1547,14 +1564,20 @@
     while (true) {
       let data = null;
       try {
-        data = await api(`/api/jobs/${jobId}`, { retry: 2, timeout: 15000 });
+        data = await api(`/api/jobs/${jobId}`, { retry: 0, timeout: 120000 });
         networkFailures = 0;
       } catch (error) {
-        if (error.code === "network" && !state.cancelRequested && networkFailures < 5) {
+        const retriable = (
+          error.code === "network" ||
+          error.code === "aborted" ||
+          error.code === "timeout" ||
+          error.name === "AbortError"
+        );
+        if (retriable && !state.cancelRequested) {
           networkFailures += 1;
           const message = $("#stageMessage");
           if (message) message.textContent = t("reconnecting");
-          await delay(Math.min(8000, 1200 * networkFailures));
+          await delay(Math.min(12000, 1000 * networkFailures));
           continue;
         }
         throw error;
