@@ -724,8 +724,9 @@ select.text-input option {
 .privacy-note {
   margin: 12px 0 0;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: clamp(0.5rem, 2vw, 0.7rem);
   line-height: 1.6;
+  white-space: nowrap;
 }
 
 .privacy-note a {
