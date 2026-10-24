@@ -2409,46 +2409,29 @@
     const markX = pad;
     const markY = 62;
     const markSize = 58;
-    if (brandImg) {
-      ctx.save();
-      roundRect(ctx, markX, markY, markSize, markSize, 16);
-      ctx.clip();
-      ctx.drawImage(brandImg, markX, markY, markSize, markSize);
-      ctx.restore();
-    } else {
-      roundRect(ctx, markX, markY, markSize, markSize, 16);
-      ctx.fillStyle = C.button;
-      ctx.fill();
-      ctx.strokeStyle = C.buttonText;
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.beginPath();
-      ctx.moveTo(markX + 13, markY + 40);
-      ctx.lineTo(markX + 24, markY + 17);
-      ctx.lineTo(markX + 34, markY + 34);
-      ctx.lineTo(markX + 40, markY + 24);
-      ctx.lineTo(markX + 46, markY + 40);
-      ctx.stroke();
-    }
+    roundRect(ctx, markX, markY, markSize, markSize, 16);
+    ctx.fillStyle = C.button;
+    ctx.fill();
+    ctx.strokeStyle = C.buttonText;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(markX + 13, markY + 40);
+    ctx.lineTo(markX + 24, markY + 17);
+    ctx.lineTo(markX + 34, markY + 34);
+    ctx.lineTo(markX + 40, markY + 24);
+    ctx.lineTo(markX + 46, markY + 40);
+    ctx.stroke();
 
-    const customBrand = String(state.brandName || "").trim();
-    const brandLabel = customBrand || SITE_HOST;
-    drawCanvasText(ctx, fitText(ctx, brandLabel, W * 0.46), markX + markSize + 18, 106, {
-      size: customBrand ? 32 : 34,
+    drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
+      size: 34,
       weight: 800,
       color: C.text,
       mono: true,
     });
-    if (customBrand) {
-      drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 134, {
-        size: 18,
-        weight: 600,
-        color: C.muted2,
-        mono: true,
-      });
-    }
 
+    const customBrand = String(state.brandName || "").trim();
     const subHost = String(result.host || "").trim();
     if (subHost) {
       setCanvasFont(ctx, 600, 20);
@@ -2470,6 +2453,31 @@
         align: "center",
         mono: true,
       });
+    }
+
+    if (brandImg) {
+      const logoSize = 280;
+      const logoX = rtl ? pad : W - pad - logoSize;
+      const logoY = 220;
+      ctx.save();
+      roundRect(ctx, logoX, logoY, logoSize, logoSize, 44);
+      ctx.clip();
+      ctx.drawImage(brandImg, logoX, logoY, logoSize, logoSize);
+      ctx.restore();
+      ctx.strokeStyle = C.line;
+      ctx.lineWidth = 2;
+      roundRect(ctx, logoX, logoY, logoSize, logoSize, 44);
+      ctx.stroke();
+      const logoLabel = customBrand || subHost;
+      if (logoLabel) {
+        drawCanvasText(ctx, fitText(ctx, logoLabel, logoSize), logoX + logoSize / 2, logoY + logoSize + 46, {
+          size: 28,
+          weight: 800,
+          color: C.text,
+          align: "center",
+          rtl,
+        });
+      }
     }
 
     ctx.strokeStyle = C.line;
