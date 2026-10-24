@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	Version             = "1.2.9"
+	Version             = "1.2.10"
 	UA                  = "v2rayNG/1.9.16"
 	MinSizeMB           = 2.0
 	MaxSizeMB           = 50.0

@@ -182,6 +182,8 @@
       err_invalid_input: "ورودی معتبر نیست.",
       err_not_found: "تست پیدا نشد؛ ممکن است سرور ری‌استارت شده باشد.",
       err_unknown: "خطای پیش‌بینی‌نشده‌ای رخ داد.",
+      err_network: "ارتباط با سرور برقرار نشد. اتصال اینترنت یا فیلترشکن را بررسی کن و دوباره تلاش کن.",
+      reconnecting: "اتصال قطع شد؛ دوباره تلاش می‌کنم…",
     },
     en: {
       pageTitle: "Config Traffic Ratio Calculator",
@@ -363,6 +365,8 @@
       err_invalid_input: "Invalid input.",
       err_not_found: "The test was not found; the server may have restarted.",
       err_unknown: "An unexpected error occurred.",
+      err_network: "Could not reach the server. Check your internet or VPN and try again.",
+      reconnecting: "Connection lost; retrying…",
     },
   };
 
@@ -867,27 +871,55 @@
   }
 
   async function api(path, options = {}) {
-    const response = await fetch(path, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
-    let data = null;
-    try {
-      data = await response.json();
-    } catch (_) {
-      data = null;
+    const { retry, timeout = 20000, headers, ...fetchOptions } = options;
+    const method = String(fetchOptions.method || "GET").toUpperCase();
+    const attempts = Math.max(
+      1,
+      Number.isFinite(retry) ? retry : method === "GET" ? 3 : 1,
+    );
+    let lastError = null;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await fetch(path, {
+          ...fetchOptions,
+          headers: {
+            "Content-Type": "application/json",
+            ...(headers || {}),
+          },
+          signal: controller.signal,
+        });
+        window.clearTimeout(timer);
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (_) {
+          data = null;
+        }
+        if (!response.ok) {
+          const error = new Error((data && data.error) || response.statusText || "Request failed");
+          error.code = (data && data.code) || "unknown";
+          error.status = response.status;
+          error.log = (data && data.log) || [];
+          throw error;
+        }
+        return data;
+      } catch (error) {
+        window.clearTimeout(timer);
+        if (error && error.code) throw error;
+        lastError = error;
+        if (attempt + 1 < attempts) {
+          await delay(600 * (attempt + 1));
+          continue;
+        }
+      }
     }
-    if (!response.ok) {
-      const error = new Error((data && data.error) || response.statusText || "Request failed");
-      error.code = (data && data.code) || "unknown";
-      error.status = response.status;
-      error.log = (data && data.log) || [];
-      throw error;
-    }
-    return data;
+    const error = new Error("Failed to fetch");
+    error.code = "network";
+    error.retryable = true;
+    if (lastError && lastError.name) error.name = lastError.name;
+    throw error;
   }
 
   function normalizeUrl(raw) {
@@ -1039,6 +1071,7 @@
     try {
       const data = await api("/api/inspect", {
         method: "POST",
+        retry: 2,
         body: JSON.stringify({ sub_url: sub.url }),
       });
       sub.configs = data.configs || [];
@@ -1510,8 +1543,22 @@
   }
 
   async function waitForJob(jobId) {
+    let networkFailures = 0;
     while (true) {
-      const data = await api(`/api/jobs/${jobId}`);
+      let data = null;
+      try {
+        data = await api(`/api/jobs/${jobId}`, { retry: 2, timeout: 15000 });
+        networkFailures = 0;
+      } catch (error) {
+        if (error.code === "network" && !state.cancelRequested && networkFailures < 5) {
+          networkFailures += 1;
+          const message = $("#stageMessage");
+          if (message) message.textContent = t("reconnecting");
+          await delay(Math.min(8000, 1200 * networkFailures));
+          continue;
+        }
+        throw error;
+      }
       state.lastJobData = data;
       renderProgress(data);
       updateOverallProgress();
