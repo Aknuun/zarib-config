@@ -390,7 +390,7 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const SITE_URL = "https://zarib.appii.ir/";
   const SELF_HOST_SCRIPT =
-    'bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"';
+    'bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"';
   const THEME_KEY = "ratio-theme";
 
   const state = {

@@ -9,7 +9,7 @@ Hosted web UI: **https://zarib.appii.ir/**
 Run this on your own Linux or macOS server:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
+bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
 Requirements: `curl` and `tar`. Go 1.22+ is installed into `~/.cache/zarib-config/go` automatically when needed (no root required). Xray is downloaded automatically. Your subscription must expose usage via `subscription-userinfo`.
@@ -17,7 +17,7 @@ Requirements: `curl` and `tar`. Go 1.22+ is installed into `~/.cache/zarib-confi
 To refresh the cached source after an update:
 
 ```bash
-ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)"
+ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
 You can also pin a release: `ZARIB_REF=v1.2.12`.
@@ -62,7 +62,7 @@ The terminal menu and CLI messages are English-only. If usage has not appeared a
 Or start the self-hosted web UI directly from the one-liner:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/run.sh)" _ serve --addr 0.0.0.0:8000
+bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)" _ serve --addr 0.0.0.0:8000
 ```
 
 Binding to `0.0.0.0` exposes the UI to the network; put it behind a reverse proxy and authentication.
