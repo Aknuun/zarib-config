@@ -39,8 +39,6 @@
       subHint: "لینک فقط برای همین تست استفاده می‌شود و ذخیره نمی‌شود.",
       selectTitle: "انتخاب کانفیگ",
       configLabel: "کانفیگ مورد تست",
-      tunnelColumn: "تانل",
-      checkColumn: "بررسی",
       tunnelYes: "تانل",
       tunnelNo: "معمولی",
       tunnelUnknown: "نامشخص",
@@ -230,8 +228,6 @@
       subHint: "The link is used only for this test and is never stored.",
       selectTitle: "Choose a config",
       configLabel: "Config to test",
-      tunnelColumn: "Tunnel",
-      checkColumn: "Check",
       tunnelYes: "Tunnel",
       tunnelNo: "Normal",
       tunnelUnknown: "Unknown",
@@ -1350,15 +1346,6 @@
         empty.textContent = t("err_no_configs");
         group.append(empty);
       } else {
-        const cols = document.createElement("div");
-        cols.className = "config-cols";
-        const tunnelHead = document.createElement("span");
-        tunnelHead.textContent = t("tunnelColumn");
-        const checkHead = document.createElement("span");
-        checkHead.textContent = t("checkColumn");
-        cols.append(tunnelHead, checkHead);
-        group.append(cols);
-
         const list = document.createElement("div");
         list.className = "config-list";
         sub.configs.forEach((config) => {
