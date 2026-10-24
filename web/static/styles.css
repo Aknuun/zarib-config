@@ -1315,6 +1315,23 @@ select.text-input option {
   color: var(--accent);
 }
 
+.verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.verdict-row .badge {
+  margin-top: 0;
+}
+
+.share-inline {
+  width: 34px;
+  height: 34px;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1416,14 +1433,16 @@ select.text-input option {
 }
 
 .result-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
   margin-top: 20px;
 }
 
-.result-actions .primary-btn {
+.result-actions > button {
+  width: 100%;
   height: 44px;
+  justify-content: center;
 }
 
 .result-disclaimer {
@@ -1767,6 +1786,14 @@ select.text-input option {
 
   .result-head {
     align-items: flex-start;
+  }
+
+  .result-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .result-actions #againBtn {
+    grid-column: 1 / -1;
   }
 
   .result-ring {

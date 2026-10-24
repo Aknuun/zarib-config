@@ -2094,6 +2094,11 @@
     } else {
       hide(coefExact);
     }
+    const inlineShare = $("#shareInlineBtn");
+    if (inlineShare) {
+      if (noRatio) show(inlineShare);
+      else hide(inlineShare);
+    }
     verdict.classList.remove("good", "warn", "bad");
     if (invalid) {
       verdict.textContent = t("invalidLow");
@@ -2663,9 +2668,9 @@
     }
   }
 
-  async function shareResult() {
+  async function shareResult(buttonOverride = null) {
     if (!state.result) return;
-    const button = $("#shareBtn");
+    const button = buttonOverride || $("#shareBtn");
     const label = $(".btn-label", button);
     if (button) button.disabled = true;
     if (label) label.textContent = t("sharePreparing");
@@ -2874,7 +2879,9 @@
       }
     });
     $("#againBtn").addEventListener("click", testAnother);
-    $("#shareBtn").addEventListener("click", shareResult);
+    $("#shareBtn").addEventListener("click", () => shareResult());
+    const shareInlineBtn = $("#shareInlineBtn");
+    if (shareInlineBtn) shareInlineBtn.addEventListener("click", () => shareResult(shareInlineBtn));
     $("#reportBtn").addEventListener("click", openReportDialog);
     const footerReport = $("#footerReportBtn");
     if (footerReport) footerReport.addEventListener("click", openReportDialog);

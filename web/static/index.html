@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030v">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030w">
 </head>
 <body>
   <header class="topbar">
@@ -118,7 +118,12 @@
           <div class="eyebrow"><span class="dot"></span><span data-i18n="resultEyebrow">نتیجه تست</span></div>
           <div id="coef" class="coef">—</div>
           <div id="coefExact" class="coef-exact hidden"></div>
-          <div id="verdict" class="badge hidden"></div>
+          <div class="verdict-row">
+            <div id="verdict" class="badge hidden"></div>
+            <button id="shareInlineBtn" class="ghost-btn icon-btn share-inline hidden" type="button" aria-label="اشتراک‌گذاری" data-i18n-aria-label="shareResult">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
         </div>
         <div class="result-ring" aria-hidden="true">
           <svg class="ring-svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
@@ -273,6 +278,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030v"></script>
+  <script src="/static/app.js?v=20261030w"></script>
 </body>
 </html>
