@@ -396,7 +396,7 @@
   const state = {
     lang: document.documentElement.lang === "en" ? "en" : "fa",
     subs: [],
-    size: 10,
+    size: 25,
     running: false,
     cancelRequested: false,
     activeJobs: new Set(),
@@ -1503,7 +1503,7 @@
   }
 
   function setSize(size) {
-    const value = Math.max(2, Math.min(50, Math.round(Number(size) || 10)));
+    const value = Math.max(2, Math.min(50, Math.round(Number(size) || 25)));
     state.size = value;
     $("#sizeRange").value = String(value);
     $("#sizeValue").textContent = `${value} MB`;
@@ -2631,7 +2631,7 @@
     loadVersion();
     applyI18n();
     applyTheme(document.documentElement.getAttribute("data-theme"), false);
-    setSize(10);
+    setSize(25);
     initLive();
 
     $("#themeBtn").addEventListener("click", toggleTheme);

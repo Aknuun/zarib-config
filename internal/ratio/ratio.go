@@ -16,7 +16,7 @@ const (
 	UA                  = "v2rayNG/1.9.16"
 	MinSizeMB           = 2.0
 	MaxSizeMB           = 50.0
-	DefaultSizeMB       = 10.0
+	DefaultSizeMB       = 25.0
 	CLIDefaultSizeMB    = 100.0
 	DefaultWait         = 2
 	DefaultPollTimeout  = 10
