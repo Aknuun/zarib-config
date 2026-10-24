@@ -153,6 +153,10 @@
       shareCaptionTitle: "نتیجه محاسبه ضریب ترافیک کانفیگ من",
       shareCaptionOnly: "نتیجه تست ضریب کانفیگ از سایت zarib.appii.ir",
       shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
+      brandImageUpload: "بارگزاری عکس برند شما در نتیجه",
+      brandImageInvalid: "فایل تصویری معتبر انتخاب کن.",
+      brandImageClear: "حذف عکس برند",
+      configsOverview: "کاتفیگ‌ها",
       themeToDark: "تغییر به تم تاریک",
       themeToLight: "تغییر به تم روشن",
       errorTitle: "تست انجام نشد",
@@ -349,6 +353,10 @@
       shareCaptionTitle: "My config traffic ratio result",
       shareCaptionOnly: "Config ratio test result from zarib.appii.ir",
       shareFooter: "Real config traffic ratio calculator",
+      brandImageUpload: "Upload your brand image to the result",
+      brandImageInvalid: "Please choose a valid image file.",
+      brandImageClear: "Remove brand image",
+      configsOverview: "Configs",
       themeToDark: "Switch to dark theme",
       themeToLight: "Switch to light theme",
       errorTitle: "Test failed",
@@ -429,6 +437,7 @@
     completed: 0,
     total: 0,
     result: null,
+    brandImage: null,
     error: null,
     errorCode: null,
     errorLog: [],
@@ -2323,25 +2332,49 @@
     };
   }
 
-  async function renderShareImage(result) {
+  async function renderShareImage(result, rows = []) {
     try {
       await document.fonts.ready;
     } catch (_) {
       /* ignore */
     }
     const W = 1080;
-    const H = 1350;
     const pad = 72;
-    const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
     const rtl = state.lang === "fa";
     const theme =
       document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
     const C = shareColors(theme);
     const ratio = Number(result.ratio) || 0;
     const ratioColor = ratio > 1.5 ? C.danger : ratio > 1.1 ? C.warn : C.good;
+
+    let brandImg = null;
+    if (state.brandImage && state.brandImage.src) {
+      try {
+        brandImg = await loadImage(state.brandImage.src);
+      } catch (_) {
+        brandImg = null;
+      }
+    }
+
+    const rowsList = rows.slice(0, 12);
+    const rowH = 92;
+    const rowGap = 14;
+    const rowsCount = rowsList.length;
+    const metaLinesCount = (result.config ? 1 : 0) + (result.tested_at ? 1 : 0);
+    const configTop = 590;
+    const configStartY = 648;
+    const statsTop = rowsCount > 0
+      ? configStartY + rowsCount * (rowH + rowGap) + 10
+      : configTop;
+    const statH = 150;
+    const statGap = 20;
+    const metaTop = statsTop + statH + 36;
+    const H = Math.max(1350, metaTop + metaLinesCount * 36 + 250);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
 
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, C.bg1);
@@ -2364,20 +2397,28 @@
     const markX = pad;
     const markY = 62;
     const markSize = 58;
-    roundRect(ctx, markX, markY, markSize, markSize, 16);
-    ctx.fillStyle = C.button;
-    ctx.fill();
-    ctx.strokeStyle = C.buttonText;
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(markX + 13, markY + 40);
-    ctx.lineTo(markX + 24, markY + 17);
-    ctx.lineTo(markX + 34, markY + 34);
-    ctx.lineTo(markX + 40, markY + 24);
-    ctx.lineTo(markX + 46, markY + 40);
-    ctx.stroke();
+    if (brandImg) {
+      ctx.save();
+      roundRect(ctx, markX, markY, markSize, markSize, 16);
+      ctx.clip();
+      ctx.drawImage(brandImg, markX, markY, markSize, markSize);
+      ctx.restore();
+    } else {
+      roundRect(ctx, markX, markY, markSize, markSize, 16);
+      ctx.fillStyle = C.button;
+      ctx.fill();
+      ctx.strokeStyle = C.buttonText;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(markX + 13, markY + 40);
+      ctx.lineTo(markX + 24, markY + 17);
+      ctx.lineTo(markX + 34, markY + 34);
+      ctx.lineTo(markX + 40, markY + 24);
+      ctx.lineTo(markX + 46, markY + 40);
+      ctx.stroke();
+    }
 
     drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
       size: 34,
@@ -2385,6 +2426,7 @@
       color: C.text,
       mono: true,
     });
+
     const subHost = String(result.host || "").trim();
     if (subHost) {
       setCanvasFont(ctx, 600, 20);
@@ -2475,25 +2517,82 @@
           rtl,
         },
       );
-      verdictY += 64;
     }
-    const maxTextWidth = W - pad * 2;
-    const statsTop = Math.max(600, verdictY + 44);
-    const statGap = 20;
+
+    if (rowsCount > 0) {
+      drawCanvasText(ctx, t("configsOverview"), rtl ? W - pad : pad, configTop, {
+        size: 26,
+        weight: 800,
+        color: C.muted,
+        align: rtl ? "right" : "left",
+        rtl,
+      });
+      rowsList.forEach((row, index) => {
+        const y = configStartY + index * (rowH + rowGap);
+        roundRect(ctx, pad, y, W - pad * 2, rowH, 18);
+        ctx.fillStyle = C.card;
+        ctx.fill();
+        ctx.strokeStyle = C.line;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const nameX = rtl ? W - pad - 28 : pad + 28;
+        const align = rtl ? "right" : "left";
+        const name = fitText(ctx, row.name, (W - pad * 2) * 0.52);
+        drawCanvasText(ctx, name, nameX, y + 42, {
+          size: 27,
+          weight: 700,
+          color: C.text,
+          align,
+          rtl,
+        });
+        if (row.protocol) {
+          drawCanvasText(ctx, String(row.protocol).toUpperCase(), nameX, y + 70, {
+            size: 17,
+            weight: 600,
+            color: C.muted2,
+            align,
+            rtl,
+          });
+        }
+
+        const rowRatio = Number(row.ratio) || 0;
+        const rowColor = rowRatio > 1.5 ? C.danger : rowRatio > 1.1 ? C.warn : C.good;
+        drawCanvasText(ctx, ratioBig(rowRatio), rtl ? pad + 28 : W - pad - 28, y + 58, {
+          size: 30,
+          weight: 800,
+          color: rowColor,
+          align: rtl ? "left" : "right",
+        });
+      });
+      if (rows.length > rowsList.length) {
+        drawCanvasText(
+          ctx,
+          `+${rows.length - rowsList.length}`,
+          rtl ? W - pad : pad,
+          configStartY + rowsCount * (rowH + rowGap) + 26,
+          {
+            size: 22,
+            weight: 700,
+            color: C.muted2,
+            align: rtl ? "right" : "left",
+            rtl,
+          },
+        );
+      }
+    }
+
     const statW = (W - pad * 2 - statGap) / 2;
-    const statH = 150;
     const stats = [
       { label: t("downloaded"), value: formatBytes(result.downloaded_bytes) },
       { label: t("deducted"), value: formatBytes(result.delta_total) },
     ];
     stats.forEach((stat, index) => {
-      const row = Math.floor(index / 2);
       const col = index % 2;
       const x = rtl
         ? W - pad - statW - col * (statW + statGap)
         : pad + col * (statW + statGap);
-      const y = statsTop + row * (statH + statGap);
-      roundRect(ctx, x, y, statW, statH, 24);
+      roundRect(ctx, x, statsTop, statW, statH, 24);
       ctx.fillStyle = C.card;
       ctx.fill();
       ctx.strokeStyle = C.line;
@@ -2501,41 +2600,30 @@
       ctx.stroke();
       const textX = rtl ? x + statW - 26 : x + 26;
       const align = rtl ? "right" : "left";
-      drawCanvasText(ctx, stat.label, textX, y + 44, {
+      drawCanvasText(ctx, stat.label, textX, statsTop + 44, {
         size: 23,
         weight: 600,
         color: C.muted2,
         align,
         rtl,
       });
-      drawCanvasText(ctx, stat.value, textX, y + (stat.sub ? 98 : 108), {
+      drawCanvasText(ctx, stat.value, textX, statsTop + 108, {
         size: 36,
         weight: 800,
         color: C.text,
         align,
       });
-      if (stat.sub) {
-        drawCanvasText(ctx, stat.sub, textX, y + 130, {
-          size: 20,
-          weight: 500,
-          color: C.muted2,
-          align,
-          rtl,
-        });
-      }
     });
 
-    const statRows = Math.ceil(stats.length / 2);
-    const metaY = statsTop + statRows * statH + (statRows - 1) * statGap + 44;
     const metaLines = [];
     if (result.config) metaLines.push(`${t("configUsed")}: ${result.config}`);
     if (result.tested_at) {
       metaLines.push(`${t("resultEyebrow")}: ${formatDate(result.tested_at)}`);
     }
     setCanvasFont(ctx, 500, 23);
-    let metaLineY = metaY;
+    let metaLineY = metaTop;
     metaLines.slice(0, 2).forEach((line) => {
-      const fitted = fitText(ctx, line, maxTextWidth);
+      const fitted = fitText(ctx, line, W - pad * 2);
       drawCanvasText(ctx, fitted, rtl ? W - pad : pad, metaLineY, {
         size: 23,
         weight: 500,
@@ -2613,6 +2701,65 @@
     }
   }
 
+  function resultRows() {
+    return state.results
+      .filter((item) => item.result)
+      .map((item) => {
+        const config = (item.sub.configs || []).find((cfg) => cfg.index === item.pick);
+        return {
+          name: config ? config.remark || config.target || `#${item.pick}` : `#${item.pick}`,
+          protocol: config ? config.protocol || "" : "",
+          ratio: Number(item.result.ratio) || 0,
+          downloaded: Number(item.result.downloaded_bytes) || 0,
+          deducted: Number(item.result.delta_total) || 0,
+        };
+      });
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Image load failed"));
+      image.src = src;
+    });
+  }
+
+  function handleBrandImage(file) {
+    if (!file || !file.type || !file.type.startsWith("image/")) {
+      toast(t("brandImageInvalid"));
+      return;
+    }
+    if (state.brandImage && state.brandImage.src) {
+      URL.revokeObjectURL(state.brandImage.src);
+    }
+    const src = URL.createObjectURL(file);
+    state.brandImage = { src, name: file.name };
+    const preview = $("#brandImagePreview");
+    if (preview) {
+      preview.src = src;
+      show(preview);
+    }
+    const clear = $("#brandImageClear");
+    if (clear) show(clear);
+  }
+
+  function clearBrandImage() {
+    if (state.brandImage && state.brandImage.src) {
+      URL.revokeObjectURL(state.brandImage.src);
+    }
+    state.brandImage = null;
+    const preview = $("#brandImagePreview");
+    if (preview) {
+      preview.removeAttribute("src");
+      hide(preview);
+    }
+    const clear = $("#brandImageClear");
+    if (clear) hide(clear);
+    const input = $("#brandImageInput");
+    if (input) input.value = "";
+  }
+
   async function shareResult(buttonOverride = null) {
     if (!state.result) return;
     const button = buttonOverride || $("#shareBtn");
@@ -2620,7 +2767,7 @@
     if (button) button.disabled = true;
     if (label) label.textContent = t("sharePreparing");
     try {
-      const blob = await renderShareImage(state.result);
+      const blob = await renderShareImage(state.result, resultRows());
       const file = new File([blob], "zarib-result.png", { type: "image/png" });
       const caption = shareCaption();
       let shared = false;
@@ -2825,6 +2972,14 @@
     });
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", () => shareResult());
+    const brandImageBtn = $("#brandImageBtn");
+    if (brandImageBtn) brandImageBtn.addEventListener("click", () => $("#brandImageInput").click());
+    const brandImageInput = $("#brandImageInput");
+    if (brandImageInput) brandImageInput.addEventListener("change", (event) => {
+      handleBrandImage(event.target.files && event.target.files[0]);
+    });
+    const brandImageClear = $("#brandImageClear");
+    if (brandImageClear) brandImageClear.addEventListener("click", clearBrandImage);
     $("#reportBtn").addEventListener("click", openReportDialog);
     const footerReport = $("#footerReportBtn");
     if (footerReport) footerReport.addEventListener("click", openReportDialog);

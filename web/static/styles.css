@@ -1368,6 +1368,42 @@ select.text-input option {
   color: var(--accent-2);
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 16px;
+}
+
+.brand-btn {
+  height: 38px;
+}
+
+.brand-preview {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.brand-clear {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--danger-border);
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
