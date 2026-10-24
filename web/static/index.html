@@ -7,12 +7,12 @@
   <meta name="theme-color" content="#f5f8fc">
   <script src="/static/theme-init.js?v=20261023"></script>
   <script src="/static/lang-init.js?v=20261023"></script>
-  <title>محاسبه ضریب واقعی ترافیک کانفیگ</title>
+  <title>محاسبه ضریب کانفیگ</title>
   <meta name="description" content="محاسبه دقیق ضریب واقعی مصرف ترافیک کانفیگ با هم‌ترازی چرخه پنل. Measure the real traffic ratio of a config with panel-synced background correction.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030a">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030c">
 </head>
 <body>
   <header class="topbar">
@@ -41,10 +41,10 @@
   <main class="wrap">
     <section class="hero">
       <h1>
-        <span data-i18n="heroTitle1">محاسبه ضریب واقعی</span>
-        <span data-i18n="heroTitle2">ترافیک کانفیگ</span>
+        <span data-i18n="heroTitle1">محاسبه ضریب</span>
+        <span data-i18n="heroTitle2">کانفیگ</span>
       </h1>
-      <p class="hero-sub" data-i18n="heroSub">۵ مگابایت تست، بدون ذخیره لینک.</p>
+      <p class="hero-sub" data-i18n="heroSub">تست دقیق با هم‌ترازی چرخه پنل.</p>
     </section>
 
     <section id="inputCard" class="card">
@@ -60,7 +60,7 @@
       </div>
       <div id="inputError" class="inline-error hidden" role="alert"></div>
       <p class="privacy-note">
-        <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.</a>
+        <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">طبق مستندات گیت‌هاب، هیچ کانفیگی ذخیره نمی‌شود.</a>
       </p>
       <div class="self-host">
         <button id="copyScriptBtn" class="ghost-btn" type="button">
@@ -89,16 +89,6 @@
               </div>
             </div>
             <div class="advanced-field">
-              <label class="field-label" for="testCount" data-i18n="configsToTest">تعداد کانفیگ تست</label>
-              <select id="testCount" class="text-input" dir="ltr">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-              </select>
-            </div>
-            <div class="advanced-field">
               <label class="field-label" for="coreSelect" data-i18n="coreLabel">هسته Xray</label>
               <select id="coreSelect" class="text-input" dir="ltr">
                 <option value="auto" data-i18n="coreAuto">خودکار</option>
@@ -113,9 +103,9 @@
               <input id="bgMeasure" type="checkbox">
               <span data-i18n="bgMeasure">اندازه‌گیری پس‌زمینه</span>
             </label>
-            <p class="hint small advanced-note" data-i18n="bgMeasureHint">اگر تیک بزنی، ترافیک پس‌زمینه پنل اندازه‌گیری و از نتیجه کم می‌شود.</p>
+            <p class="hint small advanced-note" data-i18n="bgMeasureHint">اگر تیک بزنی، پس‌زمینه را از نتیجه کم می‌کنیم.</p>
           </div>
-          <p class="hint small advanced-note" data-i18n="configsShortHint">هر ساب به‌ترتیب تست می‌شود و ساب‌ها هم‌زمان پیش می‌روند.</p>
+          <p class="hint small advanced-note" data-i18n="configsShortHint">کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان.</p>
         </div>
       </details>
 
@@ -289,6 +279,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030a"></script>
+  <script src="/static/app.js?v=20261030c"></script>
 </body>
 </html>

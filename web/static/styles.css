@@ -601,7 +601,7 @@ select.text-input option {
 
 .advanced-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   align-items: start;
 }
@@ -1822,6 +1822,12 @@ select.text-input option {
   padding: 4px 10px;
   font-size: 0.72rem;
   white-space: nowrap;
+}
+
+.sub-action.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .size-row {

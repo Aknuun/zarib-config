@@ -3,12 +3,12 @@
 
   const I18N = {
     fa: {
-      pageTitle: "محاسبه ضریب واقعی ترافیک کانفیگ",
+      pageTitle: "محاسبه ضریب کانفیگ",
       eyebrow: "شفافیت حجم، بدون حدس",
-      heroTitle1: "محاسبه ضریب واقعی",
-      heroTitle2: "ترافیک کانفیگ",
-      heroSub: "تست دقیق با هم‌ترازی چرخه پنل؛ لینک ذخیره نمی‌شود.",
-      privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
+      heroTitle1: "محاسبه ضریب",
+      heroTitle2: "کانفیگ",
+      heroSub: "تست دقیق با هم‌ترازی چرخه پنل.",
+      privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی ذخیره نمی‌شود.",
       copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
@@ -23,13 +23,15 @@
       subLimit: "حداکثر ۵ لینک ساب می‌توانی اضافه کنی.",
       removeSub: "حذف لینک",
       pingAll: "پینگ همه",
+      checkSelect: "چک",
+      selectMultiple: "انتخاب چند کانفیگ برای تست",
       checkAllTunnels: "چک تانل",
       pingAllDone: "پینگ همه کانفیگ‌ها انجام شد.",
       tunnelAllDone: "وضعیت تانل همه کانفیگ‌ها بررسی شد.",
       subLoading: "در حال خواندن…",
       subConfigs: "{n} کانفیگ",
       configsToTest: "تعداد کانفیگ تست",
-      configsShortHint: "کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان تست می‌شوند.",
+      configsShortHint: "کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان.",
       perConfigResults: "نتیجه هر کانفیگ",
       sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
       err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
@@ -71,7 +73,7 @@
       coreSystem: "سیستم",
       coreHint: "اگر کانفیگ با هسته جدید وصل نشد، هسته قدیمی را امتحان کن.",
       bgMeasure: "اندازه‌گیری پس‌زمینه",
-      bgMeasureHint: "اگر تیک بزنی، ترافیک پس‌زمینه پنل اندازه‌گیری و از نتیجه کم می‌شود.",
+      bgMeasureHint: "اگر تیک بزنی، پس‌زمینه را از نتیجه کم می‌کنیم.",
       chooseAnother: "کانفیگ دیگری از همین ساب",
       startTest: "شروع تست",
       startConfirmEyebrow: "یادآوری",
@@ -193,8 +195,8 @@
       eyebrow: "Transparent data accounting",
       heroTitle1: "Calculate the real",
       heroTitle2: "config traffic ratio",
-      heroSub: "Accurate, panel-synced test. Link never stored.",
-      privacyNote: "Per our GitHub docs, no config is retained or stored.",
+      heroSub: "Accurate, panel-synced test.",
+      privacyNote: "Per our GitHub docs, no config is stored.",
       copyServerScript: "Copy and run it directly on your server",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
@@ -209,13 +211,15 @@
       subLimit: "You can add up to 5 subscription links.",
       removeSub: "Remove link",
       pingAll: "Ping all",
+      checkSelect: "Check",
+      selectMultiple: "Select multiple configs for testing",
       checkAllTunnels: "Check tunnels",
       pingAllDone: "Ping finished for all configs.",
       tunnelAllDone: "Tunnel status checked for all configs.",
       subLoading: "Loading…",
       subConfigs: "{n} configs",
       configsToTest: "Configs to test",
-      configsShortHint: "Configs run in order per subscription; subscriptions run in parallel.",
+      configsShortHint: "Per-sub configs run in order; subs run in parallel.",
       perConfigResults: "Result per config",
       sentenceAvg: "Average across {n} configs: {r}×",
       err_no_selection: "Select at least one config to test.",
@@ -257,7 +261,7 @@
       coreSystem: "System",
       coreHint: "If a config does not connect with the latest core, try the legacy core.",
       bgMeasure: "Background measurement",
-      bgMeasureHint: "If you enable it, the panel’s background traffic is measured and subtracted from the result.",
+      bgMeasureHint: "If enabled, background usage is subtracted from the result.",
       chooseAnother: "Another config from this sub",
       startTest: "Start test",
       startConfirmEyebrow: "Reminder",
@@ -386,7 +390,6 @@
   const state = {
     lang: document.documentElement.lang === "en" ? "en" : "fa",
     subs: [],
-    testCount: 1,
     size: 10,
     running: false,
     cancelRequested: false,
@@ -946,12 +949,8 @@
     return value;
   }
 
-  function maxConfigs() {
-    return Math.max(1, Math.min(5, Number(state.testCount) || 1));
-  }
-
   function defaultSelection(sub) {
-    return sub.configs.slice(0, maxConfigs()).map((config) => config.index);
+    return sub.configs.slice(0, 1).map((config) => config.index);
   }
 
   function subHost(url) {
@@ -1013,6 +1012,7 @@
       configs: [],
       count: 0,
       selected: [],
+      multi: false,
     };
     state.subs.push(sub);
     $("#subUrl").value = "";
@@ -1289,13 +1289,22 @@
       pingAll.textContent = t("pingAll");
       pingAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       pingAll.addEventListener("click", () => runSubAction(sub, "ping", pingAll));
+      const checkSelect = document.createElement("button");
+      checkSelect.type = "button";
+      checkSelect.className = "ghost-btn sub-action";
+      checkSelect.textContent = t("checkSelect");
+      checkSelect.title = t("selectMultiple");
+      checkSelect.setAttribute("aria-pressed", sub.multi ? "true" : "false");
+      checkSelect.classList.toggle("active", !!sub.multi);
+      checkSelect.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
+      checkSelect.addEventListener("click", () => toggleMulti(sub));
       const tunnelAll = document.createElement("button");
       tunnelAll.type = "button";
       tunnelAll.className = "ghost-btn sub-action";
       tunnelAll.textContent = t("checkAllTunnels");
       tunnelAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       tunnelAll.addEventListener("click", () => runSubAction(sub, "geo", tunnelAll));
-      actions.append(pingAll, tunnelAll);
+      actions.append(pingAll, checkSelect, tunnelAll);
 
       head.append(title, actions);
       group.append(head);
@@ -1331,7 +1340,7 @@
           const item = document.createElement("label");
           item.className = "config-item";
           item.dataset.index = String(config.index);
-          if (maxConfigs() > 1) item.classList.add("multi");
+          if (sub.multi) item.classList.add("multi");
           if (sub.selected.includes(config.index)) item.classList.add("selected");
 
           const check = document.createElement("input");
@@ -1407,23 +1416,26 @@
 
   function toggleConfig(sub, index) {
     if (state.running) return;
-    if (sub.selected.includes(index)) {
+    if (!sub.multi) {
+      sub.selected = [index];
+    } else if (sub.selected.includes(index)) {
       sub.selected = sub.selected.filter((value) => value !== index);
     } else {
-      const limit = maxConfigs();
-      const next = sub.selected.filter((value) => value !== index);
-      next.push(index);
-      while (next.length > limit) next.shift();
-      sub.selected = next;
+      sub.selected = [...sub.selected, index];
     }
     syncSelection(sub);
     updateStartState();
   }
 
-  function selectConfigsForCount() {
-    state.subs.forEach((sub) => {
-      sub.selected = defaultSelection(sub);
-    });
+  function toggleMulti(sub) {
+    if (state.running) return;
+    sub.multi = !sub.multi;
+    if (!sub.multi) {
+      sub.selected = sub.selected.slice(0, 1);
+    }
+    if (!sub.selected.length && sub.configs.length) {
+      sub.selected = [sub.configs[0].index];
+    }
     renderSubs();
     updateStartState();
   }
@@ -1463,7 +1475,6 @@
     const hasSelection = selectedCount() > 0;
     $("#startBtn").disabled = !hasSelection || state.running;
     $("#inspectBtn").disabled = state.subs.length >= 5 || state.running;
-    $("#testCount").disabled = state.running;
     $("#sizeRange").disabled = state.running;
     $("#coreSelect").disabled = state.running;
   }
@@ -2555,10 +2566,6 @@
       }
     });
     $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
-    $("#testCount").addEventListener("change", (event) => {
-      state.testCount = Number(event.target.value) || 1;
-      selectConfigsForCount();
-    });
     $("#startBtn").addEventListener("click", openStartDialog);
     const startConfirm = $("#startConfirm");
     if (startConfirm) {
