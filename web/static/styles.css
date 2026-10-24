@@ -198,14 +198,6 @@ body {
   box-shadow: 0 8px 30px var(--btn-shadow);
 }
 
-.brand-image {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  object-fit: cover;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-}
 
 .brand-mark svg {
   width: 24px;
@@ -1265,8 +1257,8 @@ select.text-input option {
 
 .result-ring {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 224px;
+  height: 224px;
   flex: none;
   display: grid;
   place-items: center;
@@ -1384,7 +1376,7 @@ select.text-input option {
   align-items: center;
   gap: 6px;
   flex: none;
-  width: 190px;
+  width: 250px;
 }
 
 .brand-ring {
@@ -1411,15 +1403,15 @@ select.text-input option {
 .ring-brand-img {
   position: relative;
   z-index: 2;
-  width: 146px;
-  height: 146px;
+  width: 204px;
+  height: 204px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--accent);
 }
 
 .brand-name-display {
-  max-width: 190px;
+  max-width: 250px;
   font-size: 0.82rem;
   font-weight: 900;
   color: var(--text);
@@ -1430,7 +1422,7 @@ select.text-input option {
 }
 
 .result-sub-host {
-  max-width: 190px;
+  max-width: 250px;
   font-size: 0.72rem;
   font-weight: 800;
   direction: ltr;
@@ -1441,7 +1433,7 @@ select.text-input option {
 }
 
 .brand-name-input {
-  width: 190px;
+  width: 250px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--input-bg);
@@ -1896,24 +1888,24 @@ select.text-input option {
   }
 
   .result-ring {
-    width: 100px;
-    height: 100px;
+    width: 130px;
+    height: 130px;
   }
 
   .brand-panel {
-    width: 136px;
+    width: 150px;
   }
 
   .ring-brand-img {
-    width: 84px;
-    height: 84px;
+    width: 116px;
+    height: 116px;
   }
 
   .brand-name-display,
   .result-sub-host,
   .brand-name-input {
-    width: 136px;
-    max-width: 136px;
+    width: 150px;
+    max-width: 150px;
   }
 
   .ring-icon {
