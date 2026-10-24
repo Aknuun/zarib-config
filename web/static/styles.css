@@ -1315,21 +1315,16 @@ select.text-input option {
   color: var(--accent);
 }
 
-.verdict-row {
+.result-eyebrow-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.verdict-row .badge {
-  margin-top: 0;
 }
 
 .share-inline {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
 }
 
 .badge {
@@ -1434,7 +1429,7 @@ select.text-input option {
 
 .result-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 20px;
 }
@@ -1789,11 +1784,7 @@ select.text-input option {
   }
 
   .result-actions {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .result-actions #againBtn {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
   }
 
   .result-ring {

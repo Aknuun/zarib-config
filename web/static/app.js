@@ -2094,11 +2094,6 @@
     } else {
       hide(coefExact);
     }
-    const inlineShare = $("#shareInlineBtn");
-    if (inlineShare) {
-      if (noRatio) show(inlineShare);
-      else hide(inlineShare);
-    }
     verdict.classList.remove("good", "warn", "bad");
     if (invalid) {
       verdict.textContent = t("invalidLow");
@@ -2112,11 +2107,6 @@
       hide(verdict);
     }
 
-    $("#sentence").textContent = invalid
-      ? t("sentenceInvalid", { d: formatBytes(downloaded), u: formatBytes(deducted) })
-      : count > 1
-        ? t("sentenceAvg", { n: usableCount, r: ratioNumber(avg) })
-        : t("sentence", { n: ratioNumber(avg) });
     $("#statDownloaded").textContent = formatBytes(downloaded);
     $("#statDeducted").textContent = formatBytes(deducted);
 
@@ -2862,8 +2852,6 @@
     });
     $("#againBtn").addEventListener("click", testAnother);
     $("#shareBtn").addEventListener("click", () => shareResult());
-    const shareInlineBtn = $("#shareInlineBtn");
-    if (shareInlineBtn) shareInlineBtn.addEventListener("click", () => shareResult(shareInlineBtn));
     $("#reportBtn").addEventListener("click", openReportDialog);
     const footerReport = $("#footerReportBtn");
     if (footerReport) footerReport.addEventListener("click", openReportDialog);

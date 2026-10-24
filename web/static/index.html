@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030y">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030z">
 </head>
 <body>
   <header class="topbar">
@@ -111,22 +111,21 @@
     <section id="resultCard" class="card result hidden" aria-live="polite">
       <div class="result-head">
         <div>
-          <div class="eyebrow"><span class="dot"></span><span data-i18n="resultEyebrow">نتیجه تست</span></div>
-          <div id="coef" class="coef">—</div>
-          <div id="coefExact" class="coef-exact hidden"></div>
-          <div class="verdict-row">
-            <div id="verdict" class="badge hidden"></div>
-            <button id="shareInlineBtn" class="ghost-btn icon-btn share-inline hidden" type="button" aria-label="اشتراک‌گذاری" data-i18n-aria-label="shareResult">
+          <div class="result-eyebrow-row">
+            <div class="eyebrow"><span class="dot"></span><span data-i18n="resultEyebrow">نتیجه تست</span></div>
+            <button id="shareBtn" class="ghost-btn icon-btn share-inline" type="button" aria-label="اشتراک‌گذاری" data-i18n-aria-label="shareResult">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
+          <div id="coef" class="coef">—</div>
+          <div id="coefExact" class="coef-exact hidden"></div>
+          <div id="verdict" class="badge hidden"></div>
         </div>
         <div class="result-ring" aria-hidden="true">
           <svg class="ring-svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
           <div id="resultGlyph" class="ring-icon ring-glyph is-multiply">×</div>
         </div>
       </div>
-      <p id="sentence" class="sentence"></p>
       <div class="stats">
         <div class="stat"><span data-i18n="downloaded">دانلود واقعی</span><strong id="statDownloaded">—</strong></div>
         <div class="stat"><span data-i18n="deducted">کسرشده</span><strong id="statDeducted">—</strong></div>
@@ -138,10 +137,6 @@
       </div>
       <div class="result-actions">
         <button id="againBtn" class="primary-btn" type="button" data-i18n="testAnother">کانفیگ دیگری از همین ساب</button>
-        <button id="shareBtn" class="ghost-btn" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="btn-label" data-i18n="shareResult">اشتراک‌گذاری</span>
-        </button>
         <button id="reportBtn" class="ghost-btn" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span class="btn-label" data-i18n="reportError">گزارش خطا</span>
@@ -273,6 +268,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030y"></script>
+  <script src="/static/app.js?v=20261030z"></script>
 </body>
 </html>
