@@ -136,8 +136,10 @@ func TestPresenceCountsDistinctClients(t *testing.T) {
 	if data["online"].(float64) != 2 {
 		t.Fatalf("unexpected online count: %v", data["online"])
 	}
-	if _, ok := data["today"].(map[string]any); !ok {
-		t.Fatalf("missing today stats: %+v", data)
+	for _, key := range []string{"today", "monthly", "overall"} {
+		if _, ok := data[key].(map[string]any); !ok {
+			t.Fatalf("missing %s stats: %+v", key, data)
+		}
 	}
 }
 
@@ -167,6 +169,12 @@ func TestRecordResultClassifiesRatios(t *testing.T) {
 	}
 	if stats.Downloaded != 300 || stats.Deducted != 300 {
 		t.Fatalf("unexpected traffic stats: %+v", stats)
+	}
+	if stats.MonthTests != 3 || stats.TotalTests != 3 {
+		t.Fatalf("unexpected monthly/total test stats: %+v", stats)
+	}
+	if stats.MonthDownloaded != 300 || stats.TotalDownloaded != 300 {
+		t.Fatalf("unexpected monthly/total traffic stats: %+v", stats)
 	}
 }
 

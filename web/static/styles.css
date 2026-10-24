@@ -1574,6 +1574,34 @@ select.text-input option {
   letter-spacing: -0.01em;
 }
 
+.live-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+}
+
+.live-tab {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.live-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .live-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

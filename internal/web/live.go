@@ -32,6 +32,27 @@ type liveStats struct {
 	Unknown    int    `json:"unknown_tunnel"`
 	Downloaded int64  `json:"downloaded"`
 	Deducted   int64  `json:"deducted"`
+
+	Month           string `json:"month,omitempty"`
+	MonthTests      int    `json:"month_tests,omitempty"`
+	MonthWithRatio  int    `json:"month_with_ratio,omitempty"`
+	MonthNormal     int    `json:"month_normal,omitempty"`
+	MonthInvalid    int    `json:"month_invalid,omitempty"`
+	MonthTunnel     int    `json:"month_tunnel,omitempty"`
+	MonthNonTunnel  int    `json:"month_non_tunnel,omitempty"`
+	MonthUnknown    int    `json:"month_unknown_tunnel,omitempty"`
+	MonthDownloaded int64  `json:"month_downloaded,omitempty"`
+	MonthDeducted   int64  `json:"month_deducted,omitempty"`
+
+	TotalTests      int   `json:"total_tests,omitempty"`
+	TotalWithRatio  int   `json:"total_with_ratio,omitempty"`
+	TotalNormal     int   `json:"total_normal,omitempty"`
+	TotalInvalid    int   `json:"total_invalid,omitempty"`
+	TotalTunnel     int   `json:"total_tunnel,omitempty"`
+	TotalNonTunnel  int   `json:"total_non_tunnel,omitempty"`
+	TotalUnknown    int   `json:"total_unknown_tunnel,omitempty"`
+	TotalDownloaded int64 `json:"total_downloaded,omitempty"`
+	TotalDeducted   int64 `json:"total_deducted,omitempty"`
 }
 
 type geoEntry struct {
@@ -51,6 +72,10 @@ func todayKey() string {
 	return time.Now().Format("2006-01-02")
 }
 
+func monthKey() string {
+	return time.Now().Format("2006-01")
+}
+
 func (s *server) loadStats() {
 	if s.statsFile == "" {
 		return
@@ -63,8 +88,30 @@ func (s *server) loadStats() {
 	if err := json.Unmarshal(content, &stats); err != nil {
 		return
 	}
-	if stats.Day != todayKey() {
-		return
+	if stats.Month == "" {
+		if len(stats.Day) >= 7 {
+			stats.Month = stats.Day[:7]
+		} else {
+			stats.Month = monthKey()
+		}
+		stats.MonthTests = stats.Tests
+		stats.MonthWithRatio = stats.WithRatio
+		stats.MonthNormal = stats.Normal
+		stats.MonthInvalid = stats.Invalid
+		stats.MonthTunnel = stats.Tunnel
+		stats.MonthNonTunnel = stats.NonTunnel
+		stats.MonthUnknown = stats.Unknown
+		stats.MonthDownloaded = stats.Downloaded
+		stats.MonthDeducted = stats.Deducted
+		stats.TotalTests = stats.Tests
+		stats.TotalWithRatio = stats.WithRatio
+		stats.TotalNormal = stats.Normal
+		stats.TotalInvalid = stats.Invalid
+		stats.TotalTunnel = stats.Tunnel
+		stats.TotalNonTunnel = stats.NonTunnel
+		stats.TotalUnknown = stats.Unknown
+		stats.TotalDownloaded = stats.Downloaded
+		stats.TotalDeducted = stats.Deducted
 	}
 	s.mu.Lock()
 	s.live = stats
@@ -73,11 +120,37 @@ func (s *server) loadStats() {
 
 func (s *server) rollStatsLocked() {
 	today := todayKey()
-	if s.live.Day == today {
-		return
+	month := monthKey()
+	changed := false
+	if s.live.Day != today {
+		s.live.Day = today
+		s.live.Tests = 0
+		s.live.WithRatio = 0
+		s.live.Normal = 0
+		s.live.Invalid = 0
+		s.live.Tunnel = 0
+		s.live.NonTunnel = 0
+		s.live.Unknown = 0
+		s.live.Downloaded = 0
+		s.live.Deducted = 0
+		changed = true
 	}
-	s.live = liveStats{Day: today}
-	s.saveStatsLocked()
+	if s.live.Month != month {
+		s.live.Month = month
+		s.live.MonthTests = 0
+		s.live.MonthWithRatio = 0
+		s.live.MonthNormal = 0
+		s.live.MonthInvalid = 0
+		s.live.MonthTunnel = 0
+		s.live.MonthNonTunnel = 0
+		s.live.MonthUnknown = 0
+		s.live.MonthDownloaded = 0
+		s.live.MonthDeducted = 0
+		changed = true
+	}
+	if changed {
+		s.saveStatsLocked()
+	}
 }
 
 func (s *server) saveStatsLocked() {
@@ -103,26 +176,44 @@ func (s *server) recordResult(result *ratio.Result, tunnel *bool) {
 	defer s.mu.Unlock()
 	s.rollStatsLocked()
 	s.live.Tests++
+	s.live.MonthTests++
+	s.live.TotalTests++
 	switch value := result.Ratio; {
 	case value >= 1.06:
 		s.live.WithRatio++
+		s.live.MonthWithRatio++
+		s.live.TotalWithRatio++
 	case value >= 0.95:
 		s.live.Normal++
+		s.live.MonthNormal++
+		s.live.TotalNormal++
 	default:
 		s.live.Invalid++
+		s.live.MonthInvalid++
+		s.live.TotalInvalid++
 	}
 	if tunnel == nil {
 		s.live.Unknown++
+		s.live.MonthUnknown++
+		s.live.TotalUnknown++
 	} else if *tunnel {
 		s.live.Tunnel++
+		s.live.MonthTunnel++
+		s.live.TotalTunnel++
 	} else {
 		s.live.NonTunnel++
+		s.live.MonthNonTunnel++
+		s.live.TotalNonTunnel++
 	}
 	if result.DownloadedBytes > 0 {
 		s.live.Downloaded += result.DownloadedBytes
+		s.live.MonthDownloaded += result.DownloadedBytes
+		s.live.TotalDownloaded += result.DownloadedBytes
 	}
 	if result.DeltaTotal > 0 {
 		s.live.Deducted += result.DeltaTotal
+		s.live.MonthDeducted += result.DeltaTotal
+		s.live.TotalDeducted += result.DeltaTotal
 	}
 	s.saveStatsLocked()
 }
@@ -151,6 +242,29 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"unknown_tunnel": s.live.Unknown,
 			"downloaded":     s.live.Downloaded,
 			"deducted":       s.live.Deducted,
+		},
+		"monthly": map[string]any{
+			"month":          s.live.Month,
+			"tests":          s.live.MonthTests,
+			"with_ratio":     s.live.MonthWithRatio,
+			"normal":         s.live.MonthNormal,
+			"invalid":        s.live.MonthInvalid,
+			"tunnel":         s.live.MonthTunnel,
+			"non_tunnel":     s.live.MonthNonTunnel,
+			"unknown_tunnel": s.live.MonthUnknown,
+			"downloaded":     s.live.MonthDownloaded,
+			"deducted":       s.live.MonthDeducted,
+		},
+		"overall": map[string]any{
+			"tests":          s.live.TotalTests,
+			"with_ratio":     s.live.TotalWithRatio,
+			"normal":         s.live.TotalNormal,
+			"invalid":        s.live.TotalInvalid,
+			"tunnel":         s.live.TotalTunnel,
+			"non_tunnel":     s.live.TotalNonTunnel,
+			"unknown_tunnel": s.live.TotalUnknown,
+			"downloaded":     s.live.TotalDownloaded,
+			"deducted":       s.live.TotalDeducted,
 		},
 	}
 }

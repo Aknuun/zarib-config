@@ -12,7 +12,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="/static/styles.css?v=20261030c">
+  <link rel="stylesheet" href="/static/styles.css?v=20261030d">
 </head>
 <body>
   <header class="topbar">
@@ -203,9 +203,14 @@
     <div class="live-dialog-head">
       <div>
         <div class="eyebrow"><span class="dot"></span><span data-i18n="liveTitle">آمار زنده</span></div>
-        <h2 id="liveHeading" data-i18n="liveHeading">وضعیت امروز سایت</h2>
+        <h2 id="liveHeading" data-i18n="liveHeading">آمار سایت</h2>
       </div>
       <button id="liveClose" class="ghost-btn icon-btn" type="button" aria-label="بستن" data-i18n-aria-label="liveClose">×</button>
+    </div>
+    <div class="live-tabs" role="tablist" aria-label="Live stats range">
+      <button class="live-tab active" type="button" role="tab" aria-selected="true" data-live-range="today" data-i18n="liveToday">امروز</button>
+      <button class="live-tab" type="button" role="tab" aria-selected="false" data-live-range="month" data-i18n="liveMonth">این ماه</button>
+      <button class="live-tab" type="button" role="tab" aria-selected="false" data-live-range="all" data-i18n="liveAll">کل</button>
     </div>
     <div class="live-grid">
       <div class="live-stat live-stat-online">
@@ -213,7 +218,7 @@
         <strong id="liveStatOnline" class="mono">—</strong>
       </div>
       <div class="live-stat">
-        <span data-i18n="statTests">تست امروز</span>
+        <span data-i18n="statTests">تست‌ها</span>
         <strong id="liveStatTests" class="mono">—</strong>
       </div>
       <div class="live-stat">
@@ -229,7 +234,7 @@
         <strong id="liveStatInvalid" class="mono">—</strong>
       </div>
       <div class="live-stat">
-        <span data-i18n="statDownloaded">حجم تست‌شده امروز</span>
+        <span data-i18n="statDownloaded">حجم تست‌شده</span>
         <strong id="liveStatDownloaded" class="mono">—</strong>
       </div>
     </div>
@@ -279,6 +284,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261030c"></script>
+  <script src="/static/app.js?v=20261030d"></script>
 </body>
 </html>

@@ -8,7 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Aknuun/zarib-config/internal/ratio"
 	"github.com/Aknuun/zarib-config/internal/web"
@@ -30,6 +33,222 @@ func serve(args []string) {
 	if err := web.Run(*addr, *staticDir); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+func runMenu() int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	for {
+		fmt.Println()
+		fmt.Println(ratio.C("zarib-config "+ratio.Version, "cyan", "bold"))
+		fmt.Println("1) Test a subscription")
+		fmt.Println("2) List configs")
+		fmt.Println("3) Check connectivity")
+		fmt.Println("4) Exit")
+		def := "1"
+		raw, err := ratio.Ask("Choose", &def)
+		if err != nil {
+			return 0
+		}
+		switch strings.ToLower(strings.TrimSpace(raw)) {
+		case "1":
+			menuTest(ctx)
+			if ctx.Err() != nil {
+				return 0
+			}
+		case "2":
+			menuList()
+		case "3":
+			menuProbe(ctx)
+			if ctx.Err() != nil {
+				return 0
+			}
+		case "4", "q", "quit", "exit":
+			return 0
+		default:
+			fmt.Println("Invalid choice.")
+		}
+	}
+}
+
+func askSub() (string, error) {
+	for {
+		raw, err := ratio.Ask("Subscription URL", nil)
+		if err != nil {
+			return "", err
+		}
+		raw = strings.TrimSpace(raw)
+		if raw != "" {
+			return raw, nil
+		}
+		fmt.Println("Subscription URL is required.")
+	}
+}
+
+func loadAndPrintConfigs(sub string) ([]ratio.Config, error) {
+	body, _, err := ratio.Fetch(sub, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	configs := ratio.ExtractConfigs(body)
+	if len(configs) == 0 {
+		return nil, ratio.ErrNoConfigs
+	}
+	for index, config := range configs {
+		remark := config.Remark
+		if remark == "" {
+			remark = "(unnamed)"
+		}
+		fmt.Printf("%d) %s | %s | %s\n", index+1, config.Protocol, config.Target, remark)
+	}
+	return configs, nil
+}
+
+func parsePicks(raw string, count int) ([]int, error) {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "all" || raw == "*" {
+		picks := make([]int, count)
+		for index := range picks {
+			picks[index] = index + 1
+		}
+		return picks, nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\t'
+	})
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("enter at least one config number")
+	}
+	seen := map[int]bool{}
+	picks := []int{}
+	for _, part := range parts {
+		value, err := strconv.Atoi(ratio.NormalizeDigits(part))
+		if err != nil || value < 1 || value > count {
+			return nil, fmt.Errorf("config number must be between 1 and %d", count)
+		}
+		if !seen[value] {
+			seen[value] = true
+			picks = append(picks, value)
+		}
+	}
+	return picks, nil
+}
+
+func askSize() float64 {
+	def := fmt.Sprintf("%g", ratio.DefaultSizeMB)
+	raw, err := ratio.Ask(fmt.Sprintf("Test size in MB (%g-%g)", ratio.MinSizeMB, ratio.MaxSizeMB), &def)
+	if err != nil {
+		return ratio.DefaultSizeMB
+	}
+	value, err := ratio.ParseFloat(raw)
+	if err != nil || value < ratio.MinSizeMB || value > ratio.MaxSizeMB {
+		fmt.Printf("Invalid size; using %g MB.\n", ratio.DefaultSizeMB)
+		return ratio.DefaultSizeMB
+	}
+	return value
+}
+
+func askCore() string {
+	def := "auto"
+	raw, err := ratio.Ask("Xray core (auto/latest/legacy/system)", &def)
+	if err != nil {
+		return "auto"
+	}
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	for _, choice := range ratio.CoreChoices {
+		if raw == choice {
+			return raw
+		}
+	}
+	fmt.Println("Invalid core; using auto.")
+	return "auto"
+}
+
+func menuList() {
+	sub, err := askSub()
+	if err != nil {
+		return
+	}
+	if _, err := loadAndPrintConfigs(sub); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+}
+
+func menuProbe(ctx context.Context) {
+	sub, err := askSub()
+	if err != nil {
+		return
+	}
+	configs, err := loadAndPrintConfigs(sub)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	def := "1"
+	raw, err := ratio.Ask("Config number", &def)
+	if err != nil {
+		return
+	}
+	pick, err := strconv.Atoi(ratio.NormalizeDigits(strings.TrimSpace(raw)))
+	if err != nil || pick < 1 || pick > len(configs) {
+		fmt.Printf("Config number must be between 1 and %d.\n", len(configs))
+		return
+	}
+	opts := ratio.DefaultOptions()
+	opts.Sub = sub
+	opts.Pick = pick
+	opts.ProbeOnly = true
+	opts.Core = askCore()
+	if _, err := ratio.Run(ctx, opts); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+}
+
+func menuTest(ctx context.Context) {
+	sub, err := askSub()
+	if err != nil {
+		return
+	}
+	configs, err := loadAndPrintConfigs(sub)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	def := "1"
+	raw, err := ratio.Ask("Config numbers (comma-separated, or all)", &def)
+	if err != nil {
+		return
+	}
+	picks, err := parsePicks(raw, len(configs))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	size := askSize()
+	core := askCore()
+	background := ratio.AskYesNo("Measure background usage? (slower, more accurate)", false)
+	if !ratio.AskYesNo(fmt.Sprintf("Start %d test(s)? Make sure no other device is using this subscription.", len(picks)), true) {
+		return
+	}
+	for _, pick := range picks {
+		if ctx.Err() != nil {
+			return
+		}
+		opts := ratio.DefaultOptions()
+		opts.Sub = sub
+		opts.Pick = pick
+		opts.SizeMB = &size
+		opts.Core = core
+		opts.Sync = background
+		opts.DriftWindow = 0
+		opts.Wait = 2
+		if _, err := ratio.Run(ctx, opts); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			if ctx.Err() != nil {
+				return
+			}
+		}
 	}
 }
 
@@ -78,6 +297,9 @@ func runCLI(args []string) int {
 	if _, err := exec.LookPath("curl"); err != nil {
 		fmt.Fprintln(os.Stderr, "curl is not installed.")
 		return 2
+	}
+	if len(args) == 0 && ratio.IsInteractive() {
+		return runMenu()
 	}
 	provided := map[string]bool{}
 	fs.Visit(func(item *flag.Flag) { provided[item.Name] = true })

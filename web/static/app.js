@@ -54,15 +54,18 @@
       tunnelNotDetected: "سرور خارج از ایران است.",
       onlineNow: "آنلاین",
       liveTitle: "آمار زنده",
-      liveHeading: "وضعیت امروز سایت",
+      liveHeading: "آمار سایت",
       liveClose: "بستن",
       liveHint: "این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.",
+      liveToday: "امروز",
+      liveMonth: "این ماه",
+      liveAll: "کل",
       statOnline: "افراد آنلاین",
-      statTests: "تست امروز",
+      statTests: "تست‌ها",
       statWithRatio: "ضریب‌دار",
       statNormal: "معمولی (۱×)",
       statInvalid: "نامعتبر",
-      statDownloaded: "حجم تست‌شده امروز",
+      statDownloaded: "حجم تست‌شده",
       liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
@@ -191,10 +194,10 @@
       reconnecting: "اتصال قطع شد؛ دوباره تلاش می‌کنم…",
     },
     en: {
-      pageTitle: "Config Traffic Ratio Calculator",
+      pageTitle: "Calculate config ratio",
       eyebrow: "Transparent data accounting",
-      heroTitle1: "Calculate the real",
-      heroTitle2: "config traffic ratio",
+      heroTitle1: "Calculate",
+      heroTitle2: "config ratio",
       heroSub: "Accurate, panel-synced test.",
       privacyNote: "Per our GitHub docs, no config is stored.",
       copyServerScript: "Copy and run it directly on your server",
@@ -242,15 +245,18 @@
       tunnelNotDetected: "The server is outside Iran.",
       onlineNow: "online",
       liveTitle: "Live stats",
-      liveHeading: "Today at a glance",
+      liveHeading: "Site stats",
       liveClose: "Close",
       liveHint: "These are aggregate counters only; no link or config is stored.",
+      liveToday: "Today",
+      liveMonth: "This month",
+      liveAll: "All time",
       statOnline: "Online now",
-      statTests: "Tests today",
+      statTests: "Tests",
       statWithRatio: "With ratio",
       statNormal: "Normal (1x)",
       statInvalid: "Invalid",
-      statDownloaded: "Tested today",
+      statDownloaded: "Tested volume",
       liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
       advanced: "More settings",
       sizeLabel: "Test size",
@@ -414,6 +420,7 @@
     live: null,
     liveId: "",
     liveTimer: null,
+    liveRange: "today",
   };
   let subSeq = 0;
 
@@ -592,7 +599,10 @@
 
   function renderLive() {
     const live = state.live;
-    const today = (live && live.today) || {};
+    const range = ["today", "month", "all"].includes(state.liveRange)
+      ? state.liveRange
+      : "today";
+    const bucket = (live && live[range === "all" ? "overall" : range === "month" ? "monthly" : "today"]) || {};
     const online = Number(live && live.online) || 0;
     const count = $("#liveCount");
     if (count) count.textContent = live ? String(online) : "—";
@@ -601,21 +611,31 @@
       if (el) el.textContent = value;
     };
     set("#liveStatOnline", live ? String(online) : "—");
-    set("#liveStatTests", live ? String(today.tests || 0) : "—");
-    set("#liveStatWithRatio", live ? String(today.with_ratio || 0) : "—");
-    set("#liveStatNormal", live ? String(today.normal || 0) : "—");
-    set("#liveStatInvalid", live ? String(today.invalid || 0) : "—");
-    set("#liveStatDownloaded", live ? formatBytes(today.downloaded || 0) : "—");
+    set("#liveStatTests", live ? String(bucket.tests || 0) : "—");
+    set("#liveStatWithRatio", live ? String(bucket.with_ratio || 0) : "—");
+    set("#liveStatNormal", live ? String(bucket.normal || 0) : "—");
+    set("#liveStatInvalid", live ? String(bucket.invalid || 0) : "—");
+    set("#liveStatDownloaded", live ? formatBytes(bucket.downloaded || 0) : "—");
     const line = $("#liveTunnelLine");
     if (line) {
       line.textContent = live
         ? t("liveTunnelLine", {
-            t: today.tunnel || 0,
-            n: today.non_tunnel || 0,
-            u: today.unknown_tunnel || 0,
+            t: bucket.tunnel || 0,
+            n: bucket.non_tunnel || 0,
+            u: bucket.unknown_tunnel || 0,
           })
         : "";
     }
+  }
+
+  function setLiveRange(range) {
+    state.liveRange = ["today", "month", "all"].includes(range) ? range : "today";
+    $$(".live-tab").forEach((tab) => {
+      const active = tab.dataset.liveRange === state.liveRange;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    renderLive();
   }
 
   async function sendPresence() {
@@ -663,6 +683,9 @@
     if (button) button.addEventListener("click", openLiveDialog);
     const close = $("#liveClose");
     if (close) close.addEventListener("click", closeLiveDialog);
+    $$(".live-tab").forEach((tab) => {
+      tab.addEventListener("click", () => setLiveRange(tab.dataset.liveRange));
+    });
     const dialog = $("#liveDialog");
     if (dialog) {
       dialog.addEventListener("click", (event) => {

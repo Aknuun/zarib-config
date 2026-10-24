@@ -42,7 +42,16 @@ go build -o zarib-config ./cmd/zarib-config
 
 Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON file. Run `./zarib-config --help` for all options.
 
-`--sync` waits for the panel's usage update cycle and measures background traffic across one full interval before testing. It is slower but avoids false coefficients on subscriptions that have other traffic. The web UI uses this mode by default. The default test size is 10 MB; larger tests (up to 50 MB) are more accurate.
+Running without arguments opens an English-only terminal menu:
+
+- **Test a subscription**: list configs, select one or many (comma-separated or `all`), choose size/core, optionally enable background measurement, and confirm before testing.
+- **List configs**: print the available configs with protocol, target, and remark.
+- **Check connectivity**: probe one config through Xray.
+- **Exit**.
+
+The terminal menu and CLI messages are English-only. If usage has not appeared after 120 seconds, the CLI asks whether to wait up to 5 more minutes.
+
+`--sync` waits for the panel's usage update cycle and measures background traffic across one full interval before testing. It is slower but avoids false coefficients on subscriptions that have other traffic. The web UI enables it only from the advanced settings checkbox. The default test size is 10 MB; larger tests (up to 50 MB) are more accurate.
 
 ## Web server
 

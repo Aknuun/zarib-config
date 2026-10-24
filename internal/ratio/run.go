@@ -547,7 +547,14 @@ func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, e
 		return best, readings, bestTime, nil
 	}
 	if controlFile == "" {
-		return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 120 seconds. The panel may be delayed or may only show usage in its dashboard.")
+		if !IsInteractive() {
+			return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 120 seconds. The panel may be delayed or may only show usage in its dashboard.")
+		}
+		fmt.Println(C("Usage did not change after 120 seconds.", "yellow"))
+		if !AskYesNo("Wait up to 5 more minutes for the panel to record usage?", true) {
+			return nil, nil, time.Time{}, ratioErrorf("Usage reported by the subscription did not change after 120 seconds.")
+		}
+		goto extended
 	}
 	fmt.Println(C("Usage did not change after 120 seconds. Waiting for user confirmation ...", "yellow"))
 	for {
