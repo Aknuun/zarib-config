@@ -171,7 +171,7 @@ body {
   padding: 22px 0 8px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   direction: ltr;
   gap: 8px;
 }
