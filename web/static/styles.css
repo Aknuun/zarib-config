@@ -517,7 +517,8 @@ input[type="number"],
   color: var(--text);
   font: inherit;
   font-size: 0.78rem;
-  text-align: start;
+  direction: ltr;
+  text-align: left;
   padding: 10px 12px;
   cursor: pointer;
   overflow: hidden;
