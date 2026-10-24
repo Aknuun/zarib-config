@@ -1264,6 +1264,22 @@ select.text-input option {
   color: var(--accent);
 }
 
+.ring-glyph {
+  display: grid;
+  place-items: center;
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ring-glyph.is-check {
+  color: var(--good-text);
+}
+
+.ring-glyph.is-multiply {
+  color: var(--accent);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

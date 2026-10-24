@@ -68,7 +68,7 @@
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
       sizeDialogTitle: "حجم تست",
-      sizeRangeHint: "از ۵ تا ۱۰۰ مگابایت",
+      sizeRangeHint: "هر چقدر حجم بزرگ‌تر باشد احتمال دقت بیشتر می‌شود.",
       done: "تأیید",
       coreLabel: "هسته Xray",
       coreAuto: "خودکار",
@@ -261,7 +261,7 @@
       advanced: "More settings",
       sizeLabel: "Test size",
       sizeDialogTitle: "Test size",
-      sizeRangeHint: "5 to 100 MB",
+      sizeRangeHint: "The larger the test size, the more accurate the result is likely to be.",
       done: "Done",
       coreLabel: "Xray core",
       coreAuto: "Auto",
@@ -395,6 +395,7 @@
   const SITE_URL = "https://zarib.appii.ir/";
   const SUB_HISTORY_KEY = "ratio-sub-history";
   const SUB_HISTORY_LIMIT = 8;
+  const LTR_MARK = "\u200E";
   const SELF_HOST_SCRIPT =
     'bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"';
   const THEME_KEY = "ratio-theme";
@@ -404,6 +405,7 @@
     subs: [],
     size: 25,
     bgMeasure: false,
+    sizeCloseTimer: null,
     running: false,
     cancelRequested: false,
     activeJobs: new Set(),
@@ -483,7 +485,7 @@
 
   function formatRatio(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-    return `${ratioNumber(value)}x`;
+    return `${LTR_MARK}×${ratioNumber(value)}`;
   }
 
   function ratioIsNo(value) {
@@ -501,7 +503,7 @@
   }
 
   function ratioBig(value) {
-    return ratioIsNo(value) ? "1.00x" : formatRatio(value);
+    return ratioIsNo(value) ? `${LTR_MARK}×1.00` : formatRatio(value);
   }
 
   function resultRatio(item) {
@@ -1569,7 +1571,7 @@
   }
 
   function setSize(size) {
-    const value = Math.max(5, Math.min(100, Math.round(Number(size) || 25)));
+    const value = Math.max(5, Math.min(100, Math.round((Number(size) || 25) / 5) * 5));
     state.size = value;
     $("#sizeRange").value = String(value);
     $("#sizeValue").textContent = `${value} MB`;
@@ -1577,10 +1579,22 @@
     if (chip) chip.textContent = `${value} MB`;
   }
 
+  function scheduleSizeAutoClose() {
+    if (state.sizeCloseTimer) window.clearTimeout(state.sizeCloseTimer);
+    state.sizeCloseTimer = window.setTimeout(() => {
+      state.sizeCloseTimer = null;
+      closeSizeDialog();
+    }, 500);
+  }
+
   function openSizeDialog() {
     if (state.running) return;
     const dialog = $("#sizeDialog");
     if (!dialog) return;
+    if (state.sizeCloseTimer) {
+      window.clearTimeout(state.sizeCloseTimer);
+      state.sizeCloseTimer = null;
+    }
     const range = $("#sizeRange");
     if (range) range.value = String(state.size);
     if (typeof dialog.showModal === "function") {
@@ -1592,6 +1606,10 @@
   }
 
   function closeSizeDialog() {
+    if (state.sizeCloseTimer) {
+      window.clearTimeout(state.sizeCloseTimer);
+      state.sizeCloseTimer = null;
+    }
     const dialog = $("#sizeDialog");
     if (!dialog) return;
     if (typeof dialog.close === "function") dialog.close();
@@ -2045,6 +2063,12 @@
     const noRatio = ratioIsNo(avg);
     const unitRatio = ratioIsUnit(avg);
     const invalid = ratioIsInvalid(avg);
+    const glyph = $("#resultGlyph");
+    if (glyph) {
+      glyph.textContent = noRatio ? "✓" : "×";
+      glyph.classList.toggle("is-check", noRatio);
+      glyph.classList.toggle("is-multiply", !noRatio);
+    }
     coef.textContent = ratioBig(avg);
     coef.classList.remove("warn", "bad");
     if (invalid || avg > 1.5) coef.classList.add("bad");
@@ -2761,12 +2785,24 @@
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".input-wrap")) hideSubHistory();
     });
-    $("#sizeRange").addEventListener("input", (event) => setSize(event.target.value));
+    const sizeRange = $("#sizeRange");
+    sizeRange.addEventListener("input", (event) => {
+      setSize(event.target.value);
+      scheduleSizeAutoClose();
+    });
+    sizeRange.addEventListener("change", (event) => {
+      setSize(event.target.value);
+      closeSizeDialog();
+    });
+    sizeRange.addEventListener("wheel", (event) => {
+      if (state.running) return;
+      event.preventDefault();
+      setSize(state.size + (event.deltaY > 0 ? -5 : 5));
+      scheduleSizeAutoClose();
+    }, { passive: false });
     $("#sizeBtn").addEventListener("click", openSizeDialog);
     const sizeClose = $("#sizeClose");
     if (sizeClose) sizeClose.addEventListener("click", closeSizeDialog);
-    const sizeDone = $("#sizeDone");
-    if (sizeDone) sizeDone.addEventListener("click", closeSizeDialog);
     const sizeDialog = $("#sizeDialog");
     if (sizeDialog) {
       sizeDialog.addEventListener("click", (event) => {
