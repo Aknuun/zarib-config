@@ -112,6 +112,34 @@ go test ./...
 
 ## Deployment
 
+### Fresh install or rebuild after losing the server
+
+The repo contains everything needed to run the site; only the stats counters and the Telegram bot credentials live outside it. Point the domain's A/AAAA record at the new server, then run:
+
 ```bash
-sudo bash web/deploy/install.sh
+curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/web/deploy/install.sh \
+  | sudo DOMAIN=zarib.example.com bash
 ```
+
+Or from a checkout:
+
+```bash
+sudo DOMAIN=zarib.example.com bash web/deploy/install.sh
+```
+
+The script installs nginx/certbot/Go 1.22+, builds the binary, recreates `/opt/v2ray-ratio`, installs the systemd unit, configures nginx for `DOMAIN`, and requests a Let's Encrypt certificate. Re-running it is safe: it rebuilds the binary and static files, keeps `$APP_DIR/.cache` (stats), and restarts the service.
+
+Options (environment variables):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DOMAIN` | `zarib-config.videobazi.com` | Public hostname used by nginx and the certificate |
+| `OLD_DOMAIN` | empty | Extra hostname to keep in nginx and the certificate |
+| `APP_DIR` | `/opt/v2ray-ratio` | Install and cache directory |
+| `SKIP_CERTBOT` | `0` | `1` = HTTP only, useful before DNS is ready |
+| `LETSENCRYPT_EMAIL` | empty | Certbot email; omitted means no email |
+| `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID` | empty | Write `/etc/zarib-config/telegram.env` |
+| `ZARIB_REF` | `main` | Branch or tag of the repo to download |
+| `SRC_DIR` | `/opt/zarib-config-src` | Where a downloaded copy is unpacked |
+
+If you still have a backup, restore `stats.json` to `$APP_DIR/.cache/v2ray-ratio-web/stats.json` and the Telegram env file to `/etc/zarib-config/telegram.env`. Without a backup the site starts with zero counters and error reporting disabled; everything else (UI and tests) works.
