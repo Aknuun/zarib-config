@@ -1258,3 +1258,38 @@ html[dir="ltr"] .topbar {
     font-size: 7.5px;
   }
 }
+
+html[data-theme="light"] .hint,
+html[data-theme="light"] .hint.small,
+html[data-theme="light"] .privacy-note,
+html[data-theme="light"] .privacy-note a,
+html[data-theme="light"] .config-target,
+html[data-theme="light"] .config-remark,
+html[data-theme="light"] .usage-top span,
+html[data-theme="light"] .usage-meta,
+html[data-theme="light"] .usage-meta b,
+html[data-theme="light"] .stat span,
+html[data-theme="light"] .stat-sub,
+html[data-theme="light"] .meta,
+html[data-theme="light"] .meta-row b,
+html[data-theme="light"] .stage-message,
+html[data-theme="light"] .footer,
+html[data-theme="light"] .details summary,
+html[data-theme="light"] .details pre,
+html[data-theme="light"] .sub-status,
+html[data-theme="light"] .result-row-sub,
+html[data-theme="light"] .result-row-detail,
+html[data-theme="light"] .field-hint,
+html[data-theme="light"] .field-label,
+html[data-theme="light"] .size-value,
+html[data-theme="light"] .toast {
+  color: var(--muted-2);
+}
+
+html[data-theme="light"] .privacy-note a:hover {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .log {
+  color: var(--log-text);
+}
