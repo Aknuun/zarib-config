@@ -310,7 +310,6 @@ h1 {
 
 /* Only the active stage is on screen. */
 body:has(#selectCard:not(.hidden)) .hero,
-body:has(#selectCard:not(.hidden)) #inputCard,
 body:has(#progressCard:not(.hidden)) .hero,
 body:has(#progressCard:not(.hidden)) #inputCard,
 body:has(#progressCard:not(.hidden)) #selectCard,
@@ -321,6 +320,24 @@ body:has(#errorCard:not(.hidden)) .hero,
 body:has(#errorCard:not(.hidden)) #inputCard,
 body:has(#errorCard:not(.hidden)) #selectCard {
   display: none;
+}
+
+/* Keep the input available on the config step, but only as a compact add-sub bar. */
+body:has(#selectCard:not(.hidden)) #inputCard {
+  display: block;
+  max-width: 980px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+}
+
+body:has(#selectCard:not(.hidden)) #inputCard .privacy-note,
+body:has(#selectCard:not(.hidden)) #inputCard .self-host,
+body:has(#selectCard:not(.hidden)) #inputCard .protocols {
+  display: none;
+}
+
+body:has(#selectCard:not(.hidden)) #selectCard {
+  max-height: calc(100dvh - 230px);
 }
 
 .stage-head {
