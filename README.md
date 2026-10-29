@@ -1,28 +1,36 @@
 # zarib-config
 
-Measure the real traffic ratio of a V2Ray subscription. Download a known amount of data, compare it with the subscription usage delta, and get a coefficient such as `1.5x`.
+Measures the real traffic ratio of a V2Ray or WireGuard subscription. It downloads a known amount through one config and compares the panel usage before and after.
 
-Hosted web UI: **https://zarib.appii.ir/**
+A result of `1.38x` means that for every 1 MB downloaded, 1.38 MB is deducted from the subscription.
+
+Live instance: https://zarib.app11.ir/
+
+The number is an estimate. Panels can report usage late or count traffic differently, so use `--sync` when the panel has a fixed update interval.
+
+## Requirements
+
+- Linux or macOS
+- `curl` and `tar`
+- A subscription that returns `subscription-userinfo`
+
+Go 1.22+ and Xray are downloaded automatically by `run.sh`.
 
 ## Quick start
-
-Run this on your own Linux or macOS server:
 
 ```bash
 bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
-Requirements: `curl` and `tar`. Go 1.22+ is installed into `~/.cache/zarib-config/go` automatically when needed (no root required). Xray is downloaded automatically. Your subscription must expose usage via `subscription-userinfo`.
+The script opens a terminal menu. You can test one or several configs, choose the test size, pick the Xray core, and enable background measurement.
 
-To refresh the cached source after an update:
+To update:
 
 ```bash
 ZARIB_UPDATE=1 bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
-You can also pin a release: `ZARIB_REF=v1.2.15`.
-
-> Results are estimates. There is a possibility of error or inaccuracy because panels may record usage with a delay or report it differently.
+Pin a release with `ZARIB_REF=v1.2.15`.
 
 ## Build
 
@@ -33,25 +41,22 @@ go build -o zarib-config ./cmd/zarib-config
 ## CLI
 
 ```bash
-./zarib-config
-./zarib-config --sub "https://example.com/sub/xxxx" --list
-./zarib-config --sub "https://example.com/sub/xxxx" --pick 5
-./zarib-config --sub "https://example.com/sub/xxxx" --pick 5 --sync --size 10
-./zarib-config --sub "https://example.com/sub/xxxx" --config "vless://..." --json-out result.json
+./zarib-config --sub "https://panel.example.com/sub/..." --list
+./zarib-config --sub "https://panel.example.com/sub/..." --pick 5
+./zarib-config --sub "https://panel.example.com/sub/..." --pick 5 --sync --size 10
+./zarib-config --config "vless://..." --json-out result.json
 ```
 
-Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`, `wireguard://`) or a JSON file. Run `./zarib-config --help` for all options.
+Supported configs:
 
-Running without arguments opens an English-only terminal menu:
+- `vless://`
+- `vmess://`
+- `trojan://`
+- `ss://`
+- `wireguard://`
+- A JSON client config (a single object or an array of configs)
 
-- **Test a subscription**: list configs, select one or many (`1,2,3`, `all`, or `first 3`), choose any positive test size (default 100 MB), choose a core, optionally enable background measurement, and confirm before testing.
-- **List configs**: print the available configs with protocol, target, and remark.
-- **Check connectivity**: probe one config through Xray.
-- **Exit**.
-
-The terminal menu and CLI messages are English-only. If usage has not appeared after 120 seconds, the CLI asks whether to wait up to 5 more minutes.
-
-`--sync` waits for the panel's usage update cycle and measures background traffic across one full interval before testing. It is slower but avoids false coefficients on subscriptions that have other traffic. The web UI enables it only from the background toggle button. The web UI defaults to 25 MB (5–100 MB); the terminal/CLI defaults to 100 MB and accepts any positive size.
+Run `./zarib-config --help` for the rest of the flags.
 
 ## Web server
 
@@ -59,66 +64,39 @@ The terminal menu and CLI messages are English-only. If usage has not appeared a
 ./zarib-config serve --addr 127.0.0.1:8000 --static-dir web/static
 ```
 
-Or start the self-hosted web UI directly from the one-liner:
+Or run it through the quick-start script:
 
 ```bash
 bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)" _ serve --addr 0.0.0.0:8000
 ```
 
-Binding to `0.0.0.0` exposes the UI to the network; put it behind a reverse proxy and authentication.
+Put the web server behind a reverse proxy and add authentication if it is public.
 
 ## How it works
 
 1. Read the subscription usage.
-2. In sync mode, observe one full panel update interval to measure background traffic.
-3. Start Xray locally and download the test data through the selected config.
-4. Read usage again, subtract the measured background, and calculate:
+2. Optionally wait one update interval and measure background usage.
+3. Start Xray and download data through the selected config.
+4. Read the usage again and calculate:
 
-```
+```text
 coefficient = (usage delta - background) / downloaded bytes
 ```
 
-## Web extras
+## Web UI
 
-- **Tunnel column**: each config can be checked on demand. The server resolves the config host, looks up its country through `ipinfo.io` (falling back to `ipwho.is`), and treats servers located in Iran as tunnels.
-- **Ping**: a TCP connect check with latency in milliseconds. ICMP is not used because many servers block it.
-- **Live stats**: the header shows how many browsers are currently open on the site. Clicking it shows today's completed tests, how many had a coefficient, how many were normal (1x), invalid tests, tested volume, and the tunnel/non-tunnel split. Only aggregate counters are saved; no URL or config is stored.
-- **Error reports**: the result card has a "Report a problem" button. It sends the description and an optional subscription link (at least 100 MB of volume) to the developer through a Telegram bot. Reporting is disabled unless the server has `ZARIB_TELEGRAM_TOKEN` and `ZARIB_TELEGRAM_CHAT_ID`; see the systemd unit in `web/deploy/` for the `EnvironmentFile` path.
+The web UI can inspect subscriptions, show configs and their locations, run ping and tunnel checks, test one or several configs, show live counters, and send error reports to Telegram when configured.
 
 ## Privacy
 
-No subscription URL, config, or result is persisted. The URL is used only during the test and is deleted with the job's temporary files when the test finishes. Results stay in memory for up to one hour for the web UI and are then pruned. Online presences use a random browser ID and expire automatically; they are never stored on disk.
-
-The tunnel check sends only the config server's hostname/IP to the geolocation service; the result is cached in memory for 30 minutes. Aggregate daily counters are stored in the web cache directory.
-
-## Notes
-
-- The test consumes real traffic. The web UI asks you to confirm that no other device or person is using the subscription before each test.
-- The CLI downloads in 20 MB chunks by default; the web UI uses a single request for the selected test size.
-- The subscription must expose usage; otherwise the ratio cannot be measured.
-- Panels that record usage with a delay may need a longer wait; sync mode handles the common one-minute update cycle.
-- The web UI waits 120 seconds for usage (every second for the first 10 seconds, then every 5 seconds). If usage is still missing, it offers a button to wait up to 5 more minutes (checked every 10 seconds) or cancel.
-- The connectivity probe has a 20-second budget. A TCP ping can succeed while the node blocks the test destination or is too slow, so the probe may fail even when the server is reachable.
-- If the primary speed-test host is blocked, the test tries fallback mirrors (OVH, Hetzner, ThinkBroadband) and an ArvanCloud Iranian mirror. Fallback downloads use HTTP range requests.
-- Shared subscriptions can have background traffic. Sync mode measures and subtracts it, but a larger test size and disconnecting other devices still improve accuracy.
-- For best accuracy, use a larger test size (10-50 MB) and disconnect other devices.
-- SOCKS listens on `127.0.0.1` only; temporary files use `0600`.
-
-## Tests
-
-```bash
-go test ./...
-```
+The service does not store the subscription URL, configs, or test results. Web jobs are kept in memory for one hour. Temporary files are deleted, and the local SOCKS listener only binds to loopback.
 
 ## Deployment
 
-### Fresh install or rebuild after losing the server
-
-The repo contains everything needed to run the site; only the stats counters and the Telegram bot credentials live outside it. Point the domain's A/AAAA record at the new server, then run:
+On a fresh Ubuntu server:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/web/deploy/install.sh \
-  | sudo DOMAIN=zarib.example.com bash
+curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/web/deploy/install.sh | sudo DOMAIN=zarib.example.com bash
 ```
 
 Or from a checkout:
@@ -127,19 +105,34 @@ Or from a checkout:
 sudo DOMAIN=zarib.example.com bash web/deploy/install.sh
 ```
 
-The script installs nginx/certbot/Go 1.22+, builds the binary, recreates `/opt/v2ray-ratio`, installs the systemd unit, configures nginx for `DOMAIN`, and requests a Let's Encrypt certificate. Re-running it is safe: it rebuilds the binary and static files, keeps `$APP_DIR/.cache` (stats), and restarts the service.
+The installer sets up nginx, certbot, the Go binary, a systemd unit, and the static UI. It is safe to run again.
 
-Options (environment variables):
+| Variable | Purpose |
+| --- | --- |
+| `DOMAIN` | Domain served by nginx |
+| `OLD_DOMAIN` | Optional second domain |
+| `APP_DIR` | Install directory (default `/opt/v2ray-ratio`) |
+| `SKIP_CERTBOT` | Skip certificate issuance |
+| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt |
+| `TELEGRAM_TOKEN` / `TELEGRAM_CHAT_ID` | Optional error reports |
+| `ZARIB_REF` | Git ref to install (default `main`) |
+| `SRC_DIR` | Source cache (default `/opt/zarib-config-src`) |
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `DOMAIN` | `zarib-config.videobazi.com` | Public hostname used by nginx and the certificate |
-| `OLD_DOMAIN` | empty | Extra hostname to keep in nginx and the certificate |
-| `APP_DIR` | `/opt/v2ray-ratio` | Install and cache directory |
-| `SKIP_CERTBOT` | `0` | `1` = HTTP only, useful before DNS is ready |
-| `LETSENCRYPT_EMAIL` | empty | Certbot email; omitted means no email |
-| `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID` | empty | Write `/etc/zarib-config/telegram.env` |
-| `ZARIB_REF` | `main` | Branch or tag of the repo to download |
-| `SRC_DIR` | `/opt/zarib-config-src` | Where a downloaded copy is unpacked |
+To keep the web counters and Telegram settings after a server rebuild, back up:
 
-If you still have a backup, restore `stats.json` to `$APP_DIR/.cache/v2ray-ratio-web/stats.json` and the Telegram env file to `/etc/zarib-config/telegram.env`. Without a backup the site starts with zero counters and error reporting disabled; everything else (UI and tests) works.
+- `$APP_DIR/.cache/v2ray-ratio-web/stats.json`
+- `/etc/zarib-config/telegram.env`
+
+## Tests
+
+```bash
+go test ./...
+```
+
+## Notes
+
+- A test really uses traffic from the subscription.
+- The CLI downloads in 20 MB chunks. The web UI defaults to 25 MB and accepts 5–100 MB.
+- 10–50 MB is usually enough. Very small tests are noisy.
+- The tunnel check sends the config host to a public geo API, not the full config.
+- Panels that update usage slowly can need a longer wait; `--sync` handles the common case.
