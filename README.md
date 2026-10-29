@@ -107,16 +107,6 @@ sudo DOMAIN=zarib.example.com bash web/deploy/install.sh
 
 The installer sets up nginx, certbot, the Go binary, a systemd unit, and the static UI. It is safe to run again.
 
-| Variable | Purpose |
-| --- | --- |
-| `DOMAIN` | Domain served by nginx |
-| `OLD_DOMAIN` | Optional second domain |
-| `APP_DIR` | Install directory (default `/opt/v2ray-ratio`) |
-| `SKIP_CERTBOT` | Skip certificate issuance |
-| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt |
-| `TELEGRAM_TOKEN` / `TELEGRAM_CHAT_ID` | Optional error reports |
-| `ZARIB_REF` | Git ref to install (default `main`) |
-| `SRC_DIR` | Source cache (default `/opt/zarib-config-src`) |
 
 To keep the web counters and Telegram settings after a server rebuild, back up:
 
