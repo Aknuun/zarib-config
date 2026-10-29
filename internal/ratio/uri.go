@@ -1,6 +1,8 @@
 package ratio
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -30,6 +32,10 @@ func ConfigURI(cfg Config) string {
 			}
 		case "wireguard":
 			if uri := wireGuardConfigURI(outbound, cfg.Remark); uri != "" {
+				return uri
+			}
+		case "vmess":
+			if uri := vmessConfigURI(outbound, cfg.Remark); uri != "" {
 				return uri
 			}
 		}
@@ -74,6 +80,12 @@ func appendTLSParams(query url.Values, stream map[string]any) {
 		}
 		if value := toString(tlsSettings["fingerprint"]); value != "" {
 			query.Set("fp", value)
+		}
+		if value := toString(tlsSettings["pinnedPeerCertSha256"]); value != "" {
+			query.Set("pcs", value)
+		}
+		if value := toString(tlsSettings["verifyPeerCertByName"]); value != "" {
+			query.Set("vcn", value)
 		}
 		alpn := joinValues(asArray(tlsSettings["alpn"]))
 		if alpn == "" {
@@ -175,6 +187,15 @@ func appendTransportParams(query url.Values, stream map[string]any) {
 		}
 	}
 
+	if httpupgrade := asObject(stream["httpupgradeSettings"]); httpupgrade != nil {
+		if value := toString(httpupgrade["path"]); value != "" {
+			query.Set("path", value)
+		}
+		if value := toString(httpupgrade["host"]); value != "" {
+			query.Set("host", value)
+		}
+	}
+
 	if grpc := asObject(stream["grpcSettings"]); grpc != nil {
 		if value := toString(grpc["serviceName"]); value != "" {
 			query.Set("serviceName", value)
@@ -247,4 +268,92 @@ func wireGuardConfigURI(outbound map[string]any, remark string) string {
 		query.Encode(),
 		url.PathEscape(remark),
 	)
+}
+
+func vmessConfigURI(outbound map[string]any, remark string) string {
+	settings := asObject(outbound["settings"])
+	server := firstObject(asArray(settings["vnext"]))
+	if server == nil {
+		return ""
+	}
+	user := firstObject(asArray(server["users"]))
+	host := toString(server["address"])
+	id := toString(user["id"])
+	if host == "" || id == "" {
+		return ""
+	}
+	port := toString(server["port"])
+	if port == "" {
+		port = "443"
+	}
+
+	stream := asObject(outbound["streamSettings"])
+	network := toString(stream["network"])
+	if network == "" {
+		network = "tcp"
+	}
+	security := strings.ToLower(toString(stream["security"]))
+	tls := ""
+	if security == "tls" || security == "reality" {
+		tls = "tls"
+	}
+	sni, fp, alpn, hostHeader, path := "", "", "", "", ""
+	if tlsSettings := asObject(stream["tlsSettings"]); tlsSettings != nil {
+		sni = toString(tlsSettings["serverName"])
+		fp = toString(tlsSettings["fingerprint"])
+		alpn = joinValues(asArray(tlsSettings["alpn"]))
+	}
+	if reality := asObject(stream["realitySettings"]); reality != nil {
+		if sni == "" {
+			sni = toString(reality["serverName"])
+		}
+		if fp == "" {
+			fp = toString(reality["fingerprint"])
+		}
+	}
+	if xhttp := asObject(stream["xhttpSettings"]); xhttp != nil {
+		path = toString(xhttp["path"])
+		hostHeader = toString(xhttp["host"])
+	}
+	if httpupgrade := asObject(stream["httpupgradeSettings"]); httpupgrade != nil {
+		if path == "" {
+			path = toString(httpupgrade["path"])
+		}
+		if hostHeader == "" {
+			hostHeader = toString(httpupgrade["host"])
+		}
+	}
+	if ws := asObject(stream["wsSettings"]); ws != nil {
+		if path == "" {
+			path = toString(ws["path"])
+		}
+		if hostHeader == "" {
+			if headers := asObject(ws["headers"]); headers != nil {
+				hostHeader = toString(headers["Host"])
+			}
+		}
+	}
+	headerType := "none"
+	if tcp := asObject(stream["tcpSettings"]); tcp != nil {
+		if header := asObject(tcp["header"]); header != nil {
+			if value := toString(header["type"]); value != "" {
+				headerType = value
+			}
+		}
+	}
+	scy := toString(user["security"])
+	if scy == "" {
+		scy = "auto"
+	}
+	payload := map[string]any{
+		"v": "2", "ps": remark, "add": host, "port": port, "id": id,
+		"aid": toInt64(user["alterId"]), "scy": scy, "net": network,
+		"type": headerType, "host": hostHeader, "path": path, "tls": tls,
+		"sni": sni, "alpn": alpn, "fp": fp,
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return "vmess://" + base64.StdEncoding.EncodeToString(encoded)
 }
