@@ -75,11 +75,26 @@ func appendTLSParams(query url.Values, stream map[string]any) {
 		if value := toString(tlsSettings["fingerprint"]); value != "" {
 			query.Set("fp", value)
 		}
-		if value := joinValues(asArray(tlsSettings["alpn"])); value != "" {
-			query.Set("alpn", value)
+		alpn := joinValues(asArray(tlsSettings["alpn"]))
+		if alpn == "" {
+			alpn = toString(tlsSettings["alpn"])
 		}
-		if allow, ok := tlsSettings["allowInsecure"].(bool); ok && allow {
+		if alpn != "" {
+			query.Set("alpn", alpn)
+		}
+		allow := false
+		switch value := tlsSettings["allowInsecure"].(type) {
+		case bool:
+			allow = value
+		case string:
+			allow = value == "1" || value == "true"
+		case float64:
+			allow = value != 0
+		}
+		if allow {
 			query.Set("allowInsecure", "1")
+		} else {
+			query.Set("allowInsecure", "0")
 		}
 	}
 	reality := asObject(stream["realitySettings"])
@@ -110,6 +125,12 @@ func appendTransportParams(query url.Values, stream map[string]any) {
 	query.Set("type", network)
 	query.Set("security", toString(stream["security"]))
 	appendTLSParams(query, stream)
+	if _, ok := query["allowInsecure"]; !ok {
+		query.Set("allowInsecure", "0")
+	}
+	if _, ok := query["insecure"]; !ok {
+		query.Set("insecure", "0")
+	}
 	if network == "tcp" {
 		headerType := ""
 		if tcp := asObject(stream["tcpSettings"]); tcp != nil {
