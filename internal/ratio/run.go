@@ -112,7 +112,7 @@ func BuildClientConfig(input string) (map[string]any, map[string]any, string, st
 		return config, nil, target, remark, text, nil
 	}
 	if !strings.Contains(text, "://") {
-		return nil, nil, "", "", "", ratioErrorf("Config must be a link (vless/vmess/trojan/ss) or JSON.")
+		return nil, nil, "", "", "", ratioErrorf("Config must be a link (vless/vmess/trojan/ss/wireguard) or JSON.")
 	}
 	outbound, err := OutboundFromURI(text)
 	if err != nil {
@@ -147,6 +147,8 @@ func PrepareConfig(base map[string]any, outbound map[string]any, targetTag strin
 		}
 		config["log"] = map[string]any{"loglevel": "warning"}
 		config["inbounds"] = []any{}
+		// Custom DNS servers can be routed through the proxy and deadlock the test.
+		delete(config, "dns")
 	}
 	tag := "ratio-test-socks"
 	inbounds := asArray(config["inbounds"])
@@ -1041,7 +1043,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 				return nil, ratioErrorf("No supported configs found in the subscription.")
 			}
 			fmt.Println("No configs found in the subscription; enter one manually.")
-			value, err := Ask("Config (JSON file path or vless:// / vmess:// / trojan:// / ss:// link)", nil)
+			value, err := Ask("Config (JSON file path or vless:// / vmess:// / trojan:// / ss:// / wireguard:// link)", nil)
 			if err != nil {
 				return nil, err
 			}

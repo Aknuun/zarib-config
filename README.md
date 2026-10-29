@@ -40,7 +40,7 @@ go build -o zarib-config ./cmd/zarib-config
 ./zarib-config --sub "https://example.com/sub/xxxx" --config "vless://..." --json-out result.json
 ```
 
-Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`) or a JSON file. Run `./zarib-config --help` for all options.
+Configs can be a URI (`vless://`, `vmess://`, `trojan://`, `ss://`, `wireguard://`) or a JSON file. Run `./zarib-config --help` for all options.
 
 Running without arguments opens an English-only terminal menu:
 

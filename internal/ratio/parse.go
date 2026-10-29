@@ -548,8 +548,10 @@ func OutboundFromURI(uri string) (map[string]any, error) {
 		return outboundFromTrojan(uri)
 	case "ss":
 		return outboundFromSS(uri)
+	case "wireguard":
+		return outboundFromWireGuard(uri)
 	default:
-		return nil, ratioErrorf("Unsupported protocol \"%s\". Use a vless/vmess/trojan/ss link or a full JSON client config.", scheme)
+		return nil, ratioErrorf("Unsupported protocol \"%s\". Use a vless/vmess/trojan/ss/wireguard link or a full JSON client config.", scheme)
 	}
 }
 
@@ -756,6 +758,91 @@ func outboundFromSS(uri string) (map[string]any, error) {
 	}, nil
 }
 
+func splitList(value string) []any {
+	fields := strings.Fields(strings.NewReplacer(",", " ", ";", " ").Replace(value))
+	result := make([]any, 0, len(fields))
+	for _, field := range fields {
+		result = append(result, field)
+	}
+	return result
+}
+
+func firstQueryValue(query map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := query[key]; value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func outboundFromWireGuard(uri string) (map[string]any, error) {
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Hostname() == "" {
+		return nil, ratioErrorf("Invalid wireguard link.")
+	}
+	query := map[string]string{}
+	for key, values := range parsed.Query() {
+		if len(values) > 0 {
+			query[strings.ToLower(key)] = values[0]
+		}
+	}
+	privateKey := ""
+	if parsed.User != nil {
+		privateKey = parsed.User.Username()
+	}
+	if privateKey == "" {
+		privateKey = firstQueryValue(query, "privatekey", "private-key", "secretkey", "secret-key")
+	}
+	if privateKey == "" {
+		return nil, ratioErrorf("No private key found in the wireguard link.")
+	}
+	publicKey := firstQueryValue(query, "publickey", "public-key", "peerpublickey", "peer-public-key")
+	if publicKey == "" {
+		return nil, ratioErrorf("No peer public key found in the wireguard link.")
+	}
+	address := splitList(firstQueryValue(query, "address", "addresses", "ip"))
+	if len(address) == 0 {
+		return nil, ratioErrorf("No address found in the wireguard link.")
+	}
+	allowedIPs := splitList(firstQueryValue(query, "allowedips", "allowed-ips", "allowedip", "allowed-ip"))
+	if len(allowedIPs) == 0 {
+		allowedIPs = []any{"0.0.0.0/0", "::/0"}
+	}
+	port := 51820
+	if parsed.Port() != "" {
+		port, err = strconv.Atoi(parsed.Port())
+		if err != nil {
+			return nil, ratioErrorf("Invalid wireguard port.")
+		}
+	}
+	peer := map[string]any{
+		"publicKey":  publicKey,
+		"endpoint":   net.JoinHostPort(parsed.Hostname(), strconv.Itoa(port)),
+		"allowedIPs": allowedIPs,
+	}
+	if keepAlive := toInt64(firstQueryValue(query, "keepalive", "keep-alive", "persistentkeepalive")); keepAlive > 0 {
+		peer["keepAlive"] = keepAlive
+	}
+	settings := map[string]any{
+		"secretKey":      privateKey,
+		"address":        address,
+		"peers":          []any{peer},
+		"mtu":            int64(1420),
+		"domainStrategy": "ForceIP",
+	}
+	if mtu := toInt64(query["mtu"]); mtu > 0 {
+		settings["mtu"] = mtu
+	}
+	if dns := splitList(firstQueryValue(query, "dns", "remotedns", "remote-dns")); len(dns) > 0 {
+		settings["remoteDNS"] = dns
+	}
+	return map[string]any{
+		"protocol": "wireguard",
+		"settings": settings,
+	}, nil
+}
+
 func configRemark(text string, outbound map[string]any) string {
 	if remark, ok := outbound["_remark"].(string); ok && remark != "" {
 		return remark
@@ -830,6 +917,15 @@ func OutboundHost(outbound map[string]any) string {
 			return toString(server["address"])
 		}
 	}
+	if peers := asArray(settings["peers"]); len(peers) > 0 {
+		if peer := asObject(peers[0]); peer != nil {
+			if endpoint := toString(peer["endpoint"]); endpoint != "" {
+				if host, _, err := splitHostPort(endpoint); err == nil {
+					return host
+				}
+			}
+		}
+	}
 	return ""
 }
 
@@ -862,6 +958,11 @@ func OutboundTarget(outbound map[string]any) string {
 	if servers := asArray(settings["servers"]); len(servers) > 0 {
 		if server := asObject(servers[0]); server != nil {
 			return serverTarget(server)
+		}
+	}
+	if peers := asArray(settings["peers"]); len(peers) > 0 {
+		if peer := asObject(peers[0]); peer != nil {
+			return strings.TrimSpace(toString(peer["endpoint"]))
 		}
 	}
 	return ""
@@ -973,7 +1074,7 @@ func ExtractConfigs(body []byte) []Config {
 			continue
 		}
 		scheme := strings.ToLower(strings.SplitN(line, "://", 2)[0])
-		if scheme != "vless" && scheme != "vmess" && scheme != "trojan" && scheme != "ss" {
+		if scheme != "vless" && scheme != "vmess" && scheme != "trojan" && scheme != "ss" && scheme != "wireguard" {
 			continue
 		}
 		outbound, err := OutboundFromURI(line)

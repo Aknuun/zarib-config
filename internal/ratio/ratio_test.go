@@ -332,6 +332,7 @@ func TestJSONRoutingIsReplaced(t *testing.T) {
 				map[string]any{"type": "field", "ip": []any{"geoip:ir"}, "outboundTag": "direct"},
 			},
 		},
+		"dns": map[string]any{"servers": []any{"1.1.1.1"}},
 	}
 	config, err := PrepareConfig(base, nil, "proxy", 12345)
 	if err != nil {
@@ -340,6 +341,9 @@ func TestJSONRoutingIsReplaced(t *testing.T) {
 	inbounds := mustArray(t, config["inbounds"])
 	if len(inbounds) != 1 || toInt64(mustObject(t, inbounds[0])["port"]) != 12345 {
 		t.Fatalf("unexpected inbounds: %+v", inbounds)
+	}
+	if _, ok := config["dns"]; ok {
+		t.Fatal("custom DNS should be removed from the test copy")
 	}
 	routing := mustObject(t, config["routing"])
 	rules := mustArray(t, routing["rules"])
@@ -579,5 +583,59 @@ func TestParseBool(t *testing.T) {
 		if got := ParseBool(input); got != want {
 			t.Fatalf("ParseBool(%q) = %v, want %v", input, got, want)
 		}
+	}
+}
+
+func TestWireGuardURI(t *testing.T) {
+	uri := "wireguard://WE6IwB47qYxuTlmmDEnlHbBD0oUHEqGiR8Snaap9u10%3D@wg.topingr.ir:33434/" +
+		"?publickey=B70FMSPDWT%2BO3EEsFJr7WtFMjnDuWfgcdfPyDYH3rVg%3D" +
+		"&address=10.66.19.74%2F32&mtu=1280&allowedips=0.0.0.0%2F0%2C%3A%3A%2F0" +
+		"&keepalive=25&dns=1.1.1.1%2C8.8.8.8#WG-IRAN"
+	outbound, err := OutboundFromURI(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outbound["protocol"] != "wireguard" {
+		t.Fatalf("unexpected protocol: %+v", outbound)
+	}
+	settings := mustObject(t, outbound["settings"])
+	if settings["secretKey"] != "WE6IwB47qYxuTlmmDEnlHbBD0oUHEqGiR8Snaap9u10=" {
+		t.Fatalf("unexpected private key: %+v", settings)
+	}
+	peers := mustArray(t, settings["peers"])
+	if len(peers) != 1 {
+		t.Fatalf("unexpected peers: %+v", peers)
+	}
+	peer := mustObject(t, peers[0])
+	if peer["endpoint"] != "wg.topingr.ir:33434" {
+		t.Fatalf("unexpected endpoint: %+v", peer)
+	}
+	if peer["publicKey"] != "B70FMSPDWT+O3EEsFJr7WtFMjnDuWfgcdfPyDYH3rVg=" {
+		t.Fatalf("unexpected public key: %+v", peer)
+	}
+	if toInt64(peer["keepAlive"]) != 25 {
+		t.Fatalf("unexpected keepalive: %+v", peer)
+	}
+	if toInt64(settings["mtu"]) != 1280 {
+		t.Fatalf("unexpected mtu: %+v", settings)
+	}
+	if got := OutboundHost(outbound); got != "wg.topingr.ir" {
+		t.Fatalf("unexpected host: %s", got)
+	}
+	if got := OutboundTarget(outbound); got != "wg.topingr.ir:33434" {
+		t.Fatalf("unexpected target: %s", got)
+	}
+}
+
+func TestWireGuardJSONPeerEndpoint(t *testing.T) {
+	var outbound map[string]any
+	if err := json.Unmarshal([]byte(`{"protocol":"wireguard","settings":{"peers":[{"endpoint":"wg.example.com:33434"}]}}`), &outbound); err != nil {
+		t.Fatal(err)
+	}
+	if got := OutboundHost(outbound); got != "wg.example.com" {
+		t.Fatalf("unexpected host: %s", got)
+	}
+	if got := OutboundTarget(outbound); got != "wg.example.com:33434" {
+		t.Fatalf("unexpected target: %s", got)
 	}
 }
