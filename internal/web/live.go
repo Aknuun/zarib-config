@@ -21,6 +21,16 @@ const (
 	pingTimeout    = 5 * time.Second
 )
 
+type failStats struct {
+	Total   int `json:"total,omitempty"`
+	Connect int `json:"connect,omitempty"`
+	Fetch   int `json:"fetch,omitempty"`
+	Core    int `json:"core,omitempty"`
+	Timeout int `json:"timeout,omitempty"`
+	Usage   int `json:"usage,omitempty"`
+	Other   int `json:"other,omitempty"`
+}
+
 type liveStats struct {
 	Day        string `json:"day"`
 	Tests      int    `json:"tests"`
@@ -53,6 +63,10 @@ type liveStats struct {
 	TotalUnknown    int   `json:"total_unknown_tunnel,omitempty"`
 	TotalDownloaded int64 `json:"total_downloaded,omitempty"`
 	TotalDeducted   int64 `json:"total_deducted,omitempty"`
+
+	FailToday failStats `json:"fail_today"`
+	FailMonth failStats `json:"fail_month"`
+	FailTotal failStats `json:"fail_total"`
 }
 
 type geoEntry struct {
@@ -133,6 +147,7 @@ func (s *server) rollStatsLocked() {
 		s.live.Unknown = 0
 		s.live.Downloaded = 0
 		s.live.Deducted = 0
+		s.live.FailToday = failStats{}
 		changed = true
 	}
 	if s.live.Month != month {
@@ -146,6 +161,7 @@ func (s *server) rollStatsLocked() {
 		s.live.MonthUnknown = 0
 		s.live.MonthDownloaded = 0
 		s.live.MonthDeducted = 0
+		s.live.FailMonth = failStats{}
 		changed = true
 	}
 	if changed {
@@ -218,6 +234,36 @@ func (s *server) recordResult(result *ratio.Result, tunnel *bool) {
 	s.saveStatsLocked()
 }
 
+func (s *server) recordJobError(code string) {
+	if code == "" || code == "cancelled" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rollStatsLocked()
+	add := func(stats *failStats) {
+		stats.Total++
+		switch code {
+		case "probe_failed", "resolve_failed":
+			stats.Connect++
+		case "fetch_failed", "no_configs", "pick_out_of_range":
+			stats.Fetch++
+		case "xray_failed":
+			stats.Core++
+		case "timeout":
+			stats.Timeout++
+		case "usage_unchanged":
+			stats.Usage++
+		default:
+			stats.Other++
+		}
+	}
+	add(&s.live.FailToday)
+	add(&s.live.FailMonth)
+	add(&s.live.FailTotal)
+	s.saveStatsLocked()
+}
+
 func (s *server) liveSnapshotLocked() map[string]any {
 	now := nowSeconds()
 	online := 0
@@ -242,6 +288,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"unknown_tunnel": s.live.Unknown,
 			"downloaded":     s.live.Downloaded,
 			"deducted":       s.live.Deducted,
+			"failed":         s.live.FailToday,
 		},
 		"monthly": map[string]any{
 			"month":          s.live.Month,
@@ -254,6 +301,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"unknown_tunnel": s.live.MonthUnknown,
 			"downloaded":     s.live.MonthDownloaded,
 			"deducted":       s.live.MonthDeducted,
+			"failed":         s.live.FailMonth,
 		},
 		"overall": map[string]any{
 			"tests":          s.live.TotalTests,
@@ -265,6 +313,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"unknown_tunnel": s.live.TotalUnknown,
 			"downloaded":     s.live.TotalDownloaded,
 			"deducted":       s.live.TotalDeducted,
+			"failed":         s.live.FailTotal,
 		},
 	}
 }

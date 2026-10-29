@@ -69,7 +69,11 @@
       statNormal: "معمولی (۱×)",
       statInvalid: "نامعتبر",
       statDownloaded: "حجم تست‌شده",
+      statDeducted: "حجم کسرشده",
+      statSuccess: "تست‌های موفق",
+      statFailed: "تست‌های خطادار",
       liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
+      liveFailLine: "خطای اتصال: {c} · دریافت ساب: {f} · هسته: {x} · تایم‌اوت: {t} · بدون تغییر مصرف: {u} · سایر: {o}",
       advanced: "تنظیمات بیشتر",
       sizeLabel: "حجم تست",
       sizeDialogTitle: "حجم تست",
@@ -276,7 +280,11 @@
       statNormal: "Normal (1x)",
       statInvalid: "Invalid",
       statDownloaded: "Tested volume",
+      statDeducted: "Deducted volume",
+      statSuccess: "Successful tests",
+      statFailed: "Failed tests",
       liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
+      liveFailLine: "Connection: {c} · Subscription fetch: {f} · Core: {x} · Timeout: {t} · Usage unchanged: {u} · Other: {o}",
       advanced: "More settings",
       sizeLabel: "Test size",
       sizeDialogTitle: "Test size",
@@ -655,6 +663,29 @@
     set("#liveStatNormal", live ? String(bucket.normal || 0) : "—");
     set("#liveStatInvalid", live ? String(bucket.invalid || 0) : "—");
     set("#liveStatDownloaded", live ? formatBytes(bucket.downloaded || 0) : "—");
+    set("#liveStatDeducted", live ? formatBytes(bucket.deducted || 0) : "—");
+    const failed = bucket.failed || {};
+    const failedTotal = Number(failed.total) || 0;
+    const tests = Number(bucket.tests) || 0;
+    const success = Math.max(0, tests - failedTotal);
+    set("#liveStatFailed", live ? String(failedTotal) : "—");
+    set(
+      "#liveStatSuccess",
+      live ? (tests > 0 ? `${success} (${Math.round((success / tests) * 100)}%)` : "0") : "—"
+    );
+    const failLine = $("#liveFailLine");
+    if (failLine) {
+      failLine.textContent = live
+        ? t("liveFailLine", {
+            c: failed.connect || 0,
+            f: failed.fetch || 0,
+            x: failed.core || 0,
+            t: failed.timeout || 0,
+            u: failed.usage || 0,
+            o: failed.other || 0,
+          })
+        : "";
+    }
     const line = $("#liveTunnelLine");
     if (line) {
       line.textContent = live

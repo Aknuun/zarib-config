@@ -178,6 +178,23 @@ func TestRecordResultClassifiesRatios(t *testing.T) {
 	}
 }
 
+func TestRecordJobErrorClassifiesFailures(t *testing.T) {
+	s := testServer(t)
+	for _, code := range []string{"probe_failed", "resolve_failed", "fetch_failed", "xray_failed", "timeout", "usage_unchanged", "surprise", "cancelled"} {
+		s.recordJobError(code)
+	}
+	s.mu.Lock()
+	stats := s.live
+	s.mu.Unlock()
+	failed := stats.FailToday
+	if failed.Total != 7 || failed.Connect != 2 || failed.Fetch != 1 || failed.Core != 1 || failed.Timeout != 1 || failed.Usage != 1 || failed.Other != 1 {
+		t.Fatalf("unexpected failure stats: %+v", failed)
+	}
+	if stats.FailMonth != failed || stats.FailTotal != failed {
+		t.Fatalf("unexpected monthly/total failures: %+v", stats)
+	}
+}
+
 func TestSplitTargetHost(t *testing.T) {
 	cases := []struct{ input, host, port string }{
 		{"example.com:443", "example.com", "443"},

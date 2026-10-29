@@ -585,9 +585,9 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 
 func (s *server) finishError(jobID, code, message string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	current := s.jobs[jobID]
 	if current == nil {
+		s.mu.Unlock()
 		return
 	}
 	finished := nowSeconds()
@@ -597,6 +597,8 @@ func (s *server) finishError(jobID, code, message string) {
 	current.Error = message
 	current.ErrorCode = code
 	current.Child = nil
+	s.mu.Unlock()
+	s.recordJobError(code)
 }
 
 func (s *server) appendLog(jobID, line string) {
