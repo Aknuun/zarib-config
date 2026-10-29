@@ -701,3 +701,58 @@ body:has(#errorCard:not(.hidden)) .footer {
 .sub-action.icon-only svg { width: 16px; height: 16px; display: block; }
 .sub-action.icon-only .check-mark { opacity: 0; transition: opacity 140ms ease; }
 .sub-action.icon-only.active .check-mark { opacity: 1; }
+
+/* Strong blue accent */
+:root, html[data-theme="light"] {
+  --accent: #1d4ed8;
+  --accent-2: #2563eb;
+  --btn-bg: #1d4ed8;
+  --btn-bg-hover: #1e40af;
+  --btn-text: #fff;
+  --primary-text: #fff;
+  --on-green: #fff;
+  --good: #2563eb;
+  --coef-good: linear-gradient(120deg, #1d4ed8, #2563eb);
+  --accent-soft: rgba(29, 78, 216, .07);
+  --accent-selected: rgba(29, 78, 216, .09);
+  --accent-border: rgba(29, 78, 216, .22);
+  --accent-hover-border: rgba(29, 78, 216, .4);
+  --accent-selected-border: rgba(29, 78, 216, .6);
+  --accent-focus: rgba(29, 78, 216, .6);
+  --accent-focus-ring: rgba(29, 78, 216, .12);
+  --accent-glow: rgba(29, 78, 216, .22);
+  --accent-glow-strong: rgba(29, 78, 216, .3);
+  --good-text: #1d4ed8;
+  --good-soft: rgba(29, 78, 216, .08);
+  --good-border: rgba(29, 78, 216, .25);
+  --btn-shadow: rgba(29, 78, 216, .22);
+  --btn-shadow-strong: rgba(29, 78, 216, .32);
+}
+html[data-theme="dark"] {
+  --accent: #3b82f6;
+  --accent-2: #2563eb;
+  --btn-bg: #2563eb;
+  --btn-bg-hover: #1d4ed8;
+  --btn-text: #fff;
+  --primary-text: #fff;
+  --on-green: #fff;
+  --good: #3b82f6;
+  --coef-good: linear-gradient(120deg, #60a5fa, #3b82f6);
+  --accent-soft: rgba(59, 130, 246, .09);
+  --accent-selected: rgba(59, 130, 246, .1);
+  --accent-border: rgba(59, 130, 246, .24);
+  --accent-hover-border: rgba(59, 130, 246, .42);
+  --accent-selected-border: rgba(59, 130, 246, .6);
+  --accent-focus: rgba(59, 130, 246, .65);
+  --accent-focus-ring: rgba(59, 130, 246, .14);
+  --accent-glow: rgba(59, 130, 246, .18);
+  --accent-glow-strong: rgba(59, 130, 246, .26);
+  --good-text: #60a5fa;
+  --good-soft: rgba(59, 130, 246, .1);
+  --good-border: rgba(59, 130, 246, .3);
+  --btn-shadow: rgba(37, 99, 235, .32);
+  --btn-shadow-strong: rgba(37, 99, 235, .42);
+}
+.result-head .share-result-btn {
+  margin-top: 10px;
+}
