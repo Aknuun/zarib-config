@@ -312,6 +312,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 		items = append(items, map[string]any{
 			"index": index + 1, "protocol": item.Protocol, "target": item.Target,
 			"remark": item.Remark, "claimed": claimed,
+			"uri": ratio.ConfigURI(item),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{

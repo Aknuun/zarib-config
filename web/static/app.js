@@ -26,6 +26,10 @@
       pingAll: "پینگ همه",
       checkSelect: "چک",
       selectMultiple: "انتخاب چند کانفیگ برای تست",
+  copyAllConfigs: "کپی همه کانفیگ‌ها",
+  copyAllDone: "همه کانفیگ‌ها کپی شد.",
+  copyAllEmpty: "کانفیگی برای کپی نیست.",
+  copyAllFailed: "کپی نشد.",
       checkAllTunnels: "چک تانل",
       pingAllDone: "پینگ همه کانفیگ‌ها انجام شد.",
       tunnelAllDone: "وضعیت تانل همه کانفیگ‌ها بررسی شد.",
@@ -33,7 +37,6 @@
       subConfigs: "{n} کانفیگ",
       configsToTest: "تعداد کانفیگ تست",
       configsShortHint: "کانفیگ‌های هر ساب به‌ترتیب و ساب‌ها هم‌زمان.",
-      resultTitle: "نتیجه تست",
       perConfigResults: "نتیجه هر کانفیگ",
       sentenceAvg: "میانگین ضریب {n} کانفیگ: {r}×",
       err_no_selection: "حداقل یک کانفیگ برای تست انتخاب کن.",
@@ -230,6 +233,10 @@
       pingAll: "Ping all",
       checkSelect: "Check",
       selectMultiple: "Select multiple configs for testing",
+  copyAllConfigs: "Copy all configs",
+  copyAllDone: "All configs copied.",
+  copyAllEmpty: "No configs to copy.",
+  copyAllFailed: "Copy failed.",
       checkAllTunnels: "Check tunnels",
       pingAllDone: "Ping finished for all configs.",
       tunnelAllDone: "Tunnel status checked for all configs.",
@@ -237,7 +244,6 @@
       subConfigs: "{n} configs",
       configsToTest: "Configs to test",
       configsShortHint: "Per-sub configs run in order; subs run in parallel.",
-      resultTitle: "Test result",
       perConfigResults: "Result per config",
       sentenceAvg: "Average across {n} configs: {r}×",
       err_no_selection: "Select at least one config to test.",
@@ -1429,7 +1435,7 @@
       const checkSelect = document.createElement("button");
       checkSelect.type = "button";
       checkSelect.className = "ghost-btn sub-action";
-      checkSelect.textContent = sub.multi ? "☑️" : "🔲";
+      checkSelect.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path class="check-mark" d="M7 12l3 3 7-7"/></svg>`;
       checkSelect.title = t("selectMultiple");
       checkSelect.setAttribute("aria-label", t("selectMultiple"));
       checkSelect.setAttribute("aria-pressed", sub.multi ? "true" : "false");
@@ -1437,13 +1443,31 @@
       checkSelect.classList.toggle("active", !!sub.multi);
       checkSelect.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       checkSelect.addEventListener("click", () => toggleMulti(sub));
+
+      const copyAll = document.createElement("button");
+      copyAll.type = "button";
+      copyAll.className = "ghost-btn sub-action icon-only";
+      copyAll.title = t("copyAllConfigs");
+      copyAll.setAttribute("aria-label", t("copyAllConfigs"));
+      copyAll.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`;
+      copyAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
+            copyAll.addEventListener("click", async () => {
+        const text = sub.configs.map((cfg) => cfg.uri).filter(Boolean).join("\n\n");
+        if (!text) {
+          toast(t("copyAllEmpty"));
+          return;
+        }
+        const copied = await copyText(text);
+        toast(copied ? t("copyAllDone") : t("copyAllFailed"));
+      });
+
       const tunnelAll = document.createElement("button");
       tunnelAll.type = "button";
       tunnelAll.className = "ghost-btn sub-action";
       tunnelAll.textContent = t("checkAllTunnels");
       tunnelAll.disabled = state.running || sub.loading || !!sub.error || !sub.configs.length;
       tunnelAll.addEventListener("click", () => runSubAction(sub, "geo", tunnelAll));
-      actions.append(checkSelect, pingAll, tunnelAll);
+      actions.append(checkSelect, copyAll, pingAll, tunnelAll);
 
       head.append(title, actions);
       group.append(head);
