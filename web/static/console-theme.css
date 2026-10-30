@@ -762,29 +762,30 @@ html[data-theme="dark"] {
   margin-inline-start: auto;
 }
 
-.top-tg {
-  padding: 7px 12px;
-  gap: 7px;
+.tg-link.top-tg {
+  padding: 0;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
 }
 
-.top-tg .mono {
+.tg-link.top-tg:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--accent);
+}
+
+.tg-link.top-tg svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tg-link.top-tg .mono {
   font-size: 0.76rem;
   direction: ltr;
-}
-
-@media (max-width: 460px) {
-  .brand-text {
-    display: none;
-  }
-
-  .top-tg {
-    padding: 7px 9px;
-    gap: 6px;
-  }
-
-  .top-tg .mono {
-    font-size: 0.7rem;
-  }
 }
 
 .result-tg {
