@@ -1230,7 +1230,8 @@ body:has(#errorCard:not(.hidden)) #meterCard {
   .input-foot { margin-top: 12px; gap: 8px; }
   .privacy-note { font-size: 0.72rem; line-height: 1.5; }
   #copyScriptBtn { min-height: 32px; }
-  .measure-panel { margin-top: 12px; gap: 12px; }
+  .measure-panel { margin-top: 12px; gap: 0; }
+  .measure-preview { display: none; }
   .measure-label { font-size: 0.72rem; }
   .measure-steps ol { gap: 4px; margin-top: 6px; }
   .measure-steps li { gap: 8px; font-size: 0.78rem; line-height: 1.45; }
@@ -1247,7 +1248,7 @@ body:has(#errorCard:not(.hidden)) #meterCard {
   .footer { padding: 10px 0; }
 }
 
-@media (min-width: 360px) and (max-width: 760px) and (min-height: 800px) {
+@media (min-width: 360px) and (max-width: 760px) and (min-height: 640px) {
   .wrap { display: flex; flex-direction: column; justify-content: center; }
 }
 
