@@ -117,3 +117,19 @@ func TestVMessConfigURI(t *testing.T) {
 		t.Fatalf("invalid vmess payload: %#v", payload)
 	}
 }
+
+func TestSubProxyURL(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "http://user:pass@proxy.example:8888")
+	got := subProxyURL()
+	if got == nil || got.Host != "proxy.example:8888" || got.User.Username() != "user" {
+		t.Fatalf("unexpected proxy: %#v", got)
+	}
+	t.Setenv("ZARIB_SUB_PROXY", "://bad")
+	if subProxyURL() != nil {
+		t.Fatal("invalid proxy should be ignored")
+	}
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	if subProxyURL() != nil {
+		t.Fatal("empty proxy should be ignored")
+	}
+}

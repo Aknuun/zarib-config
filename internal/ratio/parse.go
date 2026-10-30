@@ -127,7 +127,19 @@ func isPublicIP(ip net.IP) bool {
 	return true
 }
 
-func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
+func subProxyURL() *url.URL {
+	raw := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY"))
+	if raw == "" {
+		return nil
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return nil
+	}
+	return parsed
+}
+
+func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
 	request, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, nil, ratioErrorf("Invalid subscription URL: %v", err)
@@ -137,6 +149,11 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 	request.Header.Set("Cache-Control", "no-cache")
 	request.Header.Set("Pragma", "no-cache")
 	client := &http.Client{Timeout: timeout}
+	if proxy != nil {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.Proxy = http.ProxyURL(proxy)
+		client.Transport = transport
+	}
 	if safeFetchEnabled() {
 		if !IsPublicURL(rawURL) {
 			return nil, nil, ratioErrorf("Blocked: the subscription URL must be a public http(s) address.")
@@ -175,6 +192,27 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 		return nil, nil, ratioErrorf("Subscription response is too large.")
 	}
 	return body, response.Header, nil
+}
+
+// Fetch reads a subscription directly and, when ZARIB_SUB_PROXY is set,
+// retries through that proxy if the direct attempt fails.
+func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
+	proxy := subProxyURL()
+	directTimeout := timeout
+	if proxy != nil && directTimeout > 6*time.Second {
+		directTimeout = 6 * time.Second
+	}
+	body, headers, err := fetchOnce(rawURL, directTimeout, nil)
+	if err == nil || proxy == nil {
+		return body, headers, err
+	}
+	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") {
+		return nil, nil, err
+	}
+	if retryBody, retryHeaders, retryErr := fetchOnce(rawURL, timeout, proxy); retryErr == nil {
+		return retryBody, retryHeaders, nil
+	}
+	return nil, nil, err
 }
 
 var integerPattern = regexp.MustCompile(`^-?\d+$`)
