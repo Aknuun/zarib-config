@@ -1213,3 +1213,40 @@ body:has(#errorCard:not(.hidden)) #meterCard {
 }
 .ring-fg { display: none; }
 .ring-bg { stroke-dasharray: 3 7; stroke-width: 3; }
+
+/* unslop pass: compact mobile first screen */
+@media (max-width: 760px) {
+  .topbar { padding: 12px 0 4px; }
+  .brand-mark { width: 32px; height: 32px; }
+  .hero { padding: 0 0 16px; }
+  .hero h1 { font-size: 1.6rem; line-height: 1.25; }
+  .hero-sub { margin-top: 4px; font-size: 0.86rem; max-width: 34ch; }
+  .card,
+  .measure-panel { padding: 16px; }
+  .card { margin-bottom: 0; }
+  .input-row { gap: 8px; }
+  #subUrl,
+  .primary-btn { min-height: 46px; }
+  .input-foot { margin-top: 12px; gap: 8px; }
+  .privacy-note { font-size: 0.72rem; line-height: 1.5; }
+  #copyScriptBtn { min-height: 32px; }
+  .measure-panel { margin-top: 12px; gap: 12px; }
+  .measure-label { font-size: 0.72rem; }
+  .measure-steps ol { gap: 4px; margin-top: 6px; }
+  .measure-steps li { gap: 8px; font-size: 0.78rem; line-height: 1.45; }
+  .measure-num { font-size: 0.64rem; }
+  .measure-formula { display: none; }
+  .measure-preview { padding-top: 12px; }
+  .measure-coef { margin: 4px 0 8px; font-size: 2rem; }
+  .measure-coef span { font-size: 1.05rem; }
+  .measure-scale { height: 10px; }
+  .measure-marker { height: 10px; }
+  .measure-scale-labels { margin-top: 2px; font-size: 0.62rem; }
+  .measure-preview-foot { margin-top: 8px; gap: 4px 12px; font-size: 0.72rem; }
+  .measure-note { margin-top: 8px; font-size: 0.66rem; }
+  .footer { padding: 10px 0; }
+}
+
+@media (min-width: 360px) and (max-width: 760px) and (min-height: 800px) {
+  .wrap { display: flex; flex-direction: column; justify-content: center; }
+}
