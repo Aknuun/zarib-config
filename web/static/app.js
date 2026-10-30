@@ -1991,6 +1991,7 @@
       [/^Checking subscription usage \.\.\.$/, "بررسی مصرف سابسکریپشن ..."],
       [/^Usage reported by the subscription did not change yet\.$/, "مصرف گزارش‌شده توسط سابسکریپشن هنوز تغییر نکرده است."],
       [/^Usage changed by (.*); waiting up to (.*) for the panel to finish recording \.\.\.$/, "مصرف $1 تغییر کرد؛ تا $2 برای تکمیل ثبت پنل صبر می‌کنیم ..."],
+      [/^Usage did not change after 120 seconds\. Continuing to wait \.\.\.$/, "مصرف بعد از ۱۲۰ ثانیه تغییر نکرد؛ ادامه انتظار ..."],
       [/^Usage did not change after 120 seconds\. Waiting for user confirmation \.\.\.$/, "مصرف بعد از ۱۲۰ ثانیه تغییر نکرد. در انتظار تأیید کاربر ..."],
       [/^Usage did not change after 120 seconds\.$/, "مصرف بعد از ۱۲۰ ثانیه تغییر نکرد."],
       [/^Continuing to wait for usage \(up to 5 minutes\) \.\.\.$/, "ادامه انتظار برای مصرف (تا ۵ دقیقه) ..."],

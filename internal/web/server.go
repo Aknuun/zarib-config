@@ -474,7 +474,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		"--size", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--chunk", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--wait", strconv.Itoa(wait), "--drift-window", strconv.Itoa(drift), "--json-out", resultFile,
-		"--control-file", controlFile, "--core", core, "--probe-retries", "0", "--probe-wait", "0",
+		"--control-file", controlFile, "--auto-extend", "--core", core, "--probe-retries", "0", "--probe-wait", "0",
 	}
 	if syncMode {
 		args = append(args, "--sync")

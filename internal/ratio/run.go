@@ -36,6 +36,7 @@ type Options struct {
 	ProbeWait    int
 	Sync         bool
 	ControlFile  string
+	AutoExtend   bool
 	Core         string
 	Claimed      *float64
 	JSONOut      string
@@ -579,7 +580,7 @@ var (
 	usageExtendedPoll = 10 * time.Second
 )
 
-func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, expectedBytes int64, controlFile string) (*Usage, []usageReading, time.Time, error) {
+func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, expectedBytes int64, controlFile string, autoExtend bool) (*Usage, []usageReading, time.Time, error) {
 	baseline := before.Used()
 	start := time.Now()
 	var best *Usage
@@ -626,6 +627,10 @@ func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, e
 	}
 	if best != nil {
 		return best, readings, bestTime, nil
+	}
+	if autoExtend {
+		fmt.Println(C("Usage did not change after 120 seconds. Continuing to wait ...", "yellow"))
+		goto extended
 	}
 	if controlFile == "" {
 		if !IsInteractive() {
@@ -949,7 +954,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
 		}
 		fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
-		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile)
+		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend)
 		if err != nil {
 			return nil, err
 		}

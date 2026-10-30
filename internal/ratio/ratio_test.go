@@ -502,7 +502,7 @@ func TestWaitForUsageWithControlExtends(t *testing.T) {
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		after, _, _, err := WaitForUsageWithControl(context.Background(), server.URL, Usage{}, 1024, controlPath)
+		after, _, _, err := WaitForUsageWithControl(context.Background(), server.URL, Usage{}, 1024, controlPath, false)
 		done <- outcome{after: after, err: err}
 	}()
 	time.Sleep(200 * time.Millisecond)
