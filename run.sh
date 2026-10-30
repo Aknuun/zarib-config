@@ -57,17 +57,52 @@ platform() {
     esac
 }
 
+BINARY_MIRROR="https://zarib.app11.ir/static/dl"
+
+binary_sha() {
+    case "$1" in
+        linux-amd64) printf '%s' '1f04bfcd474de968aaf1d8ebe059da2461421cdfff56decb0493b4cf1dea1276' ;;
+        linux-arm64) printf '%s' 'edc774062beca337a1cd49d5675f0079b0c9ce87b78d387281a6c7367d8779a1' ;;
+        darwin-amd64) printf '%s' 'feca8d2cd6c8659934f2912e4648360e40cfcbe8145511d96bd8a8d52715eda8' ;;
+        darwin-arm64) printf '%s' 'bee06fce3cab27658d73c48cc38ef5ad72a383e65547bd97f0ad42cb65a9e982' ;;
+    esac
+}
+
+install_binary() {
+    mkdir -p "$CACHE/bin"
+    cp "$1" "$CACHE/bin/zarib-config"
+    chmod 755 "$CACHE/bin/zarib-config"
+}
+
 download_binary() {
-    local os arch file url sums sha
+    local os arch file sha url sums
     platform || return 1
     os="$PLATFORM_OS"
     arch="$PLATFORM_ARCH"
     file="zarib-config-${os}-${arch}"
+
+    if [ "$REF" = "main" ]; then
+        sha="$(binary_sha "${os}-${arch}")"
+        for url in "${BINARY_MIRROR}/${file}" "https://github.com/${REPO}/releases/latest/download/${file}"; do
+            TMP_DIR="$(mktemp -d)"
+            log "Downloading prebuilt binary..."
+            if download "$url" "$TMP_DIR/$file" && [ -n "$sha" ] && verify_sha "$TMP_DIR/$file" "$sha"; then
+                install_binary "$TMP_DIR/$file"
+                rm -rf "$TMP_DIR"
+                TMP_DIR=""
+                return 0
+            fi
+            rm -rf "$TMP_DIR"
+            TMP_DIR=""
+            log "binary source failed; trying another"
+        done
+        return 1
+    fi
+
     case "$REF" in
         v[0-9]*) url="https://github.com/${REPO}/releases/download/${REF}/${file}"
                  sums="https://github.com/${REPO}/releases/download/${REF}/sha256sums.txt" ;;
-        *) url="https://github.com/${REPO}/releases/latest/download/${file}"
-           sums="https://github.com/${REPO}/releases/latest/download/sha256sums.txt" ;;
+        *) return 1 ;;
     esac
     TMP_DIR="$(mktemp -d)"
     log "Downloading prebuilt binary..."
@@ -86,9 +121,7 @@ download_binary() {
         TMP_DIR=""
         return 1
     fi
-    mkdir -p "$CACHE/bin"
-    cp "$TMP_DIR/$file" "$CACHE/bin/zarib-config"
-    chmod 755 "$CACHE/bin/zarib-config"
+    install_binary "$TMP_DIR/$file"
     rm -rf "$TMP_DIR"
     TMP_DIR=""
     return 0
