@@ -788,12 +788,6 @@ html[data-theme="dark"] {
   direction: ltr;
 }
 
-.result-tg {
-  margin-top: 18px;
-  display: flex;
-  justify-content: center;
-}
-
 .tg-link {
   display: inline-flex;
   align-items: center;
@@ -817,22 +811,4 @@ html[data-theme="dark"] {
 .tg-link svg {
   flex: none;
   color: #229ed9;
-}
-
-.tg-link-copy {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-  text-align: start;
-}
-
-.tg-link-copy strong {
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.tg-link-copy .mono {
-  direction: ltr;
-  font-size: 0.7rem;
-  color: var(--muted-2);
 }
