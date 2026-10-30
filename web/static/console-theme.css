@@ -758,8 +758,33 @@ html[data-theme="dark"] {
 }
 
 /* Telegram channel link */
-.hero-tg {
-  margin-top: 16px;
+.top-actions {
+  margin-inline-start: auto;
+}
+
+.top-tg {
+  padding: 7px 12px;
+  gap: 7px;
+}
+
+.top-tg .mono {
+  font-size: 0.76rem;
+  direction: ltr;
+}
+
+@media (max-width: 460px) {
+  .brand-text {
+    display: none;
+  }
+
+  .top-tg {
+    padding: 7px 9px;
+    gap: 6px;
+  }
+
+  .top-tg .mono {
+    font-size: 0.7rem;
+  }
 }
 
 .result-tg {
