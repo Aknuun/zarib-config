@@ -292,10 +292,13 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
 		return
 	}
-	body, headers, err := ratio.Fetch(subURL, 20*time.Second)
+	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
 	if err != nil {
 		apiError(w, "fetch_failed", err.Error(), http.StatusBadRequest)
 		return
+	}
+	if viaProxy {
+		s.recordProxyUse()
 	}
 	usage := ratio.ParseUsage(headers, body)
 	configs := ratio.ExtractConfigs(body)

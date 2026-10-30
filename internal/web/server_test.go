@@ -358,3 +358,19 @@ func TestReportRejectsInvalidSubURL(t *testing.T) {
 		t.Fatalf("unexpected code: %v", data["code"])
 	}
 }
+
+func TestRecordProxyUse(t *testing.T) {
+	s := &server{live: liveStats{Day: todayKey(), Month: monthKey()}}
+	s.recordProxyUse()
+	s.recordProxyUse()
+	if s.live.ProxyToday != 2 || s.live.MonthProxy != 2 || s.live.TotalProxy != 2 {
+		t.Fatalf("proxy counters: today=%d month=%d total=%d", s.live.ProxyToday, s.live.MonthProxy, s.live.TotalProxy)
+	}
+	s.mu.Lock()
+	snapshot := s.liveSnapshotLocked()
+	s.mu.Unlock()
+	today, _ := snapshot["today"].(map[string]any)
+	if today["proxy"] != 2 {
+		t.Fatalf("snapshot proxy = %v", today["proxy"])
+	}
+}

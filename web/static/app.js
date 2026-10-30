@@ -80,6 +80,7 @@
       statDeducted: "حجم کسرشده",
       statSuccess: "تست‌های موفق",
       statFailed: "تست‌های خطادار",
+      statProxy: "با پروکسی",
       liveTunnelLine: "تانل: {t} · غیرتانل: {n} · نامشخص: {u}",
       liveFailLine: "خطای اتصال: {c} · دریافت ساب: {f} · هسته: {x} · تایم‌اوت: {t} · بدون تغییر مصرف: {u} · سایر: {o}",
       advanced: "تنظیمات بیشتر",
@@ -299,6 +300,7 @@
       statDeducted: "Deducted volume",
       statSuccess: "Successful tests",
       statFailed: "Failed tests",
+      statProxy: "Via proxy",
       liveTunnelLine: "Tunnel: {t} · Non-tunnel: {n} · Unknown: {u}",
       liveFailLine: "Connection: {c} · Subscription fetch: {f} · Core: {x} · Timeout: {t} · Usage unchanged: {u} · Other: {o}",
       advanced: "More settings",
@@ -685,6 +687,7 @@
     const tests = Number(bucket.tests) || 0;
     const success = Math.max(0, tests - failedTotal);
     set("#liveStatFailed", live ? String(failedTotal) : "—");
+    set("#liveStatProxy", live ? String(bucket.proxy || 0) : "—");
     set(
       "#liveStatSuccess",
       live ? (tests > 0 ? `${success} (${Math.round((success / tests) * 100)}%)` : "0") : "—"

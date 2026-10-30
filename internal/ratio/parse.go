@@ -194,25 +194,33 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 	return body, response.Header, nil
 }
 
-// Fetch reads a subscription directly and, when ZARIB_SUB_PROXY is set,
-// retries through that proxy if the direct attempt fails.
 func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
+	body, headers, _, err := FetchMeta(rawURL, timeout)
+	return body, headers, err
+}
+
+// FetchMeta reads a subscription directly and, when ZARIB_SUB_PROXY is set,
+// retries through that proxy if the direct attempt fails.
+func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
 	proxy := subProxyURL()
 	directTimeout := timeout
 	if proxy != nil && directTimeout > 6*time.Second {
 		directTimeout = 6 * time.Second
 	}
 	body, headers, err := fetchOnce(rawURL, directTimeout, nil)
-	if err == nil || proxy == nil {
-		return body, headers, err
+	if err == nil {
+		return body, headers, false, nil
+	}
+	if proxy == nil {
+		return body, headers, false, err
 	}
 	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	if retryBody, retryHeaders, retryErr := fetchOnce(rawURL, timeout, proxy); retryErr == nil {
-		return retryBody, retryHeaders, nil
+		return retryBody, retryHeaders, true, nil
 	}
-	return nil, nil, err
+	return nil, nil, false, err
 }
 
 var integerPattern = regexp.MustCompile(`^-?\d+$`)

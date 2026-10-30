@@ -1250,3 +1250,30 @@ body:has(#errorCard:not(.hidden)) #meterCard {
 @media (min-width: 360px) and (max-width: 760px) and (min-height: 800px) {
   .wrap { display: flex; flex-direction: column; justify-content: center; }
 }
+
+/* unslop pass: compact live stats */
+.live-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  border-top: 1px solid var(--border);
+}
+.live-stat {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+}
+.live-stat span { font-size: 0.76rem; }
+.live-stat strong { font-size: 0.9rem; font-weight: 500; white-space: nowrap; }
+.live-stat-online strong { color: var(--accent); }
+@media (max-width: 560px) {
+  .live-grid { gap: 0 16px; }
+  .live-stat span { font-size: 0.72rem; }
+  .live-stat strong { font-size: 0.85rem; }
+}

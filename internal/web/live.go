@@ -42,6 +42,7 @@ type liveStats struct {
 	Unknown    int    `json:"unknown_tunnel"`
 	Downloaded int64  `json:"downloaded"`
 	Deducted   int64  `json:"deducted"`
+	ProxyToday int    `json:"proxy_today,omitempty"`
 
 	Month           string `json:"month,omitempty"`
 	MonthTests      int    `json:"month_tests,omitempty"`
@@ -53,6 +54,7 @@ type liveStats struct {
 	MonthUnknown    int    `json:"month_unknown_tunnel,omitempty"`
 	MonthDownloaded int64  `json:"month_downloaded,omitempty"`
 	MonthDeducted   int64  `json:"month_deducted,omitempty"`
+	MonthProxy      int    `json:"month_proxy,omitempty"`
 
 	TotalTests      int   `json:"total_tests,omitempty"`
 	TotalWithRatio  int   `json:"total_with_ratio,omitempty"`
@@ -63,6 +65,7 @@ type liveStats struct {
 	TotalUnknown    int   `json:"total_unknown_tunnel,omitempty"`
 	TotalDownloaded int64 `json:"total_downloaded,omitempty"`
 	TotalDeducted   int64 `json:"total_deducted,omitempty"`
+	TotalProxy      int   `json:"total_proxy,omitempty"`
 
 	FailToday failStats `json:"fail_today"`
 	FailMonth failStats `json:"fail_month"`
@@ -148,6 +151,7 @@ func (s *server) rollStatsLocked() {
 		s.live.Downloaded = 0
 		s.live.Deducted = 0
 		s.live.FailToday = failStats{}
+		s.live.ProxyToday = 0
 		changed = true
 	}
 	if s.live.Month != month {
@@ -162,6 +166,7 @@ func (s *server) rollStatsLocked() {
 		s.live.MonthDownloaded = 0
 		s.live.MonthDeducted = 0
 		s.live.FailMonth = failStats{}
+		s.live.MonthProxy = 0
 		changed = true
 	}
 	if changed {
@@ -264,6 +269,16 @@ func (s *server) recordJobError(code string) {
 	s.saveStatsLocked()
 }
 
+func (s *server) recordProxyUse() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rollStatsLocked()
+	s.live.ProxyToday++
+	s.live.MonthProxy++
+	s.live.TotalProxy++
+	s.saveStatsLocked()
+}
+
 func (s *server) liveSnapshotLocked() map[string]any {
 	now := nowSeconds()
 	online := 0
@@ -289,6 +304,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"downloaded":     s.live.Downloaded,
 			"deducted":       s.live.Deducted,
 			"failed":         s.live.FailToday,
+			"proxy":          s.live.ProxyToday,
 		},
 		"monthly": map[string]any{
 			"month":          s.live.Month,
@@ -302,6 +318,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"downloaded":     s.live.MonthDownloaded,
 			"deducted":       s.live.MonthDeducted,
 			"failed":         s.live.FailMonth,
+			"proxy":          s.live.MonthProxy,
 		},
 		"overall": map[string]any{
 			"tests":          s.live.TotalTests,
@@ -314,6 +331,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"downloaded":     s.live.TotalDownloaded,
 			"deducted":       s.live.TotalDeducted,
 			"failed":         s.live.FailTotal,
+			"proxy":          s.live.TotalProxy,
 		},
 	}
 }
