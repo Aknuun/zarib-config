@@ -44,6 +44,56 @@ verify_sha() {
     fi
 }
 
+platform() {
+    case "$(uname -s)" in
+        Linux) PLATFORM_OS=linux ;;
+        Darwin) PLATFORM_OS=darwin ;;
+        *) return 1 ;;
+    esac
+    case "$(uname -m)" in
+        x86_64|amd64) PLATFORM_ARCH=amd64 ;;
+        arm64|aarch64) PLATFORM_ARCH=arm64 ;;
+        *) return 1 ;;
+    esac
+}
+
+download_binary() {
+    local os arch file url sums sha
+    platform || return 1
+    os="$PLATFORM_OS"
+    arch="$PLATFORM_ARCH"
+    file="zarib-config-${os}-${arch}"
+    case "$REF" in
+        v[0-9]*) url="https://github.com/${REPO}/releases/download/${REF}/${file}"
+                 sums="https://github.com/${REPO}/releases/download/${REF}/sha256sums.txt" ;;
+        *) url="https://github.com/${REPO}/releases/latest/download/${file}"
+           sums="https://github.com/${REPO}/releases/latest/download/sha256sums.txt" ;;
+    esac
+    TMP_DIR="$(mktemp -d)"
+    log "Downloading prebuilt binary..."
+    if ! download "$url" "$TMP_DIR/$file"; then
+        rm -rf "$TMP_DIR"
+        TMP_DIR=""
+        return 1
+    fi
+    sha=""
+    if download "$sums" "$TMP_DIR/sha256sums.txt" 2>/dev/null; then
+        sha="$(awk -v f="$file" '$2 == f { print $1 }' "$TMP_DIR/sha256sums.txt")"
+    fi
+    if [ -n "$sha" ] && ! verify_sha "$TMP_DIR/$file" "$sha"; then
+        log "prebuilt binary checksum mismatch"
+        rm -rf "$TMP_DIR"
+        TMP_DIR=""
+        return 1
+    fi
+    mkdir -p "$CACHE/bin"
+    cp "$TMP_DIR/$file" "$CACHE/bin/zarib-config"
+    chmod 755 "$CACHE/bin/zarib-config"
+    rm -rf "$TMP_DIR"
+    TMP_DIR=""
+    return 0
+}
+
 download_go() {
     local file="$1" out="$2" sha="$3" url
     local urls=(
@@ -155,14 +205,32 @@ fetch_source() {
 
 main() {
     need_cmd curl
+
+    local here src stamp local_checkout=0
+    here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
+    if [ -f "$here/go.mod" ] && grep -q '^module github.com/Aknuun/zarib-config' "$here/go.mod" 2>/dev/null; then
+        local_checkout=1
+        src="$here"
+    fi
+
+    if [ "$local_checkout" -eq 0 ]; then
+        if [ -z "${ZARIB_UPDATE:-}" ] && [ -x "$CACHE/bin/zarib-config" ] && [ -n "$(find "$CACHE/bin/zarib-config" -mtime -1 2>/dev/null)" ]; then
+            exec "$CACHE/bin/zarib-config" "$@"
+        fi
+        if download_binary; then
+            exec "$CACHE/bin/zarib-config" "$@"
+        fi
+        if [ -x "$CACHE/bin/zarib-config" ]; then
+            log "could not refresh the binary; using the cached copy"
+            exec "$CACHE/bin/zarib-config" "$@"
+        fi
+        log "prebuilt binary unavailable; building from source"
+    fi
+
     need_cmd tar
     pick_go
 
-    local here src stamp
-    here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
-    if [ -f "$here/go.mod" ] && grep -q '^module github.com/Aknuun/zarib-config' "$here/go.mod" 2>/dev/null; then
-        src="$here"
-    else
+    if [ "$local_checkout" -eq 0 ]; then
         src="$CACHE/src-${REF//\//_}"
         stamp="$src/.downloaded"
         if [ "$REF" = "main" ] || [ ! -d "$src" ] || [ -z "$(find "$stamp" -mtime -1 2>/dev/null)" ] || [ -n "${ZARIB_UPDATE:-}" ]; then

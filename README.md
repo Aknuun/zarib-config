@@ -4,15 +4,15 @@ Measures the real traffic ratio of a V2Ray or WireGuard subscription. It downloa
 
 Live: <https://zarib.app11.ir/>
 
-## Install on a personal server
+## Run on a personal server
 
-On a fresh Ubuntu or Debian server with a domain pointing to it:
+No root and no Go install needed. It downloads the prebuilt binary for Linux or macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Aknuun/zarib-config/main/web/deploy/install.sh | sudo DOMAIN=zarib.app11.ir bash
+bash -c "$(curl -fsSL https://github.com/Aknuun/zarib-config/raw/refs/heads/main/run.sh)"
 ```
 
-The installer sets up nginx, a systemd service, and a Let's Encrypt certificate. It installs to `/opt/v2ray-ratio`.
+Set `ZARIB_UPDATE=1` to fetch the newest binary.
 
 ## Notes
 
