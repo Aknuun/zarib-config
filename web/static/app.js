@@ -168,14 +168,14 @@
       reportInvalidLink: "لینک ساب معتبر نیست.",
       reportRateLimited: "گزارش‌های زیادی فرستادی. کمی بعد دوباره تلاش کن.",
       shareCaptionTitle: "نتیجه محاسبه ضریب ترافیک کانفیگ من",
-      shareCaptionOnly: "نتیجه تست ضریب کانفیگ از سایت zarib.appii.ir",
+      shareCaptionOnly: "نتیجه تست ضریب کانفیگ از سایت zarib.app11.ir",
       shareFooter: "محاسبه ضریب واقعی ترافیک کانفیگ",
       brandImageUpload: "بارگزاری عکس برند شما در نتیجه",
       addYourLogo: "افزودن لوگوی شما",
       addYourAddress: "افزودن آدرس شما",
       brandImageInvalid: "فایل تصویری معتبر انتخاب کن.",
       brandImageClear: "حذف عکس برند",
-      configsOverview: "کاتفیگ‌ها",
+      configsOverview: "کانفیگ‌ها",
       themeToDark: "تغییر به تم تاریک",
       themeToLight: "تغییر به تم روشن",
       errorTitle: "تست انجام نشد",
@@ -387,7 +387,7 @@
       reportInvalidLink: "The subscription link is not valid.",
       reportRateLimited: "You sent too many reports. Try again later.",
       shareCaptionTitle: "My config traffic ratio result",
-      shareCaptionOnly: "Config ratio test result from zarib.appii.ir",
+      shareCaptionOnly: "Config ratio test result from zarib.app11.ir",
       shareFooter: "Real config traffic ratio calculator",
       brandImageUpload: "Upload your brand image to the result",
       addYourLogo: "Add your logo",
@@ -444,7 +444,7 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const SITE_HOST = "zarib.appii.ir";
+  const SITE_HOST = "zarib.app11.ir";
   const SUB_HISTORY_KEY = "ratio-sub-history";
   const SUB_HISTORY_LIMIT = 8;
   const LTR_MARK = "\u200E";
@@ -2302,7 +2302,7 @@
   function setCanvasFont(ctx, weight, size, mono = false) {
     const family = mono
       ? "ui-monospace, Menlo, Consolas, monospace"
-      : '"Vazirmatn", "Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, -apple-system, sans-serif';
+      : '"Estedad", "Vazirmatn", Tahoma, sans-serif';
     ctx.font = `${weight} ${size}px ${family}`;
   }
 
@@ -2362,57 +2362,61 @@
     ctx.fillText(text, x, y);
   }
 
+  // Large display figures need a tighter decimal than the font's default period advance.
+  function drawRatioText(ctx, text, x, y, options = {}) {
+    const dotIndex = text.indexOf(".");
+    if (dotIndex < 0) {
+      drawCanvasText(ctx, text, x, y, options);
+      return;
+    }
+    const { size = 28, weight = 400, color = "#0f172a", align = "left", mono = false } = options;
+    const left = text.slice(0, dotIndex);
+    const right = text.slice(dotIndex + 1);
+    setCanvasFont(ctx, weight, size, mono);
+    const wLeft = ctx.measureText(left).width;
+    const wDot = ctx.measureText(".").width;
+    const wRight = ctx.measureText(right).width;
+    const tighten = size * 0.11;
+    const total = wLeft + wDot + wRight - tighten;
+    const start = align === "right" ? x - total : align === "center" ? x - total / 2 : x;
+    ctx.fillStyle = color;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.direction = "ltr";
+    ctx.fillText(left, start, y);
+    ctx.fillText(".", start + wLeft - tighten / 2, y);
+    ctx.fillText(right, start + wLeft + wDot - tighten, y);
+  }
+
   function shareColors(theme) {
     if (theme === "dark") {
       return {
-        bg1: "#050810",
-        bg2: "#070c17",
-        card: "#0d1424",
-        line: "rgba(148, 163, 184, 0.18)",
-        text: "#e8effc",
-        muted: "#91a3c1",
-        muted2: "#6f819f",
-        accent: "#22d3ee",
-        good: "#34d399",
-        violet: "#a78bfa",
+        bg: "#0b0d14",
+        card: "#12151d",
+        line: "rgba(238, 240, 245, 0.1)",
+        text: "#eef0f5",
+        muted: "#a3a9b8",
+        muted2: "#7a8296",
+        accent: "#3b82f6",
+        good: "#3b82f6",
         warn: "#fbbf24",
-        danger: "#fb7185",
-        goodSoft: "rgba(52, 211, 153, 0.1)",
-        goodBorder: "rgba(52, 211, 153, 0.3)",
-        dangerSoft: "rgba(251, 113, 133, 0.1)",
-        dangerBorder: "rgba(251, 113, 133, 0.3)",
-        chip: "rgba(34, 211, 238, 0.08)",
-        chipBorder: "rgba(34, 211, 238, 0.22)",
-        glow1: "rgba(34, 211, 238, 0.16)",
-        glow2: "rgba(167, 139, 250, 0.12)",
-        primary: "#041018",
-        button: "#1e40af",
+        danger: "#f87171",
+        button: "#2563eb",
         buttonText: "#ffffff",
       };
     }
     return {
-      bg1: "#f7faff",
-      bg2: "#eef4fb",
+      bg: "#f5f7fa",
       card: "#ffffff",
-      line: "rgba(15, 23, 42, 0.1)",
-      text: "#0f172a",
-      muted: "#52627a",
-      muted2: "#7b8aa3",
-      accent: "#0891b2",
-      good: "#059669",
-      violet: "#7c3aed",
-      warn: "#d97706",
-      danger: "#e11d48",
-      goodSoft: "rgba(5, 150, 105, 0.08)",
-      goodBorder: "rgba(5, 150, 105, 0.25)",
-      dangerSoft: "rgba(225, 29, 72, 0.07)",
-      dangerBorder: "rgba(225, 29, 72, 0.25)",
-      chip: "rgba(8, 145, 178, 0.08)",
-      chipBorder: "rgba(8, 145, 178, 0.22)",
-      glow1: "rgba(6, 182, 212, 0.12)",
-      glow2: "rgba(139, 92, 246, 0.08)",
-      primary: "#041018",
-      button: "#0b3b8c",
+      line: "rgba(17, 24, 39, 0.1)",
+      text: "#111827",
+      muted: "#4b5565",
+      muted2: "#6b7487",
+      accent: "#1d4ed8",
+      good: "#1d4ed8",
+      warn: "#b45309",
+      danger: "#b91c1c",
+      button: "#1d4ed8",
       buttonText: "#ffffff",
     };
   }
@@ -2446,8 +2450,9 @@
     const rowGap = 14;
     const rowsCount = rowsList.length;
     const metaLinesCount = (result.config ? 1 : 0) + (result.tested_at ? 1 : 0);
-    const configTop = 590;
-    const configStartY = 648;
+    const hasVerdict = ratioIsInvalid(ratio) || ratioIsNo(ratio);
+    const configTop = hasVerdict ? 590 : 540;
+    const configStartY = configTop + 58;
     const statsTop = rowsCount > 0
       ? configStartY + rowsCount * (rowH + rowGap) + 10
       : configTop;
@@ -2461,22 +2466,7 @@
     canvas.height = H;
     const ctx = canvas.getContext("2d");
 
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, C.bg1);
-    bg.addColorStop(1, C.bg2);
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-
-    const glow1 = ctx.createRadialGradient(W * 0.15, -40, 0, W * 0.15, -40, 720);
-    glow1.addColorStop(0, C.glow1);
-    glow1.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow1;
-    ctx.fillRect(0, 0, W, H);
-
-    const glow2 = ctx.createRadialGradient(W * 0.95, 180, 0, W * 0.95, 180, 620);
-    glow2.addColorStop(0, C.glow2);
-    glow2.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow2;
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
     const markX = pad;
@@ -2498,8 +2488,8 @@
     ctx.stroke();
 
     drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
-      size: 34,
-      weight: 800,
+      size: 32,
+      weight: 600,
       color: C.text,
       mono: true,
     });
@@ -2523,7 +2513,7 @@
       if (logoLabel) {
         drawCanvasText(ctx, fitText(ctx, logoLabel, logoSize), logoX + logoSize / 2, logoY + logoSize + 46, {
           size: 28,
-          weight: 800,
+          weight: 600,
           color: C.text,
           align: "center",
           rtl,
@@ -2537,30 +2527,25 @@
     ctx.moveTo(pad, 162);
     ctx.lineTo(W - pad, 162);
     ctx.stroke();
+    for (let tickX = pad; tickX <= W - pad; tickX += 18) {
+      const long = (tickX - pad) % 90 === 0;
+      ctx.beginPath();
+      ctx.moveTo(tickX, 162);
+      ctx.lineTo(tickX, long ? 174 : 168);
+      ctx.stroke();
+    }
 
-    const eyebrowText = t("resultEyebrow").toUpperCase();
-    setCanvasFont(ctx, 700, 22);
-    const eyebrowWidth = ctx.measureText(eyebrowText).width;
-    const pillW = eyebrowWidth + 46;
-    const pillH = 46;
-    const pillX = rtl ? W - pad - pillW : pad;
-    const pillY = 208;
-    roundRect(ctx, pillX, pillY, pillW, pillH, 23);
-    ctx.fillStyle = C.chip;
-    ctx.fill();
-    ctx.strokeStyle = C.chipBorder;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    drawCanvasText(ctx, eyebrowText, rtl ? pillX + pillW - 23 : pillX + 23, pillY + 31, {
-      size: 22,
-      weight: 700,
-      color: C.accent,
+    drawCanvasText(ctx, t("resultEyebrow"), rtl ? W - pad : pad, 240, {
+      size: 24,
+      weight: 500,
+      color: C.muted,
       align: rtl ? "right" : "left",
+      rtl,
     });
 
-    drawCanvasText(ctx, ratioBig(ratio), rtl ? W - pad : pad, 430, {
-      size: 190,
-      weight: 900,
+    drawRatioText(ctx, ratioBig(ratio), rtl ? W - pad : pad, 430, {
+      size: 176,
+      weight: 500,
       color: ratioColor,
       align: rtl ? "right" : "left",
     });
@@ -2576,8 +2561,8 @@
           rtl ? W - pad : pad,
           486,
           {
-            size: 34,
-            weight: 700,
+            size: 32,
+            weight: 500,
             color: C.muted,
             align: rtl ? "right" : "left",
             rtl,
@@ -2592,7 +2577,7 @@
         verdictY + 30,
         {
           size: invalid ? 26 : 30,
-          weight: 700,
+          weight: 500,
           color: invalid ? C.danger : C.good,
           align: rtl ? "right" : "left",
           rtl,
@@ -2603,7 +2588,7 @@
     if (rowsCount > 0) {
       drawCanvasText(ctx, t("configsOverview"), rtl ? W - pad : pad, configTop, {
         size: 26,
-        weight: 800,
+        weight: 600,
         color: C.muted,
         align: rtl ? "right" : "left",
         rtl,
@@ -2622,15 +2607,15 @@
         const name = fitText(ctx, row.name, (W - pad * 2) * 0.52);
         drawCanvasText(ctx, name, nameX, y + 42, {
           size: 27,
-          weight: 700,
+          weight: 500,
           color: C.text,
           align,
           rtl,
         });
         if (row.protocol) {
-          drawCanvasText(ctx, String(row.protocol).toUpperCase(), nameX, y + 70, {
+          drawCanvasText(ctx, String(row.protocol), nameX, y + 70, {
             size: 17,
-            weight: 600,
+            weight: 500,
             color: C.muted2,
             align,
             rtl,
@@ -2641,7 +2626,7 @@
         const rowColor = rowRatio > 1.5 ? C.danger : rowRatio > 1.1 ? C.warn : C.good;
         drawCanvasText(ctx, ratioBig(rowRatio), rtl ? pad + 28 : W - pad - 28, y + 58, {
           size: 30,
-          weight: 800,
+          weight: 600,
           color: rowColor,
           align: rtl ? "left" : "right",
         });
@@ -2654,7 +2639,7 @@
           configStartY + rowsCount * (rowH + rowGap) + 26,
           {
             size: 22,
-            weight: 700,
+            weight: 500,
             color: C.muted2,
             align: rtl ? "right" : "left",
             rtl,
@@ -2683,14 +2668,14 @@
       const align = rtl ? "right" : "left";
       drawCanvasText(ctx, stat.label, textX, statsTop + 44, {
         size: 23,
-        weight: 600,
+        weight: 500,
         color: C.muted2,
         align,
         rtl,
       });
       drawCanvasText(ctx, stat.value, textX, statsTop + 108, {
-        size: 36,
-        weight: 800,
+        size: 34,
+        weight: 500,
         color: C.text,
         align,
       });
@@ -2725,7 +2710,7 @@
 
     drawCanvasText(ctx, t("shareFooter"), W / 2, footerLineY + 74, {
       size: 24,
-      weight: 600,
+      weight: 500,
       color: C.muted2,
       align: "center",
       rtl,
@@ -2888,7 +2873,7 @@
       toast(t("shareFailed"));
     } finally {
       if (button) button.disabled = false;
-      if (label) label.textContent = t("shareResult");
+      if (label) label.textContent = t("shareResultLabel");
     }
   }
 
