@@ -10,8 +10,8 @@
   <title>محاسبه ضریب کانفیگ</title>
   <meta name="description" content="محاسبه دقیق ضریب واقعی مصرف ترافیک کانفیگ با هم‌ترازی چرخه پنل. Measure the real traffic ratio of a config with panel-synced background correction.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/styles.css?v=20261031q">
-<link rel="stylesheet" href="/static/console-theme.css?v=20261031j">
+  <link rel="stylesheet" href="/static/styles.css?v=20261031r">
+<link rel="stylesheet" href="/static/console-theme.css?v=20261031n">
 </head>
 <body>
   <header class="topbar">
@@ -43,10 +43,10 @@
         <span data-i18n="heroTitle1">محاسبه ضریب</span>
         <span data-i18n="heroTitle2">کانفیگ</span>
       </h1>
-      <p class="hero-sub" data-i18n="heroSub">تست دقیق با هم‌ترازی چرخه پنل.</p>
+      <p class="hero-sub" data-i18n="heroSub">ضریب واقعی مصرف سابت را اندازه بگیر</p>
     </section>
 
-    <section id="inputCard" class="card">
+    <section id="inputCard" class="card input-card">
       <div class="input-row">
         <div class="input-wrap">
           <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07L10 5.93M14 11a5 5 0 0 0-7.07 0L5.51 12.42a5 5 0 0 0 7.07 7.07L14 18.07" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -60,14 +60,41 @@
         </button>
       </div>
       <div id="inputError" class="inline-error hidden" role="alert"></div>
-      <p class="privacy-note">
-        <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.</a>
-      </p>
-      <div class="self-host">
-        <button id="copyScriptBtn" class="ghost-btn" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          <span class="btn-label" data-i18n="copyServerScript">کپی و اجرای مستقیم در سرور خودت</span>
-        </button>
+      <div class="input-foot">
+        <p class="privacy-note">
+          <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">هیچ لینک یا کانفیگی ذخیره نمی‌شود</a>
+        </p>
+        <div class="self-host">
+          <button id="copyScriptBtn" class="ghost-btn" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="btn-label" data-i18n="copyServerScript">اجرا روی سرور خودت</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="meterCard" class="measure-panel" aria-label="روش اندازه‌گیری" data-i18n-aria-label="meterLabel">
+      <div class="measure-steps">
+        <div class="measure-label" data-i18n="meterLabel">روش اندازه‌گیری</div>
+        <ol>
+          <li><span class="measure-num mono">01</span><span data-i18n="meterStep1">مصرف ساب را قبل از تست می‌خوانیم</span></li>
+          <li><span class="measure-num mono">02</span><span data-i18n="meterStep2">حجم مشخصی از یک کانفیگ دانلود می‌کنیم</span></li>
+          <li><span class="measure-num mono">03</span><span data-i18n="meterStep3">مصرف را دوباره می‌خوانیم و اختلاف را حساب می‌کنیم</span></li>
+        </ol>
+        <p class="measure-formula mono" dir="ltr">ratio = (usage delta − background) ÷ downloaded</p>
+      </div>
+      <div class="measure-preview" aria-hidden="true">
+        <div class="measure-preview-head">
+          <span data-i18n="sampleLabel">نمونه نتیجه</span>
+        </div>
+        <div class="measure-coef mono">1.38<span>×</span></div>
+        <div class="measure-scale"><span class="measure-marker"></span></div>
+        <div class="measure-scale-labels mono"><span>1×</span><span>2×</span></div>
+        <div class="measure-preview-foot">
+          <span class="measure-pair"><span data-i18n="sampleDownloaded">دانلود</span><strong class="mono">25 MB</strong></span>
+          <span class="measure-pair"><span data-i18n="sampleDeducted">کسرشده</span><strong class="mono">34.5 MB</strong></span>
+        </div>
+        <p class="measure-note" data-i18n="sampleNote">عدد واقعی بعد از تست خودت ساخته می‌شود</p>
       </div>
     </section>
 
@@ -119,7 +146,7 @@
           <div id="coefExact" class="coef-exact hidden"></div>
       <button id="shareBtn" class="share-result-btn" type="button">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span data-i18n="shareResultLabel">ارسال نتیجه:</span>
+            <span data-i18n="shareResultLabel">ارسال نتیجه</span>
           </button>
         </div>
         <div class="brand-panel">
@@ -290,6 +317,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261031j"></script>
+  <script src="/static/app.js?v=20261031l"></script>
 </body>
 </html>

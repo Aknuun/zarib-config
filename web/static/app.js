@@ -7,9 +7,17 @@
       eyebrow: "شفافیت حجم، بدون حدس",
       heroTitle1: "محاسبه ضریب",
       heroTitle2: "کانفیگ",
-      heroSub: "تست دقیق با هم‌ترازی چرخه پنل.",
-      privacyNote: "طبق مستندات گیت‌هاب، هیچ کانفیگی نگه‌داشته یا ذخیره نمی‌شود.",
-      copyServerScript: "کپی و اجرای مستقیم در سرور خودت",
+      heroSub: "ضریب واقعی مصرف سابت را اندازه بگیر",
+      privacyNote: "هیچ لینک یا کانفیگی ذخیره نمی‌شود",
+      copyServerScript: "اجرا روی سرور خودت",
+      meterLabel: "روش اندازه‌گیری",
+      meterStep1: "مصرف ساب را قبل از تست می‌خوانیم",
+      meterStep2: "حجم مشخصی از یک کانفیگ دانلود می‌کنیم",
+      meterStep3: "مصرف را دوباره می‌خوانیم و اختلاف را حساب می‌کنیم",
+      sampleLabel: "نمونه نتیجه",
+      sampleDownloaded: "دانلود",
+      sampleDeducted: "کسرشده",
+      sampleNote: "عدد واقعی بعد از تست خودت ساخته می‌شود",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
       chip1: "مگابایت تست",
@@ -135,7 +143,7 @@
       configUsed: "کانفیگ",
       testAnother: "کانفیگ دیگری از همین ساب",
       shareResult: "اشتراک‌گذاری",
-      shareResultLabel: "ارسال نتیجه:",
+      shareResultLabel: "ارسال نتیجه",
       sharePreparing: "در حال ساخت تصویر…",
       shareFallback: "تصویر نتیجه دانلود شد و متن اشتراک‌گذاری کپی شد. آن را در تلگرام بفرست.",
       shareDownloaded: "تصویر نتیجه دانلود شد. متن اشتراک‌گذاری را دستی کپی کن.",
@@ -218,9 +226,17 @@
       eyebrow: "Transparent data accounting",
       heroTitle1: "Calculate",
       heroTitle2: "config ratio",
-      heroSub: "Accurate, panel-synced test.",
-      privacyNote: "Per our GitHub docs, no config is retained or stored.",
-      copyServerScript: "Copy and run it directly on your server",
+      heroSub: "See what each megabyte really costs from your quota",
+      privacyNote: "No link or config is stored",
+      copyServerScript: "Run it on your own server",
+      meterLabel: "How it is measured",
+      meterStep1: "Read the subscription usage before the test",
+      meterStep2: "Download a known amount through one config",
+      meterStep3: "Read the usage again and compare",
+      sampleLabel: "Example result",
+      sampleDownloaded: "Downloaded",
+      sampleDeducted: "Deducted",
+      sampleNote: "Your real figure comes from your own test",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
       chip1: "MB test",
@@ -346,7 +362,7 @@
       configUsed: "Config",
       testAnother: "Another config from this sub",
       shareResult: "Share",
-      shareResultLabel: "Send result:",
+      shareResultLabel: "Send result",
       sharePreparing: "Creating image…",
       shareFallback: "The result image was downloaded and the share text was copied. Attach it in Telegram.",
       shareDownloaded: "The result image was downloaded. Copy the share text manually.",
@@ -523,7 +539,7 @@
 
   function formatRatio(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-    return `${LTR_MARK}×${ratioNumber(value)}`;
+    return `${LTR_MARK}${ratioNumber(value)}×`;
   }
 
   function ratioIsNo(value) {
@@ -541,7 +557,7 @@
   }
 
   function ratioBig(value) {
-    return ratioIsNo(value) ? `${LTR_MARK}×1.00` : formatRatio(value);
+    return ratioIsNo(value) ? `${LTR_MARK}1.00×` : formatRatio(value);
   }
 
   function resultRatio(item) {
