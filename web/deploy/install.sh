@@ -22,7 +22,7 @@ APP_DIR="${APP_DIR:-/opt/v2ray-ratio}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 ZARIB_REPO="${ZARIB_REPO:-Aknuun/zarib-config}"
-ZARIB_REF="${ZARIB_REF:-v1.2.15}"
+ZARIB_REF="${ZARIB_REF:-bdc5c8f7b131ef77d63814ffff905e61909996ee}"
 SRC_DIR="${SRC_DIR:-/opt/zarib-config-src}"
 GO_VERSION="1.22.12"
 GO_ROOT="/opt/zarib-config-go"
@@ -41,8 +41,8 @@ for dir in "$APP_DIR" "$SRC_DIR"; do
   esac
 done
 case "$ZARIB_REF" in
-  v[0-9]*) ;;
-  *) [ "${ZARIB_ALLOW_UNPINNED:-0}" = "1" ] || die "ZARIB_REF must be a release tag such as v1.2.15." ;;
+  v[0-9]*|[0-9a-f]*) ;;
+  *) [ "${ZARIB_ALLOW_UNPINNED:-0}" = "1" ] || die "ZARIB_REF must be a release tag or commit hash." ;;
 esac
 if [ -n "$OLD_DOMAIN" ]; then
   case "$OLD_DOMAIN" in
@@ -83,6 +83,7 @@ fi
 if [ -z "$SRC" ]; then
   case "$ZARIB_REF" in
     v[0-9]*) URL="https://codeload.github.com/$ZARIB_REPO/tar.gz/refs/tags/$ZARIB_REF" ;;
+    [0-9a-f]*) URL="https://codeload.github.com/$ZARIB_REPO/tar.gz/$ZARIB_REF" ;;
     *) URL="https://codeload.github.com/$ZARIB_REPO/tar.gz/refs/heads/$ZARIB_REF" ;;
   esac
   log "Downloading $ZARIB_REPO@$ZARIB_REF ..."
