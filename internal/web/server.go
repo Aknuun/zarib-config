@@ -3,6 +3,7 @@ package web
 import (
 	"bufio"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,7 @@ import (
 const (
 	maxActive   = 5
 	maxQueued   = 25
+	maxPerIP    = 2
 	maxLogLines = 120
 	jobTimeout  = 30 * time.Minute
 	minSizeMB   = ratio.MinSizeMB
@@ -49,7 +51,8 @@ type job struct {
 	Pick        int
 	SizeMB      float64
 	Core        string
-	Tunnel      *bool
+	IP          string
+	SubKey      string
 	Dir         string
 	SubFile     string
 	ResultFile  string
@@ -106,7 +109,6 @@ type jobIn struct {
 	Drift   *int     `json:"drift"`
 	Sync    *bool    `json:"sync"`
 	Core    *string  `json:"core"`
-	Tunnel  *bool    `json:"tunnel"`
 }
 
 func Run(addr, staticDir string) error {
@@ -131,8 +133,11 @@ func Run(addr, staticDir string) error {
 		return err
 	}
 	if entries, err := os.ReadDir(jobsDir); err == nil {
+		cutoff := time.Now().Add(-time.Hour)
 		for _, entry := range entries {
-			_ = os.RemoveAll(filepath.Join(jobsDir, entry.Name()))
+			if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
+				_ = os.RemoveAll(filepath.Join(jobsDir, entry.Name()))
+			}
 		}
 	}
 	s := &server{
@@ -294,7 +299,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 	}
 	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
 	if err != nil {
-		apiError(w, "fetch_failed", err.Error(), http.StatusBadRequest)
+		apiError(w, "fetch_failed", redactURLs(err.Error()), http.StatusBadRequest)
 		return
 	}
 	if viaProxy {
@@ -395,11 +400,6 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "invalid_input", "Invalid Xray core.", http.StatusBadRequest)
 		return
 	}
-	_, queued := s.activeCounts()
-	if queued >= maxQueued {
-		apiError(w, "busy", "The test queue is full.", http.StatusTooManyRequests)
-		return
-	}
 	jobID, err := randomID()
 	if err != nil {
 		apiError(w, "unknown", "Could not create the test.", http.StatusInternalServerError)
@@ -423,13 +423,35 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := float64(time.Now().UnixNano()) / 1e9
+	subKey := fmt.Sprintf("%x", sha256.Sum256([]byte(subURL)))
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
-		Pick: pick, SizeMB: sizeMB, Core: core, Tunnel: payload.Tunnel,
+		Pick: pick, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
 	s.mu.Lock()
+	running, queued, perIP := s.jobCountsLocked()
+	if running+queued >= maxQueued {
+		s.mu.Unlock()
+		os.RemoveAll(jobDir)
+		apiError(w, "busy", "The test queue is full.", http.StatusTooManyRequests)
+		return
+	}
+	if perIP[ip] >= maxPerIP {
+		s.mu.Unlock()
+		os.RemoveAll(jobDir)
+		apiError(w, "busy", "Too many tests from this address. Wait for one to finish.", http.StatusTooManyRequests)
+		return
+	}
+	for _, existing := range s.jobs {
+		if existing.SubKey == subKey && (existing.Status == "queued" || existing.Status == "running") {
+			s.mu.Unlock()
+			os.RemoveAll(jobDir)
+			apiError(w, "duplicate_test", "This subscription already has a running test.", http.StatusConflict)
+			return
+		}
+	}
 	s.jobs[jobID] = item
 	s.mu.Unlock()
 	go s.runJob(jobID, wait, drift, payload.Claimed, syncMode)
@@ -502,10 +524,29 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		return
 	}
 	s.mu.Lock()
+	cancelledNow := false
 	if current := s.jobs[jobID]; current != nil {
 		current.Child = child
+		cancelledNow = current.Cancel
 	}
 	s.mu.Unlock()
+	if cancelledNow {
+		child.Stop()
+		s.mu.Lock()
+		if current := s.jobs[jobID]; current != nil {
+			finished := nowSeconds()
+			current.Status = "cancelled"
+			current.Stage = "cancelled"
+			current.Progress = 100
+			current.Finished = &finished
+			current.Error = "Cancelled."
+			current.ErrorCode = "cancelled"
+			current.Child = nil
+		}
+		s.mu.Unlock()
+		os.RemoveAll(jobDir)
+		return
+	}
 	timer := time.AfterFunc(jobTimeout, func() {
 		s.mu.Lock()
 		if current := s.jobs[jobID]; current != nil {
@@ -515,11 +556,14 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		child.Stop()
 	})
 	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 4096), 64*1024)
+	scanner.Buffer(make([]byte, 4096), 256*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		s.appendLog(jobID, line)
 		s.progressFromLine(jobID, line)
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		s.appendLog(jobID, "log stream error: "+scanErr.Error())
 	}
 	waitErr := child.Wait()
 	child.Stop()
@@ -574,7 +618,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 					current.Finished = &finished
 					current.Result = &result
 					current.Child = nil
-					doneTunnel = current.Tunnel
+					doneTunnel = nil
 				}
 				s.mu.Unlock()
 				s.recordResult(&result, doneTunnel)
@@ -597,7 +641,7 @@ func (s *server) finishError(jobID, code, message string) {
 	current.Status = "error"
 	current.Stage = "error"
 	current.Finished = &finished
-	current.Error = message
+	current.Error = redactURLs(message)
 	current.ErrorCode = code
 	current.Child = nil
 	s.mu.Unlock()
@@ -731,41 +775,7 @@ func (s *server) jobRoute(w http.ResponseWriter, r *http.Request) {
 		s.cancelJob(w, jobID)
 		return
 	}
-	if len(parts) == 2 && parts[1] == "extend" {
-		if !allowMethods(w, r, http.MethodPost) {
-			return
-		}
-		s.extendJob(w, jobID)
-		return
-	}
 	apiError(w, "not_found", "Job not found.", http.StatusNotFound)
-}
-
-func (s *server) extendJob(w http.ResponseWriter, jobID string) {
-	s.mu.Lock()
-	current := s.jobs[jobID]
-	if current == nil {
-		s.mu.Unlock()
-		apiError(w, "not_found", "Job not found.", http.StatusNotFound)
-		return
-	}
-	controlFile := current.ControlFile
-	status := current.Status
-	stage := current.Stage
-	s.mu.Unlock()
-	if status != "running" || controlFile == "" {
-		apiError(w, "invalid_state", "This test is not waiting for usage.", http.StatusConflict)
-		return
-	}
-	if stage != "usage_pending" && stage != "waiting_extended" {
-		apiError(w, "invalid_state", "This test is not waiting for usage.", http.StatusConflict)
-		return
-	}
-	if err := os.WriteFile(controlFile, []byte("extend\n"), 0o600); err != nil {
-		apiError(w, "unknown", "Could not extend the wait.", http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *server) cancelJob(w http.ResponseWriter, jobID string) {
@@ -820,19 +830,20 @@ func publicJobFrom(item *job) publicJob {
 	}
 }
 
-func (s *server) activeCounts() (int, int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *server) jobCountsLocked() (int, int, map[string]int) {
 	running, queued := 0, 0
+	perIP := map[string]int{}
 	for _, item := range s.jobs {
 		switch item.Status {
 		case "running":
 			running++
+			perIP[item.IP]++
 		case "queued":
 			queued++
+			perIP[item.IP]++
 		}
 	}
-	return running, queued
+	return running, queued, perIP
 }
 
 func (s *server) rateLimit(bucket, ip string, limit int) bool {
@@ -966,6 +977,20 @@ func clientIP(r *http.Request) string {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		if contentType := strings.ToLower(r.Header.Get("Content-Type")); !strings.HasPrefix(contentType, "application/json") {
+			return errors.New("content type must be application/json")
+		}
+		if origin := r.Header.Get("Origin"); origin != "" {
+			parsed, err := url.Parse(origin)
+			if err != nil || !strings.EqualFold(parsed.Host, r.Host) {
+				return errors.New("cross-origin request blocked")
+			}
+		}
+		if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" && site != "same-site" && site != "none" {
+			return errors.New("cross-site request blocked")
+		}
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
 	decoder := json.NewDecoder(r.Body)
 	return decoder.Decode(target)
@@ -975,6 +1000,12 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+var urlPattern = regexp.MustCompile(`https?://[^\s"'<>]+`)
+
+func redactURLs(text string) string {
+	return urlPattern.ReplaceAllString(text, "<link>")
 }
 
 func apiError(w http.ResponseWriter, code, message string, status int) {

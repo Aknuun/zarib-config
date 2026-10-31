@@ -31,6 +31,18 @@ func CoreCandidates(choice string) []string {
 	return candidates
 }
 
+func xrayAssetSHA(asset string) string {
+	switch asset {
+	case "Xray-linux-64.zip":
+		return "0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978"
+	case "Xray-linux-arm64-v8a.zip":
+		return "d1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c"
+	case "Xray-linux-arm32-v7a.zip":
+		return "89978508fa2ebb4a1e661f2c6ed51d241c4091b3cd17f4c65fdf20baae7dedac"
+	}
+	return ""
+}
+
 func xrayAssetName() (string, error) {
 	switch strings.ToLower(runtime.GOARCH) {
 	case "amd64":
@@ -74,7 +86,7 @@ func EnsureXray(core string) (string, error) {
 		return found, nil
 	}
 	cache := CacheDir()
-	target := filepath.Join(cache, "xray")
+	target := filepath.Join(cache, "xray-"+PinnedXrayVersion)
 	if core == "legacy" {
 		target = filepath.Join(cache, "xray-"+LegacyXrayVersion)
 	}
@@ -88,9 +100,11 @@ func EnsureXray(core string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	releaseURL := "https://github.com/XTLS/Xray-core/releases/latest/download/" + asset
+	releaseURL := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", PinnedXrayVersion, asset)
+	expectedSHA := xrayAssetSHA(asset)
 	if core == "legacy" {
 		releaseURL = fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", LegacyXrayVersion, asset)
+		expectedSHA = ""
 	}
 	fmt.Printf("Xray (%s) not found; downloading from GitHub (%s) ...\n", core, asset)
 	request, err := http.NewRequest(http.MethodGet, releaseURL, nil)
@@ -113,12 +127,18 @@ func EnsureXray(core string) (string, error) {
 	}
 	archivePath := archive.Name()
 	defer os.Remove(archivePath)
-	if _, err := io.Copy(archive, response.Body); err != nil {
+	if _, err := io.Copy(archive, io.LimitReader(response.Body, 200<<20)); err != nil {
 		archive.Close()
 		return "", ratioErrorf("Could not download Xray (%s): %v", core, err)
 	}
 	if err := archive.Close(); err != nil {
 		return "", ratioErrorf("Could not save the Xray archive: %v", err)
+	}
+	if expectedSHA != "" {
+		got, err := fileSHA256(archivePath)
+		if err != nil || got != expectedSHA {
+			return "", ratioErrorf("The downloaded Xray archive failed its checksum.")
+		}
 	}
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -146,7 +166,7 @@ func EnsureXray(core string) (string, error) {
 	}
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
-	if _, err := io.Copy(temporary, source); err != nil {
+	if _, err := io.Copy(temporary, io.LimitReader(source, 300<<20)); err != nil {
 		temporary.Close()
 		return "", ratioErrorf("Could not extract the Xray binary: %v", err)
 	}

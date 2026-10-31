@@ -98,13 +98,27 @@ func (s *server) loadStats() {
 		return
 	}
 	content, err := os.ReadFile(s.statsFile)
+	if err == nil {
+		var stats liveStats
+		if json.Unmarshal(content, &stats) == nil {
+			s.applyLoadedStats(stats)
+			return
+		}
+		fmt.Printf("stats: could not parse %s; trying backup\n", s.statsFile)
+	}
+	content, err = os.ReadFile(s.statsFile + ".bak")
 	if err != nil {
 		return
 	}
 	var stats liveStats
 	if err := json.Unmarshal(content, &stats); err != nil {
+		fmt.Printf("stats: backup is unreadable: %v\n", err)
 		return
 	}
+	s.applyLoadedStats(stats)
+}
+
+func (s *server) applyLoadedStats(stats liveStats) {
 	if stats.Month == "" {
 		if len(stats.Day) >= 7 {
 			stats.Month = stats.Day[:7]
@@ -182,11 +196,28 @@ func (s *server) saveStatsLocked() {
 	if err != nil {
 		return
 	}
+	if previous, err := os.ReadFile(s.statsFile); err == nil {
+		_ = os.WriteFile(s.statsFile+".bak", previous, 0o600)
+	}
 	temp := s.statsFile + ".tmp"
-	if err := os.WriteFile(temp, content, 0o600); err != nil {
+	file, err := os.OpenFile(temp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
 		return
 	}
-	_ = os.Rename(temp, s.statsFile)
+	if _, err := file.Write(content); err != nil {
+		file.Close()
+		return
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return
+	}
+	if err := file.Close(); err != nil {
+		return
+	}
+	if err := os.Rename(temp, s.statsFile); err != nil {
+		fmt.Printf("stats: could not save: %v\n", err)
+	}
 }
 
 func (s *server) recordResult(result *ratio.Result, tunnel *bool) {
@@ -598,10 +629,24 @@ func (s *server) pingCheck(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "blocked_target", "The target must be publicly reachable.", http.StatusBadRequest)
 		return
 	}
-	address := net.JoinHostPort(host, port)
+	ips, err := net.DefaultResolver.LookupIPAddr(r.Context(), host)
+	if err != nil || len(ips) == 0 {
+		apiError(w, "blocked_target", "The target must be publicly reachable.", http.StatusBadRequest)
+		return
+	}
 	dialer := net.Dialer{Timeout: pingTimeout}
 	start := time.Now()
-	connection, err := dialer.DialContext(r.Context(), "tcp", address)
+	var connection net.Conn
+	for _, item := range ips {
+		if !ratio.IsPublicIP(item.IP) {
+			apiError(w, "blocked_target", "The target must be publicly reachable.", http.StatusBadRequest)
+			return
+		}
+		connection, err = dialer.DialContext(r.Context(), "tcp", net.JoinHostPort(item.IP.String(), port))
+		if err == nil {
+			break
+		}
+	}
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{

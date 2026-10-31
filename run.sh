@@ -3,7 +3,11 @@ set -euo pipefail
 
 REPO="${ZARIB_REPO:-Aknuun/zarib-config}"
 REF="${ZARIB_REF:-main}"
-CACHE="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/zarib-config"
+if [ -z "${HOME:-}" ]; then
+    HOME="$(mktemp -d)"
+    export HOME
+fi
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zarib-config"
 GO_VERSION="1.22.12"
 GO_ROOT="$CACHE/go"
 GO_BIN="$GO_ROOT/bin/go"
@@ -115,7 +119,13 @@ download_binary() {
     if download "$sums" "$TMP_DIR/sha256sums.txt" 2>/dev/null; then
         sha="$(awk -v f="$file" '$2 == f { print $1 }' "$TMP_DIR/sha256sums.txt")"
     fi
-    if [ -n "$sha" ] && ! verify_sha "$TMP_DIR/$file" "$sha"; then
+    if [ -z "$sha" ]; then
+        log "prebuilt binary has no published checksum"
+        rm -rf "$TMP_DIR"
+        TMP_DIR=""
+        return 1
+    fi
+    if ! verify_sha "$TMP_DIR/$file" "$sha"; then
         log "prebuilt binary checksum mismatch"
         rm -rf "$TMP_DIR"
         TMP_DIR=""

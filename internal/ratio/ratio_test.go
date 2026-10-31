@@ -502,7 +502,7 @@ func TestWaitForUsageWithControlExtends(t *testing.T) {
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		after, _, _, err := WaitForUsageWithControl(context.Background(), server.URL, Usage{}, 1024, controlPath, false)
+		after, _, _, err := WaitForUsageWithControl(context.Background(), server.URL, Usage{}, 1024, controlPath, false, 0)
 		done <- outcome{after: after, err: err}
 	}()
 	time.Sleep(200 * time.Millisecond)
@@ -637,5 +637,28 @@ func TestWireGuardJSONPeerEndpoint(t *testing.T) {
 	}
 	if got := OutboundTarget(outbound); got != "wg.example.com:33434" {
 		t.Fatalf("unexpected target: %s", got)
+	}
+}
+
+func TestIsPublicURL(t *testing.T) {
+	cases := map[string]bool{
+		"http://127.0.0.1/sub":          false,
+		"http://10.1.2.3/sub":           false,
+		"http://169.254.169.254/latest": false,
+		"http://[::1]/sub":              false,
+		"http://1.1.1.1/sub":            true,
+	}
+	for raw, want := range cases {
+		if got := IsPublicURL(raw); got != want {
+			t.Fatalf("IsPublicURL(%q) = %v, want %v", raw, got, want)
+		}
+	}
+}
+
+func TestFetchBlocksPrivateAddress(t *testing.T) {
+	t.Setenv("RATIO_SAFE_FETCH", "1")
+	_, _, err := Fetch("http://127.0.0.1:9/sub", time.Second)
+	if err == nil || !strings.Contains(err.Error(), "Blocked") {
+		t.Fatalf("expected blocked error, got %v", err)
 	}
 }

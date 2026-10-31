@@ -50,6 +50,7 @@ func TestInspect(t *testing.T) {
 	}
 	payload := fmt.Sprintf(`{"sub_url":%q}`, subscription.URL)
 	request := httptest.NewRequest(http.MethodPost, "/api/inspect", strings.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.inspect(response, request)
 	if response.Code != http.StatusOK {
@@ -87,6 +88,7 @@ func TestInspectRejectsInvalidURL(t *testing.T) {
 		sem:     make(chan struct{}, maxActive),
 	}
 	request := httptest.NewRequest(http.MethodPost, "/api/inspect", strings.NewReader(`{"sub_url":"not-a-url"}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.inspect(response, request)
 	if response.Code != http.StatusBadRequest {
@@ -120,6 +122,7 @@ func TestPresenceCountsDistinctClients(t *testing.T) {
 	for _, id := range []string{"client-11111111", "client-22222222"} {
 		payload := fmt.Sprintf(`{"id":%q}`, id)
 		request := httptest.NewRequest(http.MethodPost, "/api/presence", strings.NewReader(payload))
+		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
 		s.presenceHandler(response, request)
 		if response.Code != http.StatusOK {
@@ -127,6 +130,7 @@ func TestPresenceCountsDistinctClients(t *testing.T) {
 		}
 	}
 	request := httptest.NewRequest(http.MethodPost, "/api/presence", strings.NewReader(`{"id":"client-11111111"}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.presenceHandler(response, request)
 	var data map[string]any
@@ -146,6 +150,7 @@ func TestPresenceCountsDistinctClients(t *testing.T) {
 func TestPresenceRejectsInvalidClientID(t *testing.T) {
 	s := testServer(t)
 	request := httptest.NewRequest(http.MethodPost, "/api/presence", strings.NewReader(`{"id":"x"}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.presenceHandler(response, request)
 	if response.Code != http.StatusUnprocessableEntity {
@@ -271,6 +276,7 @@ func TestReportSendsTelegramMessage(t *testing.T) {
 	s.telegramAPIBase = telegram.URL
 	payload := `{"description":"ratio was wrong","sub_url":"https://example.com/sub","result":{"ratio":1.5,"downloaded_bytes":5242880,"delta_total":7864320,"configs_tested":2,"core":"latest","xray_version":"v1.8.24"}}`
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.report(response, request)
 	if response.Code != http.StatusOK {
@@ -292,6 +298,7 @@ func TestReportSendsTelegramMessage(t *testing.T) {
 func TestReportDisabledWithoutTelegramConfig(t *testing.T) {
 	s := testServer(t)
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"x"}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.report(response, request)
 	if response.Code != http.StatusServiceUnavailable {
@@ -310,6 +317,7 @@ func TestReportRejectsEmptyDescription(t *testing.T) {
 	s.telegramChatID = "12345"
 	s.telegramAPIBase = "http://127.0.0.1:1"
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"  "}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.report(response, request)
 	if response.Code != http.StatusBadRequest {
@@ -329,6 +337,7 @@ func TestReportRejectsLongDescription(t *testing.T) {
 	s.telegramAPIBase = "http://127.0.0.1:1"
 	payload, _ := json.Marshal(map[string]any{"description": strings.Repeat("x", maxReportDescription+1)})
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(string(payload)))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.report(response, request)
 	if response.Code != http.StatusBadRequest {
@@ -347,6 +356,7 @@ func TestReportRejectsInvalidSubURL(t *testing.T) {
 	s.telegramChatID = "12345"
 	s.telegramAPIBase = "http://127.0.0.1:1"
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(`{"description":"x","sub_url":"not-a-url"}`))
+	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	s.report(response, request)
 	if response.Code != http.StatusBadRequest {
@@ -372,5 +382,30 @@ func TestRecordProxyUse(t *testing.T) {
 	today, _ := snapshot["today"].(map[string]any)
 	if today["proxy"] != 2 {
 		t.Fatalf("snapshot proxy = %v", today["proxy"])
+	}
+}
+
+func TestRateLimit(t *testing.T) {
+	s := &server{rates: map[string]map[string][]time.Time{}}
+	if !s.rateLimit("test", "1.2.3.4", 2) {
+		t.Fatal("first request should pass")
+	}
+	if !s.rateLimit("test", "1.2.3.4", 2) {
+		t.Fatal("second request should pass")
+	}
+	if s.rateLimit("test", "1.2.3.4", 2) {
+		t.Fatal("third request should be limited")
+	}
+}
+
+func TestJobCountsIncludeRunning(t *testing.T) {
+	s := &server{jobs: map[string]*job{
+		"a": {Status: "running", IP: "1.1.1.1"},
+		"b": {Status: "queued", IP: "1.1.1.1"},
+		"c": {Status: "queued", IP: "2.2.2.2"},
+	}}
+	running, queued, perIP := s.jobCountsLocked()
+	if running != 1 || queued != 2 || perIP["1.1.1.1"] != 2 {
+		t.Fatalf("counts: running=%d queued=%d perIP=%v", running, queued, perIP)
 	}
 }

@@ -398,8 +398,8 @@ func Download(ctx context.Context, port int, template string, total, chunk int64
 	return done
 }
 
-func DownloadRange(ctx context.Context, port int, targetURL string, total, chunk int64, chunkTimeout int) int64 {
-	done := int64(0)
+func DownloadRange(ctx context.Context, port int, targetURL string, start, total, chunk int64, chunkTimeout int) int64 {
+	done := start
 	attempts := 0
 	for done < total {
 		if ctx.Err() != nil {
@@ -423,7 +423,7 @@ func DownloadRange(ctx context.Context, port int, targetURL string, total, chunk
 			break
 		}
 	}
-	return done
+	return done - start
 }
 
 func DownloadWithFallback(ctx context.Context, port int, opts Options, total, chunk int64) (int64, string) {
@@ -436,7 +436,7 @@ func DownloadWithFallback(ctx context.Context, port int, opts Options, total, ch
 			break
 		}
 		fmt.Fprintln(os.Stderr, C(fmt.Sprintf("Primary test target failed; trying fallback %s ...", targetURL), "yellow"))
-		received := DownloadRange(ctx, port, targetURL, total, chunk, int(opts.Timeout))
+		received := DownloadRange(ctx, port, targetURL, downloaded, total, chunk, int(opts.Timeout))
 		downloaded += received
 		if received > 0 {
 			return downloaded, targetURL
@@ -580,7 +580,10 @@ var (
 	usageExtendedPoll = 10 * time.Second
 )
 
-func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, expectedBytes int64, controlFile string, autoExtend bool) (*Usage, []usageReading, time.Time, error) {
+func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, expectedBytes int64, controlFile string, autoExtend bool, initialWait time.Duration) (*Usage, []usageReading, time.Time, error) {
+	if initialWait <= 0 {
+		initialWait = usageInitialWait
+	}
 	baseline := before.Used()
 	start := time.Now()
 	var best *Usage
@@ -609,14 +612,14 @@ func WaitForUsageWithControl(ctx context.Context, subURL string, before Usage, e
 			return best, readings, bestTime, nil
 		}
 		elapsed := time.Since(start)
-		if elapsed >= usageInitialWait {
+		if elapsed >= initialWait {
 			break
 		}
 		interval := 5 * time.Second
 		if elapsed < 10*time.Second {
 			interval = time.Second
 		}
-		if remaining := usageInitialWait - elapsed; interval > remaining {
+		if remaining := initialWait - elapsed; interval > remaining {
 			interval = remaining
 		}
 		select {
@@ -745,8 +748,12 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		proxyOutbound = findProxyOutbound(baseConfig, targetTag)
 	}
 	if proxyOutbound != nil {
-		if err := EnsureResolvable(OutboundHost(proxyOutbound)); err != nil {
+		host := OutboundHost(proxyOutbound)
+		if err := EnsureResolvable(host); err != nil {
 			return nil, err
+		}
+		if safeFetchEnabled() && !IsPublicHost(host) {
+			return nil, ratioErrorf("Blocked: the config points to a non-public address.")
 		}
 	}
 	if baseConfig != nil {
@@ -820,6 +827,21 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 				continue
 			}
 			return nil, err
+		}
+		port, err = FreePort()
+		if err != nil {
+			return nil, err
+		}
+		config, err = PrepareConfig(baseConfig, outbound, targetTag, port)
+		if err != nil {
+			return nil, err
+		}
+		payload, err = json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			return nil, ratioErrorf("Could not encode the Xray config: %v", err)
+		}
+		if err := os.WriteFile(cfgPath, payload, 0o600); err != nil {
+			return nil, ratioErrorf("Could not write the Xray config: %v", err)
 		}
 		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
@@ -954,7 +976,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
 		}
 		fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
-		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend)
+		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend, time.Duration(opts.Wait)*time.Minute)
 		if err != nil {
 			return nil, err
 		}

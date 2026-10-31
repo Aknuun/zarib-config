@@ -3,10 +3,14 @@ package ratio
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -105,6 +109,10 @@ func IsPublicHost(host string) bool {
 	return true
 }
 
+func IsPublicIP(ip net.IP) bool {
+	return isPublicIP(ip)
+}
+
 func isPublicIP(ip net.IP) bool {
 	if ip == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsPrivate() ||
 		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
@@ -158,6 +166,11 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 		if !IsPublicURL(rawURL) {
 			return nil, nil, ratioErrorf("Blocked: the subscription URL must be a public http(s) address.")
 		}
+		if proxy == nil {
+			transport := http.DefaultTransport.(*http.Transport).Clone()
+			transport.DialContext = publicDialContext
+			client.Transport = transport
+		}
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if !IsPublicURL(req.URL.String()) {
 				return ratioErrorf("Blocked a redirect to a non-public address.")
@@ -194,6 +207,33 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 	return body, response.Header, nil
 }
 
+func publicDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil || len(ips) == 0 {
+		return nil, fmt.Errorf("could not resolve %s", host)
+	}
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	var lastErr error
+	for _, item := range ips {
+		if !isPublicIP(item.IP) {
+			return nil, fmt.Errorf("blocked non-public address")
+		}
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(item.IP.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("could not connect")
+	}
+	return nil, lastErr
+}
+
 func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 	body, headers, _, err := FetchMeta(rawURL, timeout)
 	return body, headers, err
@@ -223,7 +263,7 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 	return nil, nil, false, err
 }
 
-var integerPattern = regexp.MustCompile(`^-?\d+$`)
+var integerPattern = regexp.MustCompile(`^\d+$`)
 
 func ParseUsage(headers http.Header, body []byte) *Usage {
 	var raw string
@@ -312,23 +352,37 @@ func ReadUsage(subURL string, retries int, delay time.Duration) (*Usage, error) 
 }
 
 func toInt64(value any) int64 {
+	number := func(f float64) int64 {
+		if math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || f >= math.MaxInt64 {
+			return 0
+		}
+		return int64(f)
+	}
 	switch v := value.(type) {
 	case json.Number:
-		n, _ := v.Int64()
-		if n == 0 {
-			f, _ := v.Float64()
-			return int64(f)
+		if n, err := v.Int64(); err == nil {
+			if n < 0 {
+				return 0
+			}
+			return n
 		}
-		return n
+		f, _ := v.Float64()
+		return number(f)
 	case float64:
-		return int64(v)
+		return number(v)
 	case int64:
+		if v < 0 {
+			return 0
+		}
 		return v
 	case int:
+		if v < 0 {
+			return 0
+		}
 		return int64(v)
 	case string:
 		f, _ := strconv.ParseFloat(v, 64)
-		return int64(f)
+		return number(f)
 	default:
 		return 0
 	}
@@ -889,14 +943,23 @@ func outboundFromWireGuard(uri string) (map[string]any, error) {
 	}, nil
 }
 
+func capRemark(value string) string {
+	value = strings.TrimSpace(value)
+	runes := []rune(value)
+	if len(runes) > 160 {
+		return string(runes[:160]) + "…"
+	}
+	return value
+}
+
 func configRemark(text string, outbound map[string]any) string {
 	if remark, ok := outbound["_remark"].(string); ok && remark != "" {
-		return remark
+		return capRemark(remark)
 	}
 	if strings.Contains(text, "#") && strings.Contains(text, "://") {
 		value := strings.SplitN(text, "#", 2)[1]
 		unescaped, _ := url.PathUnescape(value)
-		return strings.TrimSpace(unescaped)
+		return capRemark(unescaped)
 	}
 	return ""
 }
@@ -978,6 +1041,19 @@ func OutboundHost(outbound map[string]any) string {
 func LooksLikeIP(host string) bool {
 	value := strings.Trim(strings.TrimSpace(host), "[]")
 	return net.ParseIP(value) != nil
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func IsUsableHost(host string) bool {

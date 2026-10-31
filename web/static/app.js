@@ -8,7 +8,8 @@
       heroTitle1: "محاسبه ضریب",
       heroTitle2: "کانفیگ",
       heroSub: "ضریب واقعی مصرف سابت را اندازه بگیر",
-      privacyNote: "هیچ لینک یا کانفیگی ذخیره نمی‌شود",
+      privacyNote: "هیچ لینک یا کانفیگی روی سرور ذخیره نمی‌شود",
+      insecureSub: "لینک http امن نیست؛ از https استفاده کن.",
       copyServerScript: "اجرا روی سرور خودت",
       meterLabel: "روش اندازه‌گیری",
       meterStep1: "مصرف ساب را قبل از تست می‌خوانیم",
@@ -118,8 +119,6 @@
       stage_usage_pending: "منتظر تأیید برای ادامه…",
       stage_waiting_extended: "در حال انتظار بیشتر برای مصرف…",
       usagePendingHint: "پنل هنوز مصرف را ثبت نکرده است. می‌توانی تا ۵ دقیقه دیگر صبر کنی یا تست را لغو کنی.",
-      extendWait: "صبر می‌کنم (۵ دقیقه)",
-      extendingWait: "در حال انتظار…",
       stage_done: "تمام شد",
       stage_cancelled: "لغو شد",
       stage_error: "خطا",
@@ -228,7 +227,8 @@
       heroTitle1: "Calculate",
       heroTitle2: "config ratio",
       heroSub: "See what each megabyte really costs from your quota",
-      privacyNote: "No link or config is stored",
+      privacyNote: "No link or config is stored on the server",
+      insecureSub: "An http link is not secure; use https.",
       copyServerScript: "Run it on your own server",
       meterLabel: "How it is measured",
       meterStep1: "Read the subscription usage before the test",
@@ -338,8 +338,6 @@
       stage_usage_pending: "Waiting for you to continue…",
       stage_waiting_extended: "Waiting longer for usage…",
       usagePendingHint: "The panel has not recorded usage yet. You can wait up to 5 more minutes or cancel the test.",
-      extendWait: "Wait 5 more minutes",
-      extendingWait: "Waiting…",
       stage_done: "Done",
       stage_cancelled: "Cancelled",
       stage_error: "Error",
@@ -448,6 +446,7 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const SITE_HOST = "zarib.app11.ir";
   const SUB_HISTORY_KEY = "ratio-sub-history";
+  const ACTIVE_JOB_KEY = "ratio-active-job";
   const SUB_HISTORY_LIMIT = 8;
   const LTR_MARK = "\u200E";
   const SELF_HOST_SCRIPT =
@@ -463,8 +462,6 @@
     running: false,
     cancelRequested: false,
     activeJobs: new Set(),
-    pendingJobs: new Set(),
-    extending: false,
     progressTimer: null,
     displayPct: 0,
     targetPct: 0,
@@ -792,9 +789,7 @@
       hide(status);
     }
     const subInput = $("#reportSub");
-    if (subInput) {
-      subInput.value = state.subs.length === 1 ? state.subs[0].url || "" : "";
-    }
+    if (subInput) subInput.value = "";
     if (typeof dialog.showModal === "function") {
       if (!dialog.open) dialog.showModal();
     } else {
@@ -1001,7 +996,11 @@
     let lastError = null;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), timeout);
+      let timedOut = false;
+      const timer = window.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeout);
       try {
         const response = await fetch(path, {
           ...fetchOptions,
@@ -1020,8 +1019,9 @@
         }
         if (!response.ok) {
           const error = new Error((data && data.error) || response.statusText || "Request failed");
-          error.code = (data && data.code) || "unknown";
+          error.code = response.status >= 500 ? "network" : (data && data.code) || "unknown";
           error.status = response.status;
+          error.retryable = response.status >= 500;
           error.log = (data && data.log) || [];
           throw error;
         }
@@ -1029,11 +1029,21 @@
       } catch (error) {
         window.clearTimeout(timer);
         if (error && error.name === "AbortError") {
-          error.code = "aborted";
-          error.retryable = true;
+          error.code = timedOut ? "timeout" : "aborted";
+          error.retryable = timedOut;
+          if (timedOut && attempt + 1 < attempts) {
+            await delay(600 * (attempt + 1));
+            continue;
+          }
           throw error;
         }
-        if (error && error.code) throw error;
+        if (error && error.code) {
+          if (error.retryable && attempt + 1 < attempts) {
+            await delay(600 * (attempt + 1));
+            continue;
+          }
+          throw error;
+        }
         lastError = error;
         if (lastError && typeof lastError.message === "string") {
           lastError.code = /signal is aborted|Failed to fetch|aborted/i.test(lastError.message)
@@ -1068,9 +1078,94 @@
     button.classList.toggle("hidden", !input.value.trim());
   }
 
+  function saveActiveJob(record) {
+    try {
+      sessionStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(record));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function clearActiveJob() {
+    try {
+      sessionStorage.removeItem(ACTIVE_JOB_KEY);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function loadActiveJob() {
+    try {
+      const raw = sessionStorage.getItem(ACTIVE_JOB_KEY);
+      const value = raw ? JSON.parse(raw) : null;
+      return value && typeof value.id === "string" ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function resumedSub(record) {
+    return {
+      url: record.url || "",
+      host: record.host || "",
+      configs: [{ index: record.pick, remark: record.label || `#${record.pick}`, target: record.label || "" }],
+    };
+  }
+
+  function showResumedResult(job, record) {
+    const sub = resumedSub(record);
+    state.subs = [sub];
+    state.results = [{ sub, pick: record.pick, result: job.result, error: null }];
+    state.completed = 1;
+    state.total = 1;
+    finishTests();
+  }
+
+  async function resumeActiveJob() {
+    const record = loadActiveJob();
+    if (!record) return;
+    let data = null;
+    try {
+      data = await api(`/api/jobs/${record.id}`, { retry: 0, timeout: 15000 });
+    } catch (error) {
+      if (error.status === 404) clearActiveJob();
+      return;
+    }
+    if (data.status === "done" && data.result) {
+      clearActiveJob();
+      showResumedResult(data, record);
+      return;
+    }
+    if (!["queued", "running", "usage_pending", "waiting_extended"].includes(data.status)) {
+      clearActiveJob();
+      return;
+    }
+    state.running = true;
+    state.cancelRequested = false;
+    state.startedAt = Number(record.startedAt) || Date.now();
+    state.total = 1;
+    state.completed = 0;
+    state.results = [];
+    state.lastJobData = data;
+    hide($("#inputCard"));
+    hide($("#selectCard"));
+    show($("#progressCard"));
+    renderProgress(data);
+    try {
+      const job = await waitForJob(record.id);
+      showResumedResult(job, record);
+    } catch (_) {
+      hide($("#progressCard"));
+      show($("#inputCard"));
+    } finally {
+      state.running = false;
+      clearActiveJob();
+    }
+  }
+
   function loadSubHistory() {
     try {
-      const raw = localStorage.getItem(SUB_HISTORY_KEY);
+      const raw = sessionStorage.getItem(SUB_HISTORY_KEY);
       const items = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(items)) return [];
       return items.filter((item) => typeof item === "string" && item.trim()).slice(0, SUB_HISTORY_LIMIT);
@@ -1085,7 +1180,7 @@
     try {
       const items = loadSubHistory().filter((item) => item !== value);
       items.unshift(value);
-      localStorage.setItem(SUB_HISTORY_KEY, JSON.stringify(items.slice(0, SUB_HISTORY_LIMIT)));
+      sessionStorage.setItem(SUB_HISTORY_KEY, JSON.stringify(items.slice(0, SUB_HISTORY_LIMIT)));
     } catch (_) {
       /* ignore */
     }
@@ -1174,6 +1269,10 @@
     const normalized = normalizeUrl(raw);
     if (!normalized) {
       showInputError(errorMessage("invalid_url"));
+      return;
+    }
+    if (normalized.toLowerCase().startsWith("http://")) {
+      showInputError(t("insecureSub"));
       return;
     }
     if (!fresh && state.subs.length >= 5) {
@@ -1812,9 +1911,24 @@
       }),
     });
     const jobId = data.id;
+    saveActiveJob({
+      id: jobId,
+      url: sub.url || "",
+      host: sub.host || "",
+      pick,
+      label: config ? config.remark || config.target || `#${pick}` : `#${pick}`,
+      startedAt: Date.now(),
+    });
+    if (state.cancelRequested) {
+      await api(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
+      const cancelled = new Error("Cancelled.");
+      cancelled.code = "cancelled";
+      throw cancelled;
+    }
     state.activeJobs.add(jobId);
     try {
       const job = await waitForJob(jobId);
+      clearActiveJob();
       return job.result;
     } finally {
       state.activeJobs.delete(jobId);
@@ -1828,6 +1942,11 @@
   async function waitForJob(jobId) {
     let networkFailures = 0;
     while (true) {
+      if (state.cancelRequested) {
+        const cancelled = new Error("Cancelled.");
+        cancelled.code = "cancelled";
+        throw cancelled;
+      }
       let data = null;
       try {
         data = await api(`/api/jobs/${jobId}`, { retry: 0, timeout: 120000 });
@@ -1841,6 +1960,7 @@
         );
         if (retriable && !state.cancelRequested) {
           networkFailures += 1;
+          if (networkFailures > 30) throw error;
           const message = $("#stageMessage");
           if (message) message.textContent = t("reconnecting");
           await delay(Math.min(12000, 1000 * networkFailures));
@@ -1852,11 +1972,9 @@
       renderProgress(data);
       updateOverallProgress();
       if (data.status === "done") {
-        state.pendingJobs.delete(jobId);
         return data;
       }
       if (data.status === "error" || data.status === "cancelled") {
-        state.pendingJobs.delete(jobId);
         const error = new Error(data.error || "");
         error.code = data.error_code || "unknown";
         error.log = data.log || [];
@@ -1948,15 +2066,7 @@
     $("#stageMessage").textContent = "";
     $("#stageHint").textContent = "";
     hide($("#stageHint"));
-    state.pendingJobs.clear();
-    state.extending = false;
     hide($("#usagePendingHint"));
-    const extendBtn = $("#extendWaitBtn");
-    if (extendBtn) {
-      hide(extendBtn);
-      extendBtn.disabled = false;
-      extendBtn.textContent = t("extendWait");
-    }
     state.usageWaitStarted = 0;
     applyProgress(0);
     $("#elapsed").textContent = "00:00";
@@ -2033,29 +2143,6 @@
 
   function renderProgress(data) {
     if (!data) return;
-    const pending = data.stage === "usage_pending";
-    if (data.id) {
-      if (pending) state.pendingJobs.add(data.id);
-      else state.pendingJobs.delete(data.id);
-    }
-    const pendingHint = $("#usagePendingHint");
-    if (pendingHint) {
-      if (pending) show(pendingHint);
-      else hide(pendingHint);
-    }
-    const extendBtn = $("#extendWaitBtn");
-    if (extendBtn) {
-      if (pending) {
-        show(extendBtn);
-        extendBtn.disabled = state.extending;
-        extendBtn.textContent = t(state.extending ? "extendingWait" : "extendWait");
-      } else {
-        hide(extendBtn);
-        extendBtn.disabled = false;
-        extendBtn.textContent = t("extendWait");
-        state.extending = false;
-      }
-    }
     const stageKey = `stage_${data.stage || "queued"}`;
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");
@@ -2089,26 +2176,6 @@
     }
   }
 
-  async function extendWaiting() {
-    const ids = [...state.pendingJobs];
-    if (!ids.length || state.extending) return;
-    state.extending = true;
-    const button = $("#extendWaitBtn");
-    if (button) {
-      button.disabled = true;
-      button.textContent = t("extendingWait");
-    }
-    try {
-      await Promise.all(
-        ids.map((jobId) =>
-          api(`/api/jobs/${jobId}/extend`, { method: "POST" }).catch(() => null),
-        ),
-      );
-    } finally {
-      state.extending = false;
-    }
-  }
-
   async function cancelTest() {
     state.cancelRequested = true;
     if (!state.activeJobs.size) return;
@@ -2134,7 +2201,7 @@
     $("#errorText").textContent = errorMessage(state.errorCode);
     $("#errorSuggest").textContent = errorSuggestion(state.errorCode);
     const detail = [localizeLogLine(state.error), ...state.errorLog.slice(-20).map(localizeLogLine)].filter(Boolean).join("\n");
-    $("#errorDetail").textContent = detail || "—";
+    $("#errorDetail").textContent = (detail || "—").replace(/https?:\/\/\S+/g, "<link>");
     $("#errorDetails").open = false;
     const hasConfigs = state.subs.some((sub) => sub.configs.length);
     if (hasConfigs) show($("#selectCard"));
@@ -2952,6 +3019,7 @@
     setSize(25);
     updateClearButton();
     initLive();
+    resumeActiveJob();
 
     $("#themeBtn").addEventListener("click", toggleTheme);
     $("#langBtn").addEventListener("click", () => {
@@ -3034,8 +3102,6 @@
       });
     }
     $("#cancelBtn").addEventListener("click", cancelTest);
-    const extendBtn = $("#extendWaitBtn");
-    if (extendBtn) extendBtn.addEventListener("click", extendWaiting);
     $("#logToggle").addEventListener("click", () => {
       state.logOpen = !state.logOpen;
       updateLogToggle();

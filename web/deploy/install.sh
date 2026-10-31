@@ -22,7 +22,7 @@ APP_DIR="${APP_DIR:-/opt/v2ray-ratio}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 ZARIB_REPO="${ZARIB_REPO:-Aknuun/zarib-config}"
-ZARIB_REF="${ZARIB_REF:-main}"
+ZARIB_REF="${ZARIB_REF:-v1.2.15}"
 SRC_DIR="${SRC_DIR:-/opt/zarib-config-src}"
 GO_VERSION="1.22.12"
 GO_ROOT="/opt/zarib-config-go"
@@ -34,6 +34,15 @@ die() { log "error: $*"; exit 1; }
 [ "$(uname -s)" = "Linux" ] || die "This installer supports Linux only."
 case "$DOMAIN" in
   ''|*[!A-Za-z0-9.-]*) die "DOMAIN must be a hostname such as zarib.example.com." ;;
+esac
+for dir in "$APP_DIR" "$SRC_DIR"; do
+  case "$dir" in
+    /|/opt|/etc|/usr|/var|/tmp|''|*[!A-Za-z0-9/._-]*) die "Unsafe directory: $dir" ;;
+  esac
+done
+case "$ZARIB_REF" in
+  v[0-9]*) ;;
+  *) [ "${ZARIB_ALLOW_UNPINNED:-0}" = "1" ] || die "ZARIB_REF must be a release tag such as v1.2.15." ;;
 esac
 if [ -n "$OLD_DOMAIN" ]; then
   case "$OLD_DOMAIN" in

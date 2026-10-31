@@ -27,6 +27,7 @@ const (
 	DefaultProbeTimeout = 20
 	DefaultProbeRetries = 0
 	DefaultProbeWait    = 10
+	PinnedXrayVersion   = "v26.10.21"
 	LegacyXrayVersion   = "v1.8.24"
 	MaxSubBytes         = 4 * 1024 * 1024
 )
