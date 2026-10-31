@@ -1106,8 +1106,14 @@
 
   function resumedSub(record) {
     return {
+      id: "resumed",
       url: record.url || "",
       host: record.host || "",
+      loading: false,
+      error: null,
+      count: 1,
+      selected: [record.pick],
+      multi: false,
       configs: [{ index: record.pick, remark: record.label || `#${record.pick}`, target: record.label || "" }],
     };
   }
