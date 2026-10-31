@@ -9,7 +9,6 @@
       heroTitle2: "کانفیگ",
       heroSub: "ضریب واقعی مصرف سابت را اندازه بگیر",
       privacyNote: "هیچ لینک یا کانفیگی روی سرور ذخیره نمی‌شود",
-      insecureSub: "لینک http امن نیست؛ از https استفاده کن.",
       copyServerScript: "اجرا روی سرور خودت",
       meterLabel: "روش اندازه‌گیری",
       meterStep1: "مصرف ساب را قبل از تست می‌خوانیم",
@@ -228,7 +227,6 @@
       heroTitle2: "config ratio",
       heroSub: "See what each megabyte really costs from your quota",
       privacyNote: "No link or config is stored on the server",
-      insecureSub: "An http link is not secure; use https.",
       copyServerScript: "Run it on your own server",
       meterLabel: "How it is measured",
       meterStep1: "Read the subscription usage before the test",
@@ -1275,10 +1273,6 @@
     const normalized = normalizeUrl(raw);
     if (!normalized) {
       showInputError(errorMessage("invalid_url"));
-      return;
-    }
-    if (normalized.toLowerCase().startsWith("http://")) {
-      showInputError(t("insecureSub"));
       return;
     }
     if (!fresh && state.subs.length >= 5) {
