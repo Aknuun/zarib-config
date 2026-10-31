@@ -83,6 +83,7 @@ func appendTLSParams(query url.Values, stream map[string]any) {
 		}
 		if value := toString(tlsSettings["pinnedPeerCertSha256"]); value != "" {
 			query.Set("pcs", value)
+			query.Set("pinSHA256", value)
 		}
 		if value := toString(tlsSettings["verifyPeerCertByName"]); value != "" {
 			query.Set("vcn", value)

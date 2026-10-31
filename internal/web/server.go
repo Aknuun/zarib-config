@@ -562,7 +562,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		s.appendLog(jobID, line)
 		s.progressFromLine(jobID, line)
 	}
-	if scanErr := scanner.Err(); scanErr != nil {
+	if scanErr := scanner.Err(); scanErr != nil && !strings.Contains(scanErr.Error(), "file already closed") {
 		s.appendLog(jobID, "log stream error: "+scanErr.Error())
 	}
 	waitErr := child.Wait()

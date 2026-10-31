@@ -484,6 +484,16 @@ func tlsSettings(host string, query map[string]string, defaultFP string) map[str
 	if ParseBool(query["allowInsecure"]) || ParseBool(query["insecure"]) {
 		settings["allowInsecure"] = true
 	}
+	pin := query["pcs"]
+	if pin == "" {
+		pin = query["pinSHA256"]
+	}
+	if pin != "" {
+		settings["pinnedPeerCertSha256"] = pin
+	}
+	if query["vcn"] != "" {
+		settings["verifyPeerCertByName"] = query["vcn"]
+	}
 	return settings
 }
 
