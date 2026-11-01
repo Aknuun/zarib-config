@@ -1507,3 +1507,9 @@ body:has(#errorCard:not(.hidden)) .wrap {
 
 /* hero title: a little more weight than the subtitle */
 .hero h1 { font-weight: 600; }
+
+/* keep the live-stats entry recognizable on phones */
+@media (max-width: 520px) {
+  .live-copy > span:last-child { display: inline; }
+  .live-pill { min-height: 44px; padding: 0 2px; }
+}
