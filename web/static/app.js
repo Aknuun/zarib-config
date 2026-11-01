@@ -18,6 +18,15 @@
       sampleDownloaded: "دانلود",
       sampleDeducted: "کسرشده",
       sampleNote: "عدد واقعی بعد از تست خودت ساخته می‌شود",
+      meterFlow: "خواندن مصرف ← دانلود ← خواندن دوباره",
+      timelineRead: "خواندن مصرف",
+      timelineDownload: "دانلود",
+      timelineVerify: "خواندن دوباره",
+      brandFold: "لوگو و نام شما",
+      statTrafficGroup: "ترافیک",
+      statTestsGroup: "تست‌ها",
+      statOtherGroup: "سایر",
+      proxyHint: "اگر اتصال مستقیم به ساب برقرار نشود، درخواست از پروکسی انجام می‌شود.",
       copyServerDone: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
       copyServerFailed: "کپی نشد؛ متن را دستی انتخاب و کپی کن.",
       chip1: "مگابایت تست",
@@ -26,7 +35,7 @@
       statusReady: "آماده",
       subLabel: "لینک سابسکریپشن",
       loadConfigs: "دریافت کانفیگ‌ها",
-      pasteSubLink: "جاگذاری لینک ساب",
+      pasteSubLink: "بررسی ساب",
       pasteHint: "لینک ساب را در کادر بچسبان (Ctrl+V).",
       subLimit: "حداکثر ۵ لینک ساب می‌توانی اضافه کنی.",
       removeSub: "حذف لینک",
@@ -236,6 +245,15 @@
       sampleDownloaded: "Downloaded",
       sampleDeducted: "Deducted",
       sampleNote: "Your real figure comes from your own test",
+      meterFlow: "Read usage → download → read again",
+      timelineRead: "Read usage",
+      timelineDownload: "Download",
+      timelineVerify: "Read again",
+      brandFold: "Your logo and name",
+      statTrafficGroup: "Traffic",
+      statTestsGroup: "Tests",
+      statOtherGroup: "Other",
+      proxyHint: "If the subscription is not reachable directly, the request goes through a proxy.",
       copyServerDone: "Script copied. Paste it into your server terminal.",
       copyServerFailed: "Copy failed; select and copy the text manually.",
       chip1: "MB test",
@@ -244,7 +262,7 @@
       statusReady: "Ready",
       subLabel: "Subscription URL",
       loadConfigs: "Load configs",
-      pasteSubLink: "Paste sub link",
+      pasteSubLink: "Check sub",
       pasteHint: "Paste the subscription link in the box (Ctrl+V).",
       subLimit: "You can add up to 5 subscription links.",
       removeSub: "Remove link",
@@ -745,6 +763,7 @@
     } else {
       dialog.setAttribute("open", "");
     }
+    dialog.focus();
   }
 
   function closeLiveDialog() {
@@ -2068,6 +2087,7 @@
     hide($("#stageHint"));
     hide($("#usagePendingHint"));
     state.usageWaitStarted = 0;
+    updateTimeline("");
     applyProgress(0);
     $("#elapsed").textContent = "00:00";
     $("#logBox").textContent = "";
@@ -2141,8 +2161,22 @@
     return line;
   }
 
+  function updateTimeline(stage) {
+    const steps = ["read", "download", "verify"];
+    let index = -1;
+    if (["queued", "reading", "connecting", "baseline", "drift"].includes(stage)) index = 0;
+    else if (stage === "downloading") index = 1;
+    else if (["waiting", "usage_pending", "waiting_extended"].includes(stage)) index = 2;
+    else if (stage === "done") index = 3;
+    $$("#timeline .timeline-step").forEach((el, i) => {
+      el.classList.toggle("active", i === index);
+      el.classList.toggle("done", index === 3 || i < index);
+    });
+  }
+
   function renderProgress(data) {
     if (!data) return;
+    updateTimeline(data.stage);
     const stageKey = `stage_${data.stage || "queued"}`;
     $("#stageLabel").textContent =
       I18N[state.lang] && I18N[state.lang][stageKey] ? t(stageKey) : t("stage_queued");

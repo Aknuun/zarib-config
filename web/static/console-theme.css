@@ -814,7 +814,7 @@ html[data-theme="dark"] {
 }
 
 /* unslop pass: measurement bench */
-body:has(#inputCard:not(.hidden)) .wrap {
+body:not(:has(#selectCard:not(.hidden))):not(:has(#progressCard:not(.hidden))):not(:has(#resultCard:not(.hidden))):not(:has(#errorCard:not(.hidden))) .wrap {
   overflow-y: auto;
 }
 
@@ -1063,7 +1063,7 @@ body:has(#errorCard:not(.hidden)) #meterCard {
 }
 
 @media (min-width: 861px) and (min-height: 720px) {
-  body:has(#inputCard:not(.hidden)) .wrap {
+  body:not(:has(#selectCard:not(.hidden))):not(:has(#progressCard:not(.hidden))):not(:has(#resultCard:not(.hidden))):not(:has(#errorCard:not(.hidden))) .wrap {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1249,7 +1249,11 @@ body:has(#errorCard:not(.hidden)) #meterCard {
 }
 
 @media (min-width: 360px) and (max-width: 760px) and (min-height: 640px) {
-  .wrap { display: flex; flex-direction: column; justify-content: center; }
+  body:not(:has(#selectCard:not(.hidden))):not(:has(#progressCard:not(.hidden))):not(:has(#resultCard:not(.hidden))):not(:has(#errorCard:not(.hidden))) .wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 }
 
 /* unslop pass: compact live stats */
@@ -1289,4 +1293,185 @@ body,
 *::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* UI overhaul: measurement bench signature and hierarchy */
+.hero-ruler,
+.result-ruler {
+  height: 12px;
+  border-bottom: 1px solid var(--border-strong);
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 1px, transparent 1px 10px) bottom / 100% 6px no-repeat;
+  direction: ltr;
+}
+.hero-ruler {
+  max-width: 420px;
+  margin-top: 16px;
+}
+.result-ruler {
+  max-width: 280px;
+  margin: 10px 0 0;
+}
+.measure-flow {
+  display: none;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* progress timeline */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted-2);
+  font-size: 0.75rem;
+}
+.timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.timeline-step.active { color: var(--text); }
+.timeline-step.active .timeline-dot { background: var(--accent); }
+.timeline-step.done { color: var(--muted); }
+.timeline-step.done .timeline-dot { background: var(--accent); opacity: 0.45; }
+
+/* result: stats stay quiet, brand options fold away */
+.result .stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--border);
+}
+.result .stat {
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--card);
+}
+.result .stat span { font-size: 0.75rem; }
+.result .stat strong { font-size: 1rem; }
+.brand-fold {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.brand-fold summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.78rem;
+  list-style: none;
+}
+.brand-fold summary::-webkit-details-marker { display: none; }
+.brand-fold[open] summary { color: var(--text); }
+.brand-fold .brand-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: auto;
+  margin-top: 12px;
+  border: 0;
+  background: none;
+}
+.brand-fold .result-ring { width: 96px; height: 96px; }
+
+/* stats dialog: grouped, compact */
+.live-group + .live-group { margin-top: 16px; }
+.live-group-title {
+  margin: 0 0 4px;
+  color: var(--muted-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.live-group .live-grid { border-top: 0; }
+.live-dialog .hint.small { font-size: 0.75rem; line-height: 1.6; }
+
+/* footer carries the secondary actions */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+}
+.footer-report {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+/* readable small text everywhere */
+.hint.small,
+.measure-note,
+.measure-scale-labels,
+.footer-version,
+.footer-report,
+.share-result-btn,
+.live-group-title { font-size: 0.75rem; }
+
+dialog:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero-ruler { max-width: none; margin-top: 12px; }
+  .measure-steps ol { display: none; }
+  .measure-flow { display: block; }
+  .measure-label { margin-bottom: 0; }
+  .footer-report { min-height: 44px; }
+  .timeline-step { font-size: 0.75rem; }
+  .live-stat span { font-size: 0.75rem; }
+  .result .stat { padding: 10px 12px; }
+}
+
+@media (min-width: 761px) {
+  #resultCard { max-width: 780px; margin-inline: auto; }
+  .result-head { justify-content: center; }
+  .result-head > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .coef { text-align: center; }
+  .result-ruler,
+  .share-result-btn { margin-inline: auto; }
+  .badge { text-align: center; }
+}
+
+.result-ruler { width: 280px; max-width: 100%; }
+.badge { display: block; width: 100%; }
+
+.result .stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.result .stat span { margin: 0; }
+
+body:has(#selectCard:not(.hidden)) .wrap,
+body:has(#progressCard:not(.hidden)) .wrap,
+body:has(#resultCard:not(.hidden)) .wrap,
+body:has(#errorCard:not(.hidden)) .wrap {
+  overflow-y: auto;
 }

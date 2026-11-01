@@ -11,7 +11,7 @@
   <meta name="description" content="محاسبه دقیق ضریب واقعی مصرف ترافیک کانفیگ با هم‌ترازی چرخه پنل. Measure the real traffic ratio of a config with panel-synced background correction.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css?v=20261031r">
-<link rel="stylesheet" href="/static/console-theme.css?v=20261031t">
+<link rel="stylesheet" href="/static/console-theme.css?v=20261101a">
 </head>
 <body>
   <header class="topbar">
@@ -44,6 +44,7 @@
         <span data-i18n="heroTitle2">کانفیگ</span>
       </h1>
       <p class="hero-sub" data-i18n="heroSub">ضریب واقعی مصرف سابت را اندازه بگیر</p>
+      <div class="hero-ruler" aria-hidden="true"></div>
     </section>
 
     <section id="inputCard" class="card input-card">
@@ -55,7 +56,7 @@
           <div id="subHistory" class="sub-history hidden" role="listbox"></div>
         </div>
         <button id="inspectBtn" class="primary-btn" type="button">
-          <span class="btn-label" data-i18n="pasteSubLink">جاگذاری لینک ساب</span>
+          <span class="btn-label" data-i18n="pasteSubLink">بررسی ساب</span>
           <span class="spinner hidden" aria-hidden="true"></span>
         </button>
       </div>
@@ -64,12 +65,6 @@
         <p class="privacy-note">
           <a href="https://github.com/Aknuun/zarib-config#privacy" target="_blank" rel="noopener noreferrer" data-i18n="privacyNote">هیچ لینک یا کانفیگی روی سرور ذخیره نمی‌شود</a>
         </p>
-        <div class="self-host">
-          <button id="copyScriptBtn" class="ghost-btn" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="btn-label" data-i18n="copyServerScript">اجرا روی سرور خودت</span>
-          </button>
-        </div>
       </div>
     </section>
 
@@ -82,6 +77,7 @@
           <li><span class="measure-num mono">03</span><span data-i18n="meterStep3">مصرف را دوباره می‌خوانیم و اختلاف را حساب می‌کنیم</span></li>
         </ol>
         <p class="measure-formula mono" dir="ltr">ratio = (usage delta − background) ÷ downloaded</p>
+        <p class="measure-flow" data-i18n="meterFlow">خواندن مصرف ← دانلود ← خواندن دوباره</p>
       </div>
       <div class="measure-preview" aria-hidden="true">
         <div class="measure-preview-head">
@@ -119,6 +115,11 @@
     </section>
 
     <section id="progressCard" class="card hidden" aria-live="polite">
+      <div class="timeline" id="timeline" aria-hidden="true">
+        <div class="timeline-step" data-step="read"><span class="timeline-dot"></span><span data-i18n="timelineRead">خواندن مصرف</span></div>
+        <div class="timeline-step" data-step="download"><span class="timeline-dot"></span><span data-i18n="timelineDownload">دانلود</span></div>
+        <div class="timeline-step" data-step="verify"><span class="timeline-dot"></span><span data-i18n="timelineVerify">خواندن دوباره</span></div>
+      </div>
       <div class="stage-row">
         <span id="stageLabel" class="stage-label">—</span>
         <span id="progressPct" class="mono">0%</span>
@@ -126,7 +127,7 @@
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div id="progressBar" class="progress-bar"></div>
       </div>
-      <div id="stageMessage" class="stage-message" dir="ltr"></div>
+      <div id="stageMessage" class="stage-message" dir="auto"></div>
       <div id="stageHint" class="stage-hint hidden"></div>
       <div id="usagePendingHint" class="stage-hint hidden" data-i18n="usagePendingHint"></div>
       <div class="progress-actions">
@@ -143,21 +144,11 @@
     
           <div id="coef" class="coef">—</div>
           <div id="coefExact" class="coef-exact hidden"></div>
+          <div class="result-ruler" aria-hidden="true"></div>
       <button id="shareBtn" class="share-result-btn" type="button">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span data-i18n="shareResultLabel">ارسال نتیجه</span>
           </button>
-        </div>
-        <div class="brand-panel">
-          <button id="brandLogoBtn" class="result-ring brand-ring" type="button" aria-label="افزودن لوگوی شما" data-i18n-aria-label="addYourLogo">
-            <svg class="ring-svg" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
-            <span id="brandLogoText" class="ring-upload-text" data-i18n="addYourLogo">افزودن لوگوی شما</span>
-            <img id="brandLogoPreview" class="ring-brand-img hidden" alt="">
-          </button>
-          <button id="brandImageClear" class="brand-clear hidden" type="button" aria-label="حذف عکس برند" data-i18n-aria-label="brandImageClear">×</button>
-          <strong id="brandNameDisplay" class="brand-name-display hidden"></strong>
-          <input id="brandNameInput" class="brand-name-input" type="text" maxlength="60" placeholder="افزودن آدرس شما" data-i18n-placeholder="addYourAddress">
-          <input id="brandImageInput" type="file" accept="image/*" class="hidden">
         </div>
       </div>
       <div id="verdict" class="badge hidden"></div>
@@ -177,6 +168,20 @@
           <span class="btn-label" data-i18n="reportError">گزارش خطا</span>
         </button>
       </div>
+      <details class="brand-fold">
+        <summary data-i18n="brandFold">لوگو و نام شما</summary>
+        <div class="brand-panel">
+          <button id="brandLogoBtn" class="result-ring brand-ring" type="button" aria-label="افزودن لوگوی شما" data-i18n-aria-label="addYourLogo">
+            <svg class="ring-svg" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg"/></svg>
+            <span id="brandLogoText" class="ring-upload-text" data-i18n="addYourLogo">افزودن لوگوی شما</span>
+            <img id="brandLogoPreview" class="ring-brand-img hidden" alt="">
+          </button>
+          <button id="brandImageClear" class="brand-clear hidden" type="button" aria-label="حذف عکس برند" data-i18n-aria-label="brandImageClear">×</button>
+          <strong id="brandNameDisplay" class="brand-name-display hidden"></strong>
+          <input id="brandNameInput" class="brand-name-input" type="text" maxlength="60" placeholder="افزودن آدرس شما" data-i18n-placeholder="addYourAddress">
+          <input id="brandImageInput" type="file" accept="image/*" class="hidden">
+        </div>
+      </details>
       <p class="result-disclaimer" data-i18n="resultDisclaimer">امکان خطا و اشتباه وجود دارد.</p>
     </section>
 
@@ -199,11 +204,15 @@
   </main>
 
   <footer class="footer">
+    <button id="copyScriptBtn" class="footer-report" type="button">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="btn-label" data-i18n="copyServerScript">اجرا روی سرور خودت</span>
+    </button>
     <button id="footerReportBtn" class="footer-report" type="button" aria-haspopup="dialog" aria-controls="reportDialog" data-i18n="footerReport">گزارش مشکل</button>
     <span id="brandVersion" class="footer-version mono">v1.2.15</span>
   </footer>
 
-  <dialog id="liveDialog" class="live-dialog" aria-labelledby="liveHeading">
+  <dialog id="liveDialog" tabindex="-1" class="live-dialog" aria-labelledby="liveHeading">
     <div class="live-dialog-head">
       <div>
         <div class="eyebrow"><span class="dot"></span><span data-i18n="liveTitle">آمار زنده</span></div>
@@ -216,54 +225,68 @@
       <button class="live-tab" type="button" role="tab" aria-selected="false" data-live-range="month" data-i18n="liveMonth">این ماه</button>
       <button class="live-tab" type="button" role="tab" aria-selected="false" data-live-range="all" data-i18n="liveAll">کل</button>
     </div>
-    <div class="live-grid">
-      <div class="live-stat live-stat-online">
-        <span data-i18n="statOnline">افراد آنلاین</span>
-        <strong id="liveStatOnline" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statTests">تست‌ها</span>
-        <strong id="liveStatTests" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statWithRatio">ضریب‌دار</span>
-        <strong id="liveStatWithRatio" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statNormal">معمولی (۱×)</span>
-        <strong id="liveStatNormal" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statInvalid">نامعتبر</span>
-        <strong id="liveStatInvalid" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statDownloaded">حجم تست‌شده</span>
-        <strong id="liveStatDownloaded" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statDeducted">حجم کسرشده</span>
-        <strong id="liveStatDeducted" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statSuccess">تست‌های موفق</span>
-        <strong id="liveStatSuccess" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statFailed">تست‌های خطادار</span>
-        <strong id="liveStatFailed" class="mono">—</strong>
-      </div>
-      <div class="live-stat">
-        <span data-i18n="statProxy">با پروکسی</span>
-        <strong id="liveStatProxy" class="mono">—</strong>
+    <div class="live-group">
+      <h3 class="live-group-title" data-i18n="statTrafficGroup">ترافیک</h3>
+      <div class="live-grid">
+        <div class="live-stat">
+          <span data-i18n="statDownloaded">حجم تست‌شده</span>
+          <strong id="liveStatDownloaded" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statDeducted">حجم کسرشده</span>
+          <strong id="liveStatDeducted" class="mono">—</strong>
+        </div>
       </div>
     </div>
+    <div class="live-group">
+      <h3 class="live-group-title" data-i18n="statTestsGroup">تست‌ها</h3>
+      <div class="live-grid">
+        <div class="live-stat">
+          <span data-i18n="statTests">تست‌ها</span>
+          <strong id="liveStatTests" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statSuccess">تست‌های موفق</span>
+          <strong id="liveStatSuccess" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statFailed">تست‌های خطادار</span>
+          <strong id="liveStatFailed" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statWithRatio">ضریب‌دار</span>
+          <strong id="liveStatWithRatio" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statNormal">معمولی (۱×)</span>
+          <strong id="liveStatNormal" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statInvalid">نامعتبر</span>
+          <strong id="liveStatInvalid" class="mono">—</strong>
+        </div>
+      </div>
+    </div>
+    <div class="live-group">
+      <h3 class="live-group-title" data-i18n="statOtherGroup">سایر</h3>
+      <div class="live-grid">
+        <div class="live-stat live-stat-online">
+          <span data-i18n="statOnline">افراد آنلاین</span>
+          <strong id="liveStatOnline" class="mono">—</strong>
+        </div>
+        <div class="live-stat">
+          <span data-i18n="statProxy">با پروکسی</span>
+          <strong id="liveStatProxy" class="mono">—</strong>
+        </div>
+      </div>
+    </div>
+    <p class="hint small" data-i18n="proxyHint">اگر اتصال مستقیم به ساب برقرار نشود، درخواست از پروکسی انجام می‌شود.</p>
     <p id="liveTunnelLine" class="live-tunnel-line"></p>
     <p id="liveFailLine" class="live-tunnel-line"></p>
     <p class="hint small" data-i18n="liveHint">این آمار فقط شمارنده‌های کلی است و هیچ لینک یا کانفیگی ذخیره نمی‌شود.</p>
   </dialog>
 
-  <dialog id="sizeDialog" class="live-dialog size-dialog" aria-labelledby="sizeDialogHeading">
+  <dialog id="sizeDialog" tabindex="-1" class="live-dialog size-dialog" aria-labelledby="sizeDialogHeading">
     <div class="live-dialog-head">
       <div>
         <div class="eyebrow"><span class="dot"></span><span data-i18n="sizeLabel">حجم تست</span></div>
@@ -278,7 +301,7 @@
     <p class="hint small" data-i18n="sizeRangeHint">هر چقدر حجم بزرگ‌تر باشد احتمال دقت بیشتر می‌شود.</p>
   </dialog>
 
-  <dialog id="startDialog" class="live-dialog start-dialog" aria-labelledby="startConfirmHeading">
+  <dialog id="startDialog" tabindex="-1" class="live-dialog start-dialog" aria-labelledby="startConfirmHeading">
     <div class="live-dialog-head">
       <div>
         <div class="eyebrow"><span class="dot"></span><span data-i18n="startConfirmEyebrow">یادآوری</span></div>
@@ -293,7 +316,7 @@
     </div>
   </dialog>
 
-  <dialog id="reportDialog" class="live-dialog report-dialog" aria-labelledby="reportHeading">
+  <dialog id="reportDialog" tabindex="-1" class="live-dialog report-dialog" aria-labelledby="reportHeading">
     <div class="live-dialog-head">
       <div>
         <div class="eyebrow"><span class="dot"></span><span data-i18n="reportTitle">گزارش خطا</span></div>
@@ -320,6 +343,6 @@
     <div class="noscript">برای استفاده از این ابزار، جاوااسکریپت را فعال کن. / Please enable JavaScript.</div>
   </noscript>
 
-  <script src="/static/app.js?v=20261031s"></script>
+  <script src="/static/app.js?v=20261031t"></script>
 </body>
 </html>
