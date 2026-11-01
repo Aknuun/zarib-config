@@ -1499,3 +1499,8 @@ body:has(#errorCard:not(.hidden)) .wrap {
   .hero-sub { margin-top: 8px; max-width: 100%; font-size: 0.9rem; line-height: 1.65; }
   .hero-ruler { margin-top: 16px; max-width: none; }
 }
+
+/* centered hero: title, subtitle and ruler share one axis */
+.hero { text-align: center; }
+.hero-sub { margin-inline: auto; }
+.hero-ruler { margin-inline: auto; }
