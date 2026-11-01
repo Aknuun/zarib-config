@@ -2585,12 +2585,16 @@
     ctx.lineWidth = 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    const rulerY = markY + 40;
     ctx.beginPath();
-    ctx.moveTo(markX + 13, markY + 40);
-    ctx.lineTo(markX + 24, markY + 17);
-    ctx.lineTo(markX + 34, markY + 34);
-    ctx.lineTo(markX + 40, markY + 24);
-    ctx.lineTo(markX + 46, markY + 40);
+    ctx.moveTo(markX + 13, rulerY);
+    ctx.lineTo(markX + 45, rulerY);
+    ctx.moveTo(markX + 19, rulerY);
+    ctx.lineTo(markX + 19, rulerY - 9);
+    ctx.moveTo(markX + 29, rulerY);
+    ctx.lineTo(markX + 29, rulerY - 16);
+    ctx.moveTo(markX + 39, rulerY);
+    ctx.lineTo(markX + 39, rulerY - 12);
     ctx.stroke();
 
     drawCanvasText(ctx, SITE_HOST, markX + markSize + 18, 106, {
