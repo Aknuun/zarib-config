@@ -1504,3 +1504,6 @@ body:has(#errorCard:not(.hidden)) .wrap {
 .hero { text-align: center; }
 .hero-sub { margin-inline: auto; }
 .hero-ruler { margin-inline: auto; }
+
+/* hero title: a little more weight than the subtitle */
+.hero h1 { font-weight: 600; }
