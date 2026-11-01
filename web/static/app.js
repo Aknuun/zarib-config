@@ -498,7 +498,7 @@
     live: null,
     liveId: "",
     liveTimer: null,
-    liveRange: "today",
+    liveRange: "all",
   };
   let subSeq = 0;
 
@@ -763,6 +763,7 @@
     } else {
       dialog.setAttribute("open", "");
     }
+    setLiveRange(state.liveRange);
     dialog.focus();
   }
 
