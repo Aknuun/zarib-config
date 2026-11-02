@@ -737,6 +737,15 @@ func findProxyOutbound(base map[string]any, targetTag string) map[string]any {
 	return nil
 }
 
+func outboundHasTLS(outbound map[string]any) bool {
+	stream := asObject(outbound["streamSettings"])
+	if stream == nil {
+		return false
+	}
+	security := strings.ToLower(toString(stream["security"]))
+	return security == "tls" || security == "reality"
+}
+
 func runSingle(ctx context.Context, opts Options, subURL, configText string) (*runResult, error) {
 	baseConfig, outbound, targetTag, _, scanText, err := BuildClientConfig(configText)
 	if err != nil {
@@ -760,6 +769,9 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		fmt.Println(C("Using a test-safe copy of the JSON config (custom routing rules removed).", "dim"))
 	}
 	coreNames := CoreCandidates(opts.Core)
+	if (opts.Core == "" || strings.EqualFold(opts.Core, "auto")) && proxyOutbound != nil && !outboundHasTLS(proxyOutbound) {
+		coreNames = []string{"legacy", "latest"}
+	}
 	var coreErrors []string
 	var xrayPath, coreUsed string
 	var child *Child

@@ -42,6 +42,7 @@ var FallbackTestURLs = []string{
 }
 
 var ProbeURLs = []string{
+	"https://zarib.app11.ir/healthz",
 	DefaultProbeURL,
 	"https://www.google.com/generate_204",
 	"http://cp.cloudflare.com/generate_204",
