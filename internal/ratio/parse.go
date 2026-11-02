@@ -31,10 +31,13 @@ type Usage struct {
 func (u Usage) Used() int64 { return u.Upload + u.Download }
 
 func (u Usage) Remaining() *int64 {
-	if u.Total == nil {
+	if u.Total == nil || *u.Total <= 0 {
 		return nil
 	}
 	value := *u.Total - u.Upload - u.Download
+	if value < 0 {
+		value = 0
+	}
 	return &value
 }
 

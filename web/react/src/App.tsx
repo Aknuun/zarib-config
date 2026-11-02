@@ -633,7 +633,11 @@ export default function App() {
         host: hostFromUrl(normalized),
       };
       setSub(nextSub);
-      setSelected(new Set(data.configs.slice(0, 1).map((config) => config.index)));
+      const preferred = data.configs.find((config) =>
+      /[?&]security=(tls|reality)(&|#|$)/i.test(config.uri || ""),
+    );
+    const first = preferred || data.configs[0];
+    setSelected(new Set(first ? [first.index] : []));
       setResults([]);
       setError(null);
       setUrl(normalized);
