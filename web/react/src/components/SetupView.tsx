@@ -53,6 +53,7 @@ export function SetupView({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
   const [busy, setBusy] = useState<Record<number, "ping" | "tunnel">>({});
+  const [bulk, setBulk] = useState<"ping" | "tunnel" | null>(null);
 
   const usage = sub.usage;
 
@@ -104,8 +105,46 @@ export function SetupView({
     onToast((await copyText(text)) ? t("copyAllDone") : t("copyAllFailed"));
   }
 
+  async function runPingAll() {
+    if (bulk) return;
+    setBulk("ping");
+    let ok = 0;
+    await Promise.allSettled(
+      sub.configs.map(async (config) => {
+        try {
+          const data = await pingTarget(config.target);
+          onPatchConfig(config.index, { pingMs: data.ok ? data.latency_ms : null });
+          if (data.ok) ok += 1;
+        } catch {
+          onPatchConfig(config.index, { pingMs: null });
+        }
+      }),
+    );
+    setBulk(null);
+    onToast(t("pingAllDone", { ok, n: sub.configs.length }));
+  }
+
+  async function runTunnelAll() {
+    if (bulk) return;
+    setBulk("tunnel");
+    let ok = 0;
+    await Promise.allSettled(
+      sub.configs.map(async (config) => {
+        try {
+          const data = await geoTarget(config.target);
+          onPatchConfig(config.index, { tunnel: data.tunnel, geoCountry: data.country });
+          if (data.tunnel) ok += 1;
+        } catch {
+          /* ignore one host */
+        }
+      }),
+    );
+    setBulk(null);
+    onToast(t("tunnelAllDone", { ok, n: sub.configs.length }));
+  }
+
   return (
-    <main className="z-container z-page">
+    <main className="z-container z-page z-setup-page">
       <div className="z-page-head">
         <div>
           <p className="z-eyebrow">{t("setupEyebrow")}</p>
@@ -135,32 +174,36 @@ export function SetupView({
               <Badge variant="secondary">{t("configCount", { n: sub.count })}</Badge>
             </div>
             {usage ? (
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-kumo-subtle">
-                {usage.remaining !== null && (
-                  <span>
-                    {t("usageRemaining")}{" "}
-                    <b className="z-num font-medium text-kumo-default">
-                      {formatBytes(usage.remaining)}
-                    </b>
-                  </span>
-                )}
-                <span>
-                  {t("usageUsed")}{" "}
-                  <b className="z-num font-medium text-kumo-default">
-                    {formatBytes(usage.used)}
-                  </b>
-                </span>
-                {usage.total !== null && (
-                  <span>{t("usageOfTotal", { v: formatBytes(usage.total) })}</span>
-                )}
-                {usage.days_left !== null && (
-                  <span>
-                    {usage.days_left > 0
-                      ? t("daysLeft", { n: usage.days_left })
-                      : t("expired")}
-                  </span>
-                )}
-              </div>
+              <div className="z-usage">
+          {usage.remaining !== null && (
+            <span className="z-usage-item">
+              <span>{t("usageRemaining")}</span>
+              <b dir="ltr">{formatBytes(usage.remaining)}</b>
+            </span>
+          )}
+          <span className="z-usage-item">
+            <span>{t("usageUsed")}</span>
+            <b dir="ltr">{formatBytes(usage.used)}</b>
+          </span>
+          {usage.total !== null && (
+            <span className="z-usage-item">
+              <span>{t("usageTotalLabel")}</span>
+              <b dir="ltr">{formatBytes(usage.total)}</b>
+            </span>
+          )}
+          {usage.days_left !== null && (
+            <span className="z-usage-item">
+              {usage.days_left > 0 ? (
+                <>
+                  <b dir="ltr">{usage.days_left}</b>
+                  <span>{t("dayUnit")}</span>
+                </>
+              ) : (
+                <span>{t("expired")}</span>
+              )}
+            </span>
+          )}
+        </div>
             ) : (
               <p className="mt-1 text-[12px] text-kumo-subtle">{t("usageNone")}</p>
             )}
@@ -174,6 +217,8 @@ export function SetupView({
           </p>
         )}
 
+        <div className="z-setup-body">
+          <div className="z-setup-list">
         <div className="z-list-head">
           <div className="flex items-baseline gap-2">
             <h2 className="text-[14px] font-semibold">{t("configs")}</h2>
@@ -181,28 +226,40 @@ export function SetupView({
               {t("selectedN", { n: selected.size })}
             </span>
           </div>
-          <DropdownMenu>
-            <DropdownMenu.Trigger
-              render={
-                <Button
-                  variant="ghost"
-                  shape="square"
-                  className="size-11"
-                  icon={<DotsThree size={20} />}
-                  aria-label={t("listMenu")}
-                />
-              }
-            />
-            <DropdownMenu.Content>
-              <DropdownMenu.Item
-                className="min-h-11"
-                icon={<Copy size={17} />}
-                onClick={copyAll}
-              >
-                {t("copyAll")}
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu>
+        </div>
+
+        <div className="z-bulk-actions">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-h-11"
+            icon={<Copy size={16} />}
+            onClick={copyAll}
+          >
+            {t("copyAll")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-h-11"
+            icon={<Pulse size={16} />}
+            loading={bulk === "ping"}
+            disabled={bulk !== null || starting}
+            onClick={runPingAll}
+          >
+            {t("pingAll")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-h-11"
+            icon={<GlobeHemisphereWest size={16} />}
+            loading={bulk === "tunnel"}
+            disabled={bulk !== null || starting}
+            onClick={runTunnelAll}
+          >
+            {t("tunnelAll")}
+          </Button>
         </div>
 
         <div className="z-config-list" role="group" aria-label={t("configs")}>
@@ -231,18 +288,7 @@ export function SetupView({
                     )}
                   </span>
                   <span className="min-w-0 flex-1 text-start">
-                    <span className="block truncate text-[14px] font-medium">{name}</span>
-                    <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                      <Badge variant="outline" className="z-num shrink-0 text-[12px]">
-                        {config.protocol || "json"}
-                      </Badge>
-                      <span
-                        className="z-num block min-w-0 truncate text-[12px] text-kumo-subtle"
-                        dir="ltr"
-                      >
-                        {config.target}
-                      </span>
-                    </span>
+                    <span className="block truncate text-[14px] font-medium" dir="auto">{name}</span>
                   </span>
                   {config.pingMs !== undefined && (
                     <span
@@ -331,22 +377,27 @@ export function SetupView({
           })}
         </div>
 
+          </div>
+
+          <div className="z-setup-side">
         <div className="z-settings">
           <div className="z-setting">
             <div className="z-setting-head">
               <span>{t("size")}</span>
               <strong className="z-num text-[13px]">{t("sizeValue", { n: size })}</strong>
             </div>
-            <Slider
-              value={size}
-              min={5}
-              max={100}
-              step={5}
-              getAriaLabel={() => t("sizeSliderAria")}
-              onValueChange={(value) => onSize(Number(value))}
-              disabled={starting}
-              className="mt-2 w-full"
-            />
+            <div dir="ltr">
+              <Slider
+                value={size}
+                min={5}
+                max={100}
+                step={5}
+                getAriaLabel={() => t("sizeSliderAria")}
+                onValueChange={(value) => onSize(Number(value))}
+                disabled={starting}
+                className="mt-2 w-full"
+              />
+            </div>
             <p className="z-hint">{t("sizeHint")}</p>
           </div>
           <div className="z-setting">
@@ -384,6 +435,8 @@ export function SetupView({
             <Cloud size={14} aria-hidden="true" />
             {t("serverNote")}
           </p>
+        </div>
+          </div>
         </div>
       </section>
     </main>

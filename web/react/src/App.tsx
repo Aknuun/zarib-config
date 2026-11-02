@@ -819,6 +819,8 @@ export default function App() {
           onOpenLive={openLive}
           onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
           onToggleLang={() => setLang((current) => (current === "fa" ? "en" : "fa"))}
+          showHome={view === "setup" || view === "result" || view === "error"}
+          onHome={resetToLanding}
         />
 
         {view === "landing" && (

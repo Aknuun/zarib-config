@@ -1,5 +1,5 @@
 import { Button } from "@cloudflare/kumo";
-import { Moon, Sun, Translate } from "@phosphor-icons/react";
+import { House, Moon, Sun, Translate } from "@phosphor-icons/react";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
 
@@ -24,6 +24,8 @@ interface HeaderProps {
   onOpenLive: () => void;
   onToggleTheme: () => void;
   onToggleLang: () => void;
+  onHome?: () => void;
+  showHome?: boolean;
 }
 
 export function Header({
@@ -33,6 +35,8 @@ export function Header({
   onOpenLive,
   onToggleTheme,
   onToggleLang,
+  onHome,
+  showHome = false,
 }: HeaderProps) {
   const t = (key: Parameters<typeof translate>[1]) => translate(lang, key);
   return (
@@ -48,6 +52,17 @@ export function Header({
           </span>
         </a>
         <div className="flex items-center gap-1">
+          {showHome && onHome && (
+            <Button
+              variant="ghost"
+              shape="square"
+              className="size-11"
+              icon={<House size={19} />}
+              aria-label={t("back")}
+              title={t("back")}
+              onClick={onHome}
+            />
+          )}
           <button
             type="button"
             className="z-live-pill"

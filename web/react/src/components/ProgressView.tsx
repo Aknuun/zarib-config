@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@cloudflare/kumo";
 import {
   BookOpen,
@@ -42,6 +42,9 @@ export function ProgressView({
   const t = (key: MessageKey, vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
   const [now, setNow] = useState(Date.now());
+  const [displayPercent, setDisplayPercent] = useState(0);
+  const displayRef = useRef(0);
+  const targetRef = useRef(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -54,6 +57,31 @@ export function ProgressView({
     99,
     Math.max(0, ((batch.completed + progress / 100) / Math.max(1, batch.total)) * 100),
   );
+  targetRef.current = percent;
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      displayRef.current = percent;
+      setDisplayPercent(percent);
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      const target = targetRef.current;
+      const next = displayRef.current + (target - displayRef.current) * 0.12;
+      if (Math.abs(target - next) < 0.15) {
+        displayRef.current = target;
+        setDisplayPercent(target);
+        return;
+      }
+      displayRef.current = next;
+      setDisplayPercent(next);
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [percent]);
+
   const activeStep = stepIndex(stage, job?.status || "queued");
   const stageKey = `stage_${stage}` as MessageKey;
   const stageLabel = t(stageKey);
@@ -87,7 +115,7 @@ export function ProgressView({
           </div>
           <div className="text-end">
             <div className="z-num z-progress-pct" aria-hidden="true">
-              {Math.floor(percent)}%
+              {Math.floor(displayPercent)}%
             </div>
             <div className="z-num text-[12px] text-kumo-subtle">
               {t("elapsed")} {formatDuration(elapsed)}
@@ -100,10 +128,10 @@ export function ProgressView({
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={Math.floor(percent)}
+          aria-valuenow={Math.floor(displayPercent)}
           aria-label={t("progressEyebrow")}
         >
-          <Ruler percent={percent} tone="brand" />
+          <Ruler percent={displayPercent} tone="brand" />
         </div>
 
         <ol className="z-timeline" aria-label={t("progressEyebrow")}>

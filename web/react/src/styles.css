@@ -527,6 +527,7 @@ body {
 
 .z-config-row {
   display: flex;
+  flex: 0 0 auto;
   align-items: stretch;
   overflow: hidden;
   border: 1px solid var(--color-kumo-line);
@@ -1103,5 +1104,62 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+.z-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.z-bulk-actions > button {
+  flex: 1 1 auto;
+}
+
+.z-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-usage-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.z-usage-item b {
+  font-weight: 500;
+  color: var(--text-color-kumo-default);
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+.z-setup-page {
+  max-width: 980px;
+}
+
+@media (min-width: 900px) {
+  .z-setup-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px 24px;
+    align-items: start;
+  }
+
+  .z-setup-side {
+    position: sticky;
+    top: 80px;
+  }
+}
+
+@media (min-width: 900px) {
+  .z-config-list {
+    max-height: 448px;
   }
 }
