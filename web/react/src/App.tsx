@@ -881,6 +881,7 @@ export default function App() {
             sharing={sharing}
             onShare={() => void onShare()}
             onNewSub={resetToLanding}
+          onRetest={() => void startTest()}
             onReport={() => setReportOpen(true)}
             brandName={brandName}
             brandImage={brandImage}

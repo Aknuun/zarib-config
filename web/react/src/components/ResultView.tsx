@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Badge, Button, Input } from "@cloudflare/kumo";
 import {
   ArrowClockwise,
+  Plus,
   ImageSquare,
   ShareNetwork,
   WarningCircle,
@@ -30,6 +31,7 @@ interface ResultViewProps {
   rows: TestRow[];
   sharing: boolean;
   onShare: () => void;
+  onRetest: () => void;
   onNewSub: () => void;
   onReport: () => void;
   brandName: string;
@@ -45,6 +47,7 @@ export function ResultView({
   rows,
   sharing,
   onShare,
+  onRetest,
   onNewSub,
   onReport,
   brandName,
@@ -208,15 +211,26 @@ export function ResultView({
       </section>
 
       <div className="z-result-actions">
-        <Button
-          variant="primary"
-          size="lg"
-          className="h-12 w-full text-[14px]"
-          icon={<ArrowClockwise size={18} />}
-          onClick={onNewSub}
-        >
-          {t("newSub")}
-        </Button>
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button
+            variant="primary"
+            size="lg"
+            className="h-12 text-[14px]"
+            icon={<ArrowClockwise size={18} />}
+            onClick={onRetest}
+          >
+            {t("retest")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="h-12 text-[14px]"
+            icon={<Plus size={18} />}
+            onClick={onNewSub}
+          >
+            {t("newSub")}
+          </Button>
+        </div>
         <div className="grid w-full grid-cols-2 gap-2">
           <Button
             variant="secondary"
