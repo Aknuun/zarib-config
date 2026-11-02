@@ -1183,3 +1183,31 @@ body {
 .z-live-pill:hover {
   background: var(--color-kumo-tint);
 }
+
+/* Keep every primary action the same blue as the logo tile */
+:root {
+  --kumo-button-emphasis-bg: #1d4ed8;
+  --kumo-button-emphasis-gradient-start: #1d4ed8;
+  --kumo-button-emphasis-gradient-end: #1d4ed8;
+  --kumo-button-emphasis-ring: #1d4ed8;
+}
+
+[data-theme="dark"] {
+  --kumo-button-emphasis-bg: #3b82f6;
+  --kumo-button-emphasis-gradient-start: #3b82f6;
+  --kumo-button-emphasis-gradient-end: #3b82f6;
+  --kumo-button-emphasis-ring: #3b82f6;
+}
+
+.z-ruler-brand line,
+.z-ruler-marker.z-ruler-brand {
+  stroke: var(--color-kumo-brand);
+}
+
+.z-ruler-dot.z-ruler-brand {
+  fill: var(--color-kumo-brand);
+}
+
+.z-sample-ruler .z-num {
+  color: var(--color-kumo-brand);
+}

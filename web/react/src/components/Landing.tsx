@@ -95,7 +95,7 @@ export function Landing({
               type="submit"
               variant="primary"
               size="lg"
-              className="h-12 shrink-0 px-5 text-[14px] max-sm:self-start"
+              className="h-12 shrink-0 px-5 text-[14px] max-sm:self-center"
               loading={inspecting}
               icon={!inspecting ? <ArrowLeft size={18} /> : undefined}
             >
