@@ -217,27 +217,7 @@ function renderCanvas(
   ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Brand mark
-  const markX = rtl ? W - pad - 56 : pad;
-  const markY = 58;
-  roundRect(ctx, markX, markY, 56, 56, 15);
-  ctx.fillStyle = colors.brand;
-  ctx.fill();
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 3.5;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(markX + 13, markY + 40);
-  ctx.lineTo(markX + 43, markY + 40);
-  ctx.moveTo(markX + 19, markY + 40);
-  ctx.lineTo(markX + 19, markY + 31);
-  ctx.moveTo(markX + 28, markY + 40);
-  ctx.lineTo(markX + 28, markY + 24);
-  ctx.moveTo(markX + 37, markY + 40);
-  ctx.lineTo(markX + 37, markY + 28);
-  ctx.stroke();
-
-  drawText(ctx, t("appName"), rtl ? markX - 16 : markX + 72, 96, {
+  drawText(ctx, t("appName"), rtl ? W - pad : pad, 96, {
     size: 30,
     weight: 700,
     color: colors.text,
@@ -249,29 +229,6 @@ function renderCanvas(
     color: colors.muted,
     align: rtl ? "right" : "left",
   });
-
-  if (brandImage) {
-    const size = 96;
-    const x = rtl ? pad : W - pad - size;
-    ctx.save();
-    roundRect(ctx, x, 48, size, size, 20);
-    ctx.clip();
-    ctx.drawImage(brandImage, x, 48, size, size);
-    ctx.restore();
-    ctx.strokeStyle = colors.line;
-    ctx.lineWidth = 2;
-    roundRect(ctx, x, 48, size, size, 20);
-    ctx.stroke();
-    if (brandName.trim()) {
-      drawText(ctx, brandName.trim(), rtl ? x + size + 14 : x - 14, 88, {
-        size: 22,
-        weight: 600,
-        color: colors.text,
-        align: rtl ? "left" : "right",
-        rtl,
-      });
-    }
-  }
 
   // Signature ruler across the top
   drawRuler(ctx, pad, W - pad * 2, 210, 0, colors.brand, colors.line, false, false);
@@ -303,6 +260,58 @@ function renderCanvas(
     color: accent,
     align: "left",
   });
+
+  const logoSize = 200;
+  const logoX = rtl ? pad : W - pad - logoSize;
+  const logoY = 292;
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.22)";
+  ctx.shadowBlur = 32;
+  ctx.shadowOffsetY = 12;
+  roundRect(ctx, logoX, logoY, logoSize, logoSize, 28);
+  ctx.fillStyle = colors.card;
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = colors.line;
+  ctx.lineWidth = 2;
+  roundRect(ctx, logoX, logoY, logoSize, logoSize, 28);
+  ctx.stroke();
+  if (brandImage) {
+    ctx.save();
+    roundRect(ctx, logoX + 6, logoY + 6, logoSize - 12, logoSize - 12, 22);
+    ctx.clip();
+    ctx.drawImage(brandImage, logoX + 6, logoY + 6, logoSize - 12, logoSize - 12);
+    ctx.restore();
+  } else {
+    const tile = 24;
+    roundRect(ctx, logoX + tile, logoY + tile, logoSize - tile * 2, logoSize - tile * 2, 22);
+    ctx.fillStyle = colors.brand;
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    const bx = logoX + 52;
+    const by = logoY + 142;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + 96, by);
+    ctx.moveTo(bx + 18, by);
+    ctx.lineTo(bx + 18, by - 28);
+    ctx.moveTo(bx + 48, by);
+    ctx.lineTo(bx + 48, by - 50);
+    ctx.moveTo(bx + 78, by);
+    ctx.lineTo(bx + 78, by - 36);
+    ctx.stroke();
+  }
+  if (brandName.trim()) {
+    drawText(ctx, brandName.trim(), logoX + logoSize / 2, logoY + logoSize + 32, {
+      size: 24,
+      weight: 600,
+      color: colors.text,
+      align: "center",
+      rtl,
+    });
+  }
 
   drawRuler(
     ctx,

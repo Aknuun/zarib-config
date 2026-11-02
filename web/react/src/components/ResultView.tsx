@@ -154,7 +154,7 @@ export function ResultView({
         </div>
         <div className="z-result-list">
           {rows.map((row) => {
-            const name = row.config.remark || row.config.target || `#${row.pick}`;
+            const name = row.config.remark || `#${row.pick}`;
             const ratio = row.result ? Number(row.result.ratio) || 0 : null;
             const rowTone = ratio === null ? "danger" : ratioTone(ratio);
             const deducted = row.result
@@ -189,9 +189,6 @@ export function ResultView({
                   <Badge variant="outline" className="z-num shrink-0 text-[12px]">
                     {row.config.protocol || "json"}
                   </Badge>
-                  <span className="z-num min-w-0 truncate" dir="ltr">
-                    {row.config.target}
-                  </span>
                 </div>
                 {ratio !== null && (
                   <span className="z-num mt-0.5 block text-[12px] text-kumo-subtle" dir="ltr">

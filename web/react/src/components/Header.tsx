@@ -52,17 +52,6 @@ export function Header({
           </span>
         </a>
         <div className="flex items-center gap-1">
-          {showHome && onHome && (
-            <Button
-              variant="ghost"
-              shape="square"
-              className="size-11"
-              icon={<House size={19} />}
-              aria-label={t("back")}
-              title={t("back")}
-              onClick={onHome}
-            />
-          )}
           <button
             type="button"
             className="z-live-pill"
@@ -94,6 +83,17 @@ export function Header({
           >
             {lang === "fa" ? "EN" : "فا"}
           </Button>
+          {showHome && onHome && (
+            <Button
+              variant="ghost"
+              shape="square"
+              className="size-11"
+              icon={<House size={19} />}
+              aria-label={t("back")}
+              title={t("back")}
+              onClick={onHome}
+            />
+          )}
         </div>
       </div>
     </header>

@@ -40,13 +40,13 @@ export function Landing({
           <div className="z-sample-ruler">
             <div className="flex items-center justify-between text-[12px] text-kumo-subtle">
               <span>{t("sample")}</span>
-              <span className="z-num font-semibold text-kumo-default" dir="ltr">
+              <span className="z-num font-semibold text-kumo-brand" dir="ltr">
                 1.38×
               </span>
             </div>
             <Ruler
               percent={ratioPercent(1.38)}
-              tone="warn"
+              tone="brand"
               labels
               ariaLabel={t("rulerAria")}
             />
@@ -95,7 +95,7 @@ export function Landing({
               type="submit"
               variant="primary"
               size="lg"
-              className="h-12 shrink-0 px-5 text-[14px] max-sm:w-full"
+              className="h-12 shrink-0 px-5 text-[14px] max-sm:self-start"
               loading={inspecting}
               icon={!inspecting ? <ArrowLeft size={18} /> : undefined}
             >
