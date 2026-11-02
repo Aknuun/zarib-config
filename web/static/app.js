@@ -150,6 +150,7 @@
       duration: "مدت تست",
       configUsed: "کانفیگ",
       testAnother: "کانفیگ دیگری از همین ساب",
+      newSub: "ساب جدید",
       shareResult: "اشتراک‌گذاری",
       shareResultLabel: "ارسال نتیجه",
       sharePreparing: "در حال ساخت تصویر…",
@@ -377,6 +378,7 @@
       duration: "Duration",
       configUsed: "Config",
       testAnother: "Another config from this sub",
+      newSub: "New sub",
       shareResult: "Share",
       shareResultLabel: "Send result",
       sharePreparing: "Creating image…",
@@ -1205,6 +1207,17 @@
       const items = loadSubHistory().filter((item) => item !== value);
       items.unshift(value);
       sessionStorage.setItem(SUB_HISTORY_KEY, JSON.stringify(items.slice(0, SUB_HISTORY_LIMIT)));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function forgetSubUrls(urls) {
+    const list = (urls || []).filter(Boolean);
+    if (!list.length) return;
+    try {
+      const items = loadSubHistory().filter((item) => !list.includes(item));
+      sessionStorage.setItem(SUB_HISTORY_KEY, JSON.stringify(items));
     } catch (_) {
       /* ignore */
     }
@@ -2987,6 +3000,26 @@
     }
   }
 
+  function startNewSub() {
+    if (state.running) return;
+    const urls = state.subs.map((sub) => sub.url).filter(Boolean);
+    prepareFreshTest();
+    clearActiveJob();
+    clearInputError();
+    state.cancelRequested = false;
+    state.activeJobs.clear();
+    forgetSubUrls(urls);
+    const input = $("#subUrl");
+    if (input) input.value = "";
+    updateClearButton();
+    hideSubHistory();
+    show($("#inputCard"));
+    renderSubs();
+    updateStartState();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (input) input.focus();
+  }
+
   function testAnother() {
     hide($("#resultCard"));
     hide($("#errorCard"));
@@ -3196,6 +3229,7 @@
     }
     $("#retryBtn").addEventListener("click", retry);
     $("#anotherBtn").addEventListener("click", testAnother);
+    $$(".new-sub-btn").forEach((button) => button.addEventListener("click", startNewSub));
   }
 
   init();

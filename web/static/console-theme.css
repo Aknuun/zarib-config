@@ -1513,3 +1513,7 @@ body:has(#errorCard:not(.hidden)) .wrap {
   .live-copy > span:last-child { display: inline; }
   .live-pill { min-height: 44px; padding: 0 2px; }
 }
+
+@media (min-width: 761px) {
+  .result-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
