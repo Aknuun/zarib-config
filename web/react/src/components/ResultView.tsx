@@ -228,15 +228,6 @@ export function ResultView({
             variant="secondary"
             size="lg"
             className="h-12 w-full justify-center text-[14px]"
-            icon={<Plus size={18} />}
-            onClick={onNewSub}
-          >
-            {t("newSub")}
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="h-12 w-full justify-center text-[14px]"
             icon={<ShareNetwork size={18} />}
             loading={sharing}
             onClick={onShare}
@@ -244,9 +235,18 @@ export function ResultView({
             {sharing ? t("sharing") : t("share")}
           </Button>
           <Button
+            variant="secondary"
+            size="lg"
+            className="h-12 w-full justify-center text-[14px]"
+            icon={<Plus size={18} />}
+            onClick={onNewSub}
+          >
+            {t("newSub")}
+          </Button>
+          <Button
             variant="ghost"
             size="lg"
-            className="col-span-2 h-12 w-auto justify-center justify-self-center px-4 text-[14px] text-kumo-subtle sm:col-span-1"
+            className="col-span-2 h-12 w-full justify-center text-[14px] text-kumo-subtle sm:col-span-1"
             icon={<WarningCircle size={18} />}
             onClick={onReport}
           >
