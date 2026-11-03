@@ -1606,3 +1606,13 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+.z-live-pill {
+  border-radius: 12px;
+  background: var(--color-kumo-tint);
+  padding-inline: 10px;
+}
+.z-live-pill:hover {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
+  background: var(--color-kumo-tint);
+}
