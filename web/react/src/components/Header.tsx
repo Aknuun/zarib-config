@@ -75,14 +75,13 @@ export function Header({
           />
           <Button
             variant="ghost"
-            className="h-11 min-w-11 px-2 text-[12px] font-semibold"
-            icon={<Translate size={17} />}
+            shape="square"
+            className="size-11"
+            icon={<Translate size={19} />}
             aria-label={t("switchLang")}
             title={t("switchLang")}
             onClick={onToggleLang}
-          >
-            {lang === "fa" ? "EN" : "فا"}
-          </Button>
+          />
           {showHome && onHome && (
             <Button
               variant="ghost"

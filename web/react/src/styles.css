@@ -1211,3 +1211,26 @@ body {
 .z-sample-ruler .z-num {
   color: var(--color-kumo-brand);
 }
+
+/* Center page-level copy, keep data rows start-aligned */
+.z-hero-title,
+.z-hero-sub {
+  text-align: center;
+  margin-inline: auto;
+}
+
+.z-page-head { text-align: center; }
+.z-page-head > div:first-child { flex: 1 1 auto; min-width: 0; }
+.z-page-title,
+.z-page-sub,
+.z-eyebrow { text-align: center; }
+
+.z-result-card { text-align: center; }
+.z-result-card .z-result-stats,
+.z-result-card .z-result-list-card,
+.z-result-card .z-result-row { text-align: start; }
+.z-result-card .z-result-actions { justify-content: center; }
+
+.z-error-card,
+.z-error-text { text-align: center; }
+.z-error-actions { justify-content: center; }
