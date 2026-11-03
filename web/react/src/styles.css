@@ -414,13 +414,14 @@ body {
 }
 
 .z-hero-title {
-  max-width: 18ch;
+  max-width: none;
   margin-inline: auto;
-  font-size: clamp(32px, 5.4vw, 52px);
+  font-size: clamp(24px, 6.8vw, 52px);
   font-weight: 800;
   line-height: 1.14;
   letter-spacing: -0.02em;
-  text-wrap: balance;
+  text-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .z-hero-sub {
@@ -1463,7 +1464,7 @@ body {
   }
 
   .z-hero-title {
-    font-size: clamp(30px, 9vw, 40px);
+    font-size: clamp(23px, 6.8vw, 40px);
   }
 
   .z-hero-sub {
