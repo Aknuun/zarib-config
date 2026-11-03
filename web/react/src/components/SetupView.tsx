@@ -16,7 +16,7 @@ import type { SubConfig, SubState } from "../types";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
 import { geoTarget, pingTarget } from "../api";
-import { copyText, formatBytes } from "../utils";
+import { copyText } from "../utils";
 
 interface SetupViewProps {
   lang: Lang;
@@ -56,7 +56,6 @@ export function SetupView({
   const [busy, setBusy] = useState<Record<number, "ping" | "tunnel">>({});
   const [bulk, setBulk] = useState<"ping" | "tunnel" | null>(null);
 
-  const usage = sub.usage;
 
   async function runPing(config: SubConfig) {
     if (busy[config.index]) return;
@@ -174,40 +173,6 @@ export function SetupView({
               </strong>
               <Badge variant="secondary">{t("configCount", { n: sub.count })}</Badge>
             </div>
-            {usage ? (
-              <div className="z-usage">
-          {usage.remaining !== null && (
-            <span className="z-usage-item">
-              <span>{t("usageRemaining")}</span>
-              <b dir="ltr">{formatBytes(usage.remaining)}</b>
-            </span>
-          )}
-          <span className="z-usage-item">
-            <span>{t("usageUsed")}</span>
-            <b dir="ltr">{formatBytes(usage.used)}</b>
-          </span>
-          {usage.total !== null && (
-            <span className="z-usage-item">
-              <span>{t("usageTotalLabel")}</span>
-              <b dir="ltr">{formatBytes(usage.total)}</b>
-            </span>
-          )}
-          {usage.days_left !== null && (
-            <span className="z-usage-item">
-              {usage.days_left > 0 ? (
-                <>
-                  <b dir="ltr">{usage.days_left}</b>
-                  <span>{t("dayUnit")}</span>
-                </>
-              ) : (
-                <span>{t("expired")}</span>
-              )}
-            </span>
-          )}
-        </div>
-            ) : (
-              <p className="mt-1 text-[12px] text-kumo-subtle">{t("usageNone")}</p>
-            )}
           </div>
         </div>
 
