@@ -150,6 +150,10 @@ export function sendReport(input: {
   sub_url: string;
   result: unknown;
   meta?: Record<string, string>;
+  view?: string;
+  error_code?: string;
+  error_message?: string;
+  error_log?: string[];
 }) {
   return request<{ ok: boolean }>("/api/report", {
     method: "POST",

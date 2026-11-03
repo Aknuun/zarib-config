@@ -610,6 +610,15 @@ export default function App() {
   }, [finish, pollJob, runPicks]);
 
   const aggregate = useMemo(() => computeAggregate(results), [results]);
+  const reportError =
+    error ??
+    (inspectError
+      ? {
+          code: "inspect_failed",
+          message: inspectError.message,
+          log: inspectError.detail ? [inspectError.detail] : [],
+        }
+      : null);
   const currentBatch =
     batch || { total: 1, completed: 0, startedAt: Date.now() };
 
@@ -1018,6 +1027,7 @@ export default function App() {
               scrollTop();
             }}
             onNewSub={resetToLanding}
+            onReport={() => setReportOpen(true)}
           />
         )}
 
@@ -1034,6 +1044,8 @@ export default function App() {
           lang={lang}
           subUrl={sub?.url || ""}
           result={aggregate}
+          error={reportError}
+          view={view}
           onSent={showToast}
         />
       </div>

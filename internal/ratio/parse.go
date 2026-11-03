@@ -21,6 +21,13 @@ import (
 	"time"
 )
 
+type SubscriptionError struct {
+	Code    string
+	Message string
+}
+
+func (e *SubscriptionError) Error() string { return e.Message }
+
 type Usage struct {
 	Upload   int64  `json:"upload"`
 	Download int64  `json:"download"`
@@ -198,7 +205,20 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, nil, ratioErrorf("Subscription request failed with HTTP %d.", response.StatusCode)
+		code := "subscription_broken"
+		switch response.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			code = "subscription_unauthorized"
+		case http.StatusNotFound, http.StatusGone:
+			code = "subscription_not_found"
+		case http.StatusTooManyRequests:
+			code = "subscription_rate_limited"
+		default:
+			if response.StatusCode >= 500 {
+				code = "subscription_unavailable"
+			}
+		}
+		return nil, nil, &SubscriptionError{Code: code, Message: fmt.Sprintf("Subscription request failed with HTTP %d.", response.StatusCode)}
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, MaxSubBytes+1))
 	if err != nil {

@@ -68,10 +68,14 @@ type server struct {
 	staticDir       string
 	jobsDir         string
 	statsFile       string
+	reportsFile     string
 	telegramToken   string
 	telegramChatID  string
 	telegramAPIBase string
+	adminUser       string
+	adminPassword   string
 	mu              sync.Mutex
+	reportsMu       sync.Mutex
 	jobs            map[string]*job
 	rates           map[string]map[string][]time.Time
 	presence        map[string]float64
@@ -149,9 +153,12 @@ func Run(addr, staticDir string) error {
 		staticDir:       absoluteStatic,
 		jobsDir:         jobsDir,
 		statsFile:       filepath.Join(cacheRoot, "stats.json"),
+		reportsFile:     filepath.Join(cacheRoot, "reports.jsonl"),
 		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
 		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
 		telegramAPIBase: "https://api.telegram.org",
+		adminUser:       strings.TrimSpace(os.Getenv("ADMIN_USER")),
+		adminPassword:   os.Getenv("ADMIN_PASSWORD"),
 		jobs:            map[string]*job{},
 		rates:           map[string]map[string][]time.Time{},
 		presence:        map[string]float64{},
@@ -183,8 +190,11 @@ func (s *server) securityHeaders(next http.Handler) http.Handler {
 		if r.Header.Get("X-Forwarded-Proto") == "https" {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/admin") {
 			w.Header().Set("Cache-Control", "no-store")
+		}
+		if strings.HasPrefix(r.URL.Path, "/admin") {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -228,6 +238,23 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.report(w, r)
+	case path == "/admin" || path == "/admin/":
+		if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
+			return
+		}
+		s.adminPage(w, r)
+	case path == "/admin/api/stats":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.adminStats(w, r)
+	case path == "/admin/api/reports":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.adminReports(w, r)
+	case strings.HasPrefix(path, "/admin/"):
+		http.NotFound(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
 		s.jobRoute(w, r)
 	case path == "/":
@@ -304,15 +331,42 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 	}
 	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
 	if err != nil {
-		apiError(w, "fetch_failed", redactURLs(err.Error()), http.StatusBadRequest)
+		code := "fetch_failed"
+		status := http.StatusBadRequest
+		var subErr *ratio.SubscriptionError
+		if errors.As(err, &subErr) && subErr.Code != "" {
+			code = subErr.Code
+			switch code {
+			case "subscription_rate_limited":
+				status = http.StatusTooManyRequests
+			case "subscription_unavailable":
+				status = http.StatusBadGateway
+			}
+		}
+		apiError(w, code, redactURLs(err.Error()), status)
 		return
 	}
 	if viaProxy {
 		s.recordProxyUse()
 	}
 	usage := ratio.ParseUsage(headers, body)
+	if usage != nil {
+		if usage.Expire != nil && *usage.Expire > 0 && time.Unix(*usage.Expire, 0).Before(time.Now()) {
+			apiError(w, "subscription_expired", "This subscription has expired.", http.StatusBadRequest)
+			return
+		}
+		if usage.Total != nil && *usage.Total > 0 && usage.Used() >= *usage.Total {
+			apiError(w, "subscription_limited", "This subscription has no remaining volume.", http.StatusBadRequest)
+			return
+		}
+	}
 	configs := ratio.ExtractConfigs(body)
 	if len(configs) == 0 {
+		trimmed := strings.TrimSpace(string(body))
+		if strings.HasPrefix(trimmed, "<") || strings.Contains(strings.ToLower(trimmed), "<html") {
+			apiError(w, "subscription_broken", "The subscription response is not a valid config list.", http.StatusBadRequest)
+			return
+		}
 		apiError(w, "no_configs", "No supported configs found in the subscription.", http.StatusBadRequest)
 		return
 	}
@@ -1018,6 +1072,10 @@ func clientIP(r *http.Request) string {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
+	return decodeJSONLimit(w, r, target, 16*1024)
+}
+
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, target any, limit int64) error {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		if contentType := strings.ToLower(r.Header.Get("Content-Type")); !strings.HasPrefix(contentType, "application/json") {
 			return errors.New("content type must be application/json")
@@ -1032,7 +1090,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
 			return errors.New("cross-site request blocked")
 		}
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	return decoder.Decode(target)
 }

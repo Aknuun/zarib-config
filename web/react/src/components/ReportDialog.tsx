@@ -12,6 +12,8 @@ interface ReportDialogProps {
   lang: Lang;
   subUrl: string;
   result: Aggregate | null;
+  error?: { code: string; message: string; log: string[] } | null;
+  view?: string;
   onSent: (message: string) => void;
 }
 
@@ -21,6 +23,8 @@ export function ReportDialog({
   lang,
   subUrl,
   result,
+  error,
+  view,
   onSent,
 }: ReportDialogProps) {
   const t = (key: MessageKey) => translate(lang, key);
@@ -62,11 +66,16 @@ export function ReportDialog({
         cores: String(nav.hardwareConcurrency || ""),
         memory: String(nav.deviceMemory || ""),
         page: `${window.location.pathname}${window.location.hash}`,
+        view: view || "",
       };
       await sendReport({
         description: description.trim(),
         sub_url: link.trim(),
         meta,
+        view: view || "",
+        error_code: error?.code || "",
+        error_message: error?.message || "",
+        error_log: (error?.log || []).slice(-40),
         result: result
           ? {
               ratio: result.ratio,
@@ -115,6 +124,7 @@ export function ReportDialog({
               {t("reportPrivacy")}
             </Dialog.Description>
           <p className="mt-2 text-[12px] text-kumo-subtle">{t("reportMetaNote")}</p>
+          {error && <p className="mt-1 text-[12px] text-kumo-subtle">{t("reportErrorAttached")}</p>}
           </div>
           <Dialog.Close
             render={(props) => (

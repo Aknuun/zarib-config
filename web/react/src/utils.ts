@@ -129,6 +129,13 @@ export function errorKey(code: string | undefined) {
     "rate_limited",
     "busy",
     "duplicate_test",
+    "subscription_expired",
+    "subscription_limited",
+    "subscription_broken",
+    "subscription_unauthorized",
+    "subscription_not_found",
+    "subscription_rate_limited",
+    "subscription_unavailable",
     "cancelled",
     "pick_out_of_range",
     "invalid_input",
@@ -159,6 +166,16 @@ export function suggestionKey(code: string | undefined) {
       return "errorSuggestWait";
     case "duplicate_test":
       return "errorSuggestDuplicate";
+    case "subscription_expired":
+    case "subscription_limited":
+      return "errorSuggestSubscription";
+    case "subscription_broken":
+    case "subscription_unauthorized":
+    case "subscription_not_found":
+      return "errorSuggestLink";
+    case "subscription_rate_limited":
+    case "subscription_unavailable":
+      return "errorSuggestWait";
     default:
       return "errorSuggestDefault";
   }

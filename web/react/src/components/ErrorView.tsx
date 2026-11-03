@@ -1,5 +1,5 @@
 import { Button } from "@cloudflare/kumo";
-import { ArrowClockwise, ArrowLeft, WarningOctagon } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, PaperPlaneTilt, WarningOctagon } from "@phosphor-icons/react";
 import type { Lang } from "../i18n";
 import { localizeLog, translate, type MessageKey } from "../i18n";
 import { errorKey, suggestionKey } from "../utils";
@@ -13,6 +13,7 @@ interface ErrorViewProps {
   onRetry: () => void;
   onChooseConfig: () => void;
   onNewSub: () => void;
+  onReport: () => void;
 }
 
 export function ErrorView({
@@ -24,6 +25,7 @@ export function ErrorView({
   onRetry,
   onChooseConfig,
   onNewSub,
+  onReport,
 }: ErrorViewProps) {
   const t = (key: MessageKey) => translate(lang, key);
   const detail = [localizeLog(lang, message), ...log.slice(-20).map((line) => localizeLog(lang, line))]
@@ -67,6 +69,15 @@ export function ErrorView({
               {t("chooseConfig")}
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="lg"
+            className="h-12 justify-center text-[14px] max-sm:w-full"
+            icon={<PaperPlaneTilt size={18} />}
+            onClick={onReport}
+          >
+            {t("report")}
+          </Button>
           <Button
             variant="ghost"
             size="lg"
