@@ -1234,3 +1234,8 @@ body {
 .z-error-card,
 .z-error-text { text-align: center; }
 .z-error-actions { justify-content: center; }
+
+.z-privacy {
+  justify-content: center;
+  text-align: center;
+}
