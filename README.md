@@ -19,4 +19,5 @@ Set `ZARIB_UPDATE=1` to fetch the newest binary.
 - The subscription must expose `subscription-userinfo`.
 - Results are estimates. Panels can report usage late or count it differently.
 - Subscription links, configs, and test results are not stored.
-- Backups: `stats.json` in `/opt/v2ray-ratio/.cache/v2ray-ratio-web/` and `/etc/zarib-config/telegram.env`.
+- Error reports are stored without the subscription URL in `reports.jsonl` next to `stats.json`. The admin panel at `/admin` is enabled by setting `ADMIN_USER` and `ADMIN_PASSWORD` (for example in `/etc/zarib-config/admin.env`); without them it returns 503.
+- Backups: `stats.json` and `reports.jsonl` in `/opt/v2ray-ratio/.cache/v2ray-ratio-web/`, plus `/etc/zarib-config/telegram.env` and `/etc/zarib-config/admin.env`.

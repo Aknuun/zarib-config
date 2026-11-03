@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -16,10 +17,32 @@ import (
 )
 
 const (
-	maxReportDescription = 1500
-	maxReportSubURL      = 1500
-	maxReportPerHour     = 5
+	maxReportDescription  = 1500
+	maxReportSubURL       = 1500
+	maxReportPerHour      = 5
+	maxReportErrorMessage = 2000
+	maxReportErrorLog     = 40
+	maxReportErrorLine    = 1000
+	maxReportBodyBytes    = 128 << 10
+	maxReportsBytes       = 8 << 20
+	maxAdminReports       = 200
 )
+
+// storedReport is what the admin panel sees. It intentionally has no sub_url.
+type storedReport struct {
+	Time           string            `json:"time"`
+	Description    string            `json:"description"`
+	View           string            `json:"view,omitempty"`
+	ErrorCode      string            `json:"error_code,omitempty"`
+	ErrorMessage   string            `json:"error_message,omitempty"`
+	ErrorLog       []string          `json:"error_log,omitempty"`
+	Result         *reportResultIn   `json:"result,omitempty"`
+	IP             string            `json:"ip,omitempty"`
+	UserAgent      string            `json:"user_agent,omitempty"`
+	AcceptLanguage string            `json:"accept_language,omitempty"`
+	Referer        string            `json:"referer,omitempty"`
+	Meta           map[string]string `json:"meta,omitempty"`
+}
 
 var telegramClient = newTelegramClient()
 
@@ -34,10 +57,14 @@ func newTelegramClient() *http.Client {
 }
 
 type reportIn struct {
-	Description string            `json:"description"`
-	SubURL      string            `json:"sub_url"`
-	Result      *reportResultIn   `json:"result"`
-	Meta        map[string]string `json:"meta"`
+	Description  string            `json:"description"`
+	SubURL       string            `json:"sub_url"`
+	Result       *reportResultIn   `json:"result"`
+	Meta         map[string]string `json:"meta"`
+	View         string            `json:"view"`
+	ErrorCode    string            `json:"error_code"`
+	ErrorMessage string            `json:"error_message"`
+	ErrorLog     []string          `json:"error_log"`
 }
 
 type reportResultIn struct {
@@ -51,16 +78,12 @@ type reportResultIn struct {
 }
 
 func (s *server) report(w http.ResponseWriter, r *http.Request) {
-	if s.telegramToken == "" || s.telegramChatID == "" {
-		apiError(w, "report_disabled", "Reporting is not configured.", http.StatusServiceUnavailable)
-		return
-	}
 	if !s.rateLimit("report", clientIP(r), maxReportPerHour) {
 		apiError(w, "rate_limited", "Too many reports. Try again later.", http.StatusTooManyRequests)
 		return
 	}
 	var payload reportIn
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSONLimit(w, r, &payload, maxReportBodyBytes); err != nil {
 		apiError(w, "invalid_input", "Invalid request.", http.StatusUnprocessableEntity)
 		return
 	}
@@ -79,6 +102,27 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 			apiError(w, "invalid_url", "The subscription URL is not valid.", http.StatusBadRequest)
 			return
 		}
+	}
+	record := storedReport{
+		Time:           time.Now().UTC().Format(time.RFC3339Nano),
+		Description:    redactURLs(description),
+		View:           truncateText(strings.TrimSpace(payload.View), 64),
+		ErrorCode:      truncateText(strings.TrimSpace(payload.ErrorCode), 80),
+		ErrorMessage:   truncateText(redactURLs(strings.TrimSpace(payload.ErrorMessage)), maxReportErrorMessage),
+		ErrorLog:       sanitizeReportLog(payload.ErrorLog),
+		Result:         payload.Result,
+		IP:             clientIP(r),
+		UserAgent:      truncateText(r.UserAgent(), 500),
+		AcceptLanguage: truncateText(r.Header.Get("Accept-Language"), 200),
+		Referer:        truncateText(r.Header.Get("Referer"), 500),
+		Meta:           sanitizeReportMeta(payload.Meta),
+	}
+	if err := s.storeReport(record); err != nil {
+		fmt.Printf("report: could not store: %v\n", err)
+	}
+	if s.telegramToken == "" || s.telegramChatID == "" {
+		apiError(w, "report_disabled", "Reporting is not configured.", http.StatusServiceUnavailable)
+		return
 	}
 	text := buildReportMessage(description, subURL, payload.Result, reportDetails(r, payload.Meta))
 	if err := s.sendTelegram(text); err != nil {
@@ -113,6 +157,7 @@ func reportDetails(r *http.Request, meta map[string]string) []string {
 		{"cores", "هسته CPU"},
 		{"memory", "حافظه GB"},
 		{"page", "صفحه"},
+		{"view", "بخش"},
 	}
 	for _, item := range labels {
 		add(item.label, meta[item.key])
@@ -215,4 +260,120 @@ func truncateText(value string, limit int) string {
 	}
 	runes := []rune(value)
 	return string(runes[:limit])
+}
+
+func sanitizeReportLog(lines []string) []string {
+	if len(lines) == 0 {
+		return nil
+	}
+	if len(lines) > maxReportErrorLog {
+		lines = lines[len(lines)-maxReportErrorLog:]
+	}
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t\r\n")
+		if line == "" {
+			continue
+		}
+		out = append(out, truncateText(redactURLs(line), maxReportErrorLine))
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func sanitizeReportMeta(meta map[string]string) map[string]string {
+	if len(meta) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(meta))
+	for key, value := range meta {
+		key = truncateText(strings.TrimSpace(key), 40)
+		if key == "" {
+			continue
+		}
+		out[key] = truncateText(redactURLs(strings.TrimSpace(value)), 500)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// storeReport appends one JSON line to reports.jsonl, syncing before returning.
+// The file is rotated to reports.jsonl.1 once it reaches maxReportsBytes.
+func (s *server) storeReport(record storedReport) error {
+	if s.reportsFile == "" {
+		return nil
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	s.reportsMu.Lock()
+	defer s.reportsMu.Unlock()
+	if info, err := os.Stat(s.reportsFile); err == nil && info.Size()+int64(len(data)) > maxReportsBytes {
+		_ = os.Remove(s.reportsFile + ".1")
+		if err := os.Rename(s.reportsFile, s.reportsFile+".1"); err != nil {
+			return err
+		}
+	}
+	file, err := os.OpenFile(s.reportsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
+}
+
+// readReports returns up to limit reports, newest first, including the rotated file.
+func (s *server) readReports(limit int) ([]storedReport, error) {
+	if s.reportsFile == "" {
+		return []storedReport{}, nil
+	}
+	s.reportsMu.Lock()
+	defer s.reportsMu.Unlock()
+	var all []storedReport
+	for _, path := range []string{s.reportsFile + ".1", s.reportsFile} {
+		file, err := os.Open(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 4096), 256*1024)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			var record storedReport
+			if json.Unmarshal([]byte(line), &record) == nil {
+				all = append(all, record)
+			}
+		}
+		err = scanner.Err()
+		file.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if limit > 0 && len(all) > limit {
+		all = all[len(all)-limit:]
+	}
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+	return all, nil
 }

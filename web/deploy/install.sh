@@ -54,6 +54,10 @@ if { [ -n "${TELEGRAM_TOKEN:-}" ] && [ -z "${TELEGRAM_CHAT_ID:-}" ]; } ||
    { [ -z "${TELEGRAM_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; }; then
   die "Set both TELEGRAM_TOKEN and TELEGRAM_CHAT_ID, or neither."
 fi
+if { [ -n "${ADMIN_USER:-}" ] && [ -z "${ADMIN_PASSWORD:-}" ]; } ||
+   { [ -z "${ADMIN_USER:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; }; then
+  die "Set both ADMIN_USER and ADMIN_PASSWORD, or neither."
+fi
 
 TMP="$(mktemp -d)"
 cleanup() { [ -n "${TMP:-}" ] && rm -rf "$TMP"; }
@@ -167,6 +171,16 @@ if [ -n "${TELEGRAM_TOKEN:-}" ]; then
   chmod 0600 /etc/zarib-config/telegram.env
 fi
 
+if [ -n "${ADMIN_USER:-}" ]; then
+  mkdir -p /etc/zarib-config
+  (
+    umask 077
+    printf 'ADMIN_USER=%s\nADMIN_PASSWORD=%s\n' \
+      "$ADMIN_USER" "$ADMIN_PASSWORD" > /etc/zarib-config/admin.env
+  )
+  chmod 0600 /etc/zarib-config/admin.env
+fi
+
 log "Installing the systemd service ..."
 sed "s|/opt/v2ray-ratio|$APP_DIR|g" "$SRC/web/deploy/v2ray-ratio.service" \
   > /etc/systemd/system/v2ray-ratio.service
@@ -213,6 +227,12 @@ if [ -f /etc/zarib-config/telegram.env ]; then
   log "Telegram error reports: enabled (/etc/zarib-config/telegram.env)."
 else
   log "Telegram error reports: disabled (set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID to enable)."
+fi
+
+if [ -f /etc/zarib-config/admin.env ]; then
+  log "Admin panel: enabled at /admin (/etc/zarib-config/admin.env)."
+else
+  log "Admin panel: disabled (set ADMIN_USER and ADMIN_PASSWORD to enable)."
 fi
 
 log "Done. Open https://$DOMAIN (or http://$DOMAIN if HTTPS was skipped)."
