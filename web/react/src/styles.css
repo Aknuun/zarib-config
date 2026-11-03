@@ -1616,3 +1616,15 @@ body {
   border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
   background: var(--color-kumo-tint);
 }
+
+html[lang="fa"] .z-hero-title {
+  white-space: nowrap;
+  text-wrap: nowrap;
+  max-width: none;
+}
+html[lang="en"] .z-hero-title {
+  white-space: normal;
+  text-wrap: balance;
+  max-width: 22ch;
+  font-size: clamp(30px, 6.4vw, 48px);
+}
