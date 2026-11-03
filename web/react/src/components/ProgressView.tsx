@@ -4,7 +4,6 @@ import {
   BookOpen,
   CheckCircle,
   DownloadSimple,
-  WarningCircle,
 } from "@phosphor-icons/react";
 import type { Job } from "../types";
 import type { Lang } from "../i18n";
@@ -183,12 +182,6 @@ export function ProgressView({
           >
             {t("cancelTest")}
           </Button>
-          {job?.status === "running" && (
-            <span className="flex items-center gap-1 text-[12px] text-kumo-subtle">
-              <WarningCircle size={14} aria-hidden="true" />
-              {t("serverNote")}
-            </span>
-          )}
         </div>
 
         <details className="z-details z-log-details">

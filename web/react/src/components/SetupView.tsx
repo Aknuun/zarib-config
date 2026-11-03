@@ -8,7 +8,6 @@ import {
   GlobeHemisphereWest,
   Play,
   Pulse,
-  Cloud,
   Trash,
   WarningCircle,
   XCircle,
@@ -314,7 +313,6 @@ export function SetupView({
                   {config.tunnel !== undefined && config.tunnel !== null && (
                     <Badge
                       variant={config.tunnel ? "success" : "neutral"}
-                      className="max-[400px]:hidden"
                     >
                       {config.tunnel ? t("tunnel") : t("normal")}
                     </Badge>
@@ -430,10 +428,6 @@ export function SetupView({
           <p className="z-start-note">
             <WarningCircle size={14} aria-hidden="true" />
             {t("idleHint")}
-          </p>
-          <p className="z-start-note">
-            <Cloud size={14} aria-hidden="true" />
-            {t("serverNote")}
           </p>
         </div>
           </div>
