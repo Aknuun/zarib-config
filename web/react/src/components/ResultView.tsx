@@ -224,7 +224,7 @@ export function ResultView({
         <div className="z-result-actions">
           <div className="z-action-grid">
             <Button
-              variant="primary"
+              variant="secondary"
               size="lg"
               className="col-span-2 h-12 w-full justify-center text-[14px] sm:col-span-1"
               icon={<ArrowClockwise size={18} />}
