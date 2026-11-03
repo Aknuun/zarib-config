@@ -415,7 +415,7 @@ export function SetupView({
 
         <div className="z-start">
           {selected.size > 1 ? (
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid w-full grid-cols-2 gap-2">
               <Button
                 variant="primary"
                 size="lg"
@@ -425,7 +425,7 @@ export function SetupView({
                 disabled={starting}
                 onClick={onStart}
               >
-                {t("startN", { n: selected.size })}
+                {t("testSerial")}
               </Button>
               <Button
                 variant="secondary"
@@ -434,7 +434,7 @@ export function SetupView({
                 disabled={starting}
                 onClick={onStartAll}
               >
-                {t("startAll")}
+                {t("testParallel")}
               </Button>
             </div>
           ) : (
