@@ -102,7 +102,7 @@ export function ReportDialog({
                 {...props}
                 variant="ghost"
                 shape="square"
-                className="size-11 shrink-0"
+                className="z-btn-ghost size-11 shrink-0"
                 icon={<X size={19} />}
                 aria-label={t("close")}
               />
@@ -110,7 +110,7 @@ export function ReportDialog({
           />
         </div>
 
-        <form className="mt-4 space-y-3" noValidate onSubmit={submit}>
+        <form className="z-report-form" noValidate onSubmit={submit}>
           <div>
             <label htmlFor="report-description" className="z-field-label">
               {t("reportDescription")}
@@ -123,7 +123,7 @@ export function ReportDialog({
               value={description}
               placeholder={t("reportDescriptionPlaceholder")}
               onChange={(event) => setDescription(event.target.value)}
-              className="min-h-28 text-[16px] sm:text-[14px]"
+              className="min-h-28 w-full text-[16px] sm:text-[14px]"
             />
           </div>
           <div>
@@ -137,7 +137,7 @@ export function ReportDialog({
               type="url"
               maxLength={1500}
               value={link}
-              className="h-11 text-[16px] sm:text-[14px]"
+              className="h-11 w-full text-[16px] sm:text-[14px]"
               placeholder="https://…"
               onChange={(event) => setLink(event.target.value)}
             />
@@ -160,7 +160,7 @@ export function ReportDialog({
             </Button>
             <Dialog.Close
               render={(props) => (
-                <Button {...props} variant="ghost" className="min-h-11 min-w-11 px-3 text-[13px]">
+                <Button {...props} variant="ghost" className="z-btn-ghost min-h-11 min-w-11 px-3 text-[13px]">
                   {t("cancel")}
                 </Button>
               )}

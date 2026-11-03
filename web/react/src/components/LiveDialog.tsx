@@ -58,7 +58,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
                 {...props}
                 variant="ghost"
                 shape="square"
-                className="size-11 shrink-0"
+                className="z-btn-ghost size-11 shrink-0"
                 icon={<X size={19} />}
                 aria-label={t("close")}
               />
@@ -80,8 +80,8 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
           className="z-live-tabs mt-3"
         />
 
-        <div className="mt-3 space-y-3">
-          <section>
+        <div className="z-dialog-tiles mt-3">
+          <section className="z-dialog-tile">
             <h3 className="z-live-group">{t("traffic")}</h3>
             <dl>
               {row(t("statDownloaded"), live ? formatBytes(bucket?.downloaded || 0) : "—")}
@@ -89,7 +89,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
             </dl>
           </section>
 
-          <section>
+          <section className="z-dialog-tile">
             <h3 className="z-live-group">{t("tests")}</h3>
             <dl>
               {row(t("statTests"), live ? String(tests) : "—")}
@@ -101,7 +101,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
             </dl>
           </section>
 
-          <section>
+          <section className="z-dialog-tile">
             <h3 className="z-live-group">{t("quality")}</h3>
             <dl>
               {row(t("statOnline"), live ? String(live.online) : "—")}

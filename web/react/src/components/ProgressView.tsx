@@ -106,7 +106,7 @@ export function ProgressView({
 
   return (
     <main className="z-container z-page z-progress-page">
-      <section className="z-card z-progress-card" aria-labelledby="progress-title">
+      <section className="z-tile z-progress-card" aria-labelledby="progress-title">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="z-eyebrow">{t("progressEyebrow")}</p>
@@ -160,7 +160,9 @@ export function ProgressView({
             );
           })}
         </ol>
+      </section>
 
+      <section className="z-tile z-stage-card">
         <div className="z-stage">
           <div className="z-stage-head">
             <span className="z-stage-label">{stageLabel}</span>

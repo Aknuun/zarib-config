@@ -33,7 +33,7 @@ export function ErrorView({
 
   return (
     <main className="z-container z-page z-error-page">
-      <section className="z-card z-error-card" role="alert">
+      <section className="z-tile z-error-card" role="alert">
         <span className="z-error-icon" aria-hidden="true">
           <WarningOctagon size={26} />
         </span>

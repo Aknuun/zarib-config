@@ -88,43 +88,122 @@ export function ResultView({
 
   return (
     <main className="z-container z-page z-result-page">
-      <section className="z-card z-result-card" aria-live="polite">
-        <h1 className="sr-only">{t("resultEyebrow")}</h1>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="z-eyebrow">{t("resultEyebrow")}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {batch ? (
-              <Badge variant="secondary">{t("batchBadge", { n: aggregate.count })}</Badge>
-            ) : aggregate.count > 1 ? (
-              <Badge variant="secondary">{t("averageNote", { n: aggregate.count })}</Badge>
-            ) : null}
-            {invalid ? (
-              <Badge variant="error">{t("badgeInvalid")}</Badge>
-            ) : noRatio ? (
-              <Badge variant="success">{t("badgeNoRatio")}</Badge>
-            ) : high ? (
-              <Badge variant="warning">{t("badgeHigh")}</Badge>
-            ) : null}
+      <div className={`z-result-grid${batch ? " is-batch" : ""}`}>
+        <section className="z-tile z-result-card" aria-live="polite">
+          <h1 className="sr-only">{t("resultEyebrow")}</h1>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="z-eyebrow">{t("resultEyebrow")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {batch ? (
+                <Badge variant="secondary">{t("batchBadge", { n: aggregate.count })}</Badge>
+              ) : aggregate.count > 1 ? (
+                <Badge variant="secondary">{t("averageNote", { n: aggregate.count })}</Badge>
+              ) : null}
+              {invalid ? (
+                <Badge variant="error">{t("badgeInvalid")}</Badge>
+              ) : noRatio ? (
+                <Badge variant="success">{t("badgeNoRatio")}</Badge>
+              ) : high ? (
+                <Badge variant="warning">{t("badgeHigh")}</Badge>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        <div className={`z-coef z-tone-${tone}`} dir="ltr">
-          <span>{ratioNumber(aggregate.ratio)}</span>
-          <span className="z-coef-unit">×</span>
-        </div>
+          <div className={`z-coef z-tone-${tone}`} dir="ltr">
+            <span>{ratioNumber(aggregate.ratio)}</span>
+            <span className="z-coef-unit">×</span>
+          </div>
 
-        <Ruler
-          percent={ratioPercent(aggregate.ratio)}
-          tone={tone}
-          labels
-          ariaLabel={t("rulerAria")}
-          className="z-result-ruler"
-        />
+          <Ruler
+            percent={ratioPercent(aggregate.ratio)}
+            tone={tone}
+            labels
+            ariaLabel={t("rulerAria")}
+            className="z-result-ruler"
+          />
 
-        <p className="z-verdict">{verdict}</p>
+          <p className="z-verdict">{verdict}</p>
 
-        {batch && <p className="z-hint">{t("batchNote")}</p>}
+          {batch && <p className="z-hint">{t("batchNote")}</p>}
 
+          {notes.length > 0 && (
+            <ul className="z-notes">
+              {notes.map((note) => (
+                <li key={note}>
+                  <WarningCircle size={14} aria-hidden="true" />
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {!batch && (
+          <section
+            className="z-tile z-tile--perconfig z-result-list-card"
+            aria-labelledby="per-config-title"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="per-config-title" className="text-[14px] font-semibold">
+                {t("perConfig")}
+              </h2>
+              <span className="z-num text-[12px] text-kumo-subtle">
+                {formatDate(aggregate.testedAt, lang)}
+              </span>
+            </div>
+            <div className="z-result-list">
+              {rows.map((row) => {
+                const name = row.config.remark || `#${row.pick}`;
+                const ratio = row.result ? Number(row.result.ratio) || 0 : null;
+                const rowTone = ratio === null ? "danger" : ratioTone(ratio);
+                const deducted = row.result
+                  ? Math.max(
+                      0,
+                      (Number(row.result.delta_total) || 0) -
+                        (Number(row.result.background_bytes_in_test) || 0),
+                    )
+                  : 0;
+                return (
+                  <div key={`${row.pick}-${name}`} className="z-result-row">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate text-[13px] font-medium">{name}</span>
+                      {ratio === null ? (
+                        <span className="shrink-0 text-[12px] text-kumo-danger">
+                          {t("invalidRow")}
+                        </span>
+                      ) : (
+                        <span className="flex shrink-0 items-baseline gap-1.5">
+                          {isInvalidRatio(ratio) && (
+                            <span className="text-[12px] text-kumo-danger">
+                              {t("invalidRow")}
+                            </span>
+                          )}
+                          <span className={`z-num z-result-row-ratio z-tone-${rowTone}`}>
+                            {formatRatio(ratio)}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                    {ratio !== null && (
+                      <span className="z-num mt-0.5 block text-[12px] text-kumo-subtle" dir="ltr">
+                        {formatBytes(row.result?.downloaded_bytes || 0)} →{" "}
+                        {formatBytes(deducted)}
+                      </span>
+                    )}
+                    {row.errorCode && (
+                      <span className="mt-0.5 block text-[12px] text-kumo-danger">
+                        {t(errorKey(row.errorCode) as MessageKey)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <section className="z-tile z-tile--stats">
         <dl className="z-result-stats">
           <div>
             <dt>{t("downloaded")}</dt>
@@ -139,123 +218,53 @@ export function ResultView({
             <dd className="z-num">{formatDuration(aggregate.duration)}</dd>
           </div>
         </dl>
-
-        {notes.length > 0 && (
-          <ul className="z-notes">
-            {notes.map((note) => (
-              <li key={note}>
-                <WarningCircle size={14} aria-hidden="true" />
-                <span>{note}</span>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
-      {!batch && (
-      <section className="z-card z-result-list-card" aria-labelledby="per-config-title">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 id="per-config-title" className="text-[14px] font-semibold">
-            {t("perConfig")}
-          </h2>
-          <span className="z-num text-[12px] text-kumo-subtle">
-            {formatDate(aggregate.testedAt, lang)}
-          </span>
-        </div>
-        <div className="z-result-list">
-          {rows.map((row) => {
-            const name = row.config.remark || `#${row.pick}`;
-            const ratio = row.result ? Number(row.result.ratio) || 0 : null;
-            const rowTone = ratio === null ? "danger" : ratioTone(ratio);
-            const deducted = row.result
-              ? Math.max(
-                  0,
-                  (Number(row.result.delta_total) || 0) -
-                    (Number(row.result.background_bytes_in_test) || 0),
-                )
-              : 0;
-            return (
-              <div key={`${row.pick}-${name}`} className="z-result-row">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[13px] font-medium">{name}</span>
-                  {ratio === null ? (
-                    <span className="shrink-0 text-[12px] text-kumo-danger">
-                      {t("invalidRow")}
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 items-baseline gap-1.5">
-                      {isInvalidRatio(ratio) && (
-                        <span className="text-[12px] text-kumo-danger">
-                          {t("invalidRow")}
-                        </span>
-                      )}
-                      <span className={`z-num z-result-row-ratio z-tone-${rowTone}`}>
-                        {formatRatio(ratio)}
-                      </span>
-                    </span>
-                  )}
-                </div>
-                {ratio !== null && (
-                  <span className="z-num mt-0.5 block text-[12px] text-kumo-subtle" dir="ltr">
-                    {formatBytes(row.result?.downloaded_bytes || 0)} →{" "}
-                    {formatBytes(deducted)}
-                  </span>
-                )}
-                {row.errorCode && (
-                  <span className="mt-0.5 block text-[12px] text-kumo-danger">
-                    {t(errorKey(row.errorCode) as MessageKey)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+      <section className="z-tile z-tile--actions">
+        <div className="z-result-actions">
+          <div className="z-action-grid">
+            <Button
+              variant="primary"
+              size="lg"
+              className="col-span-2 h-12 w-full justify-center text-[14px] sm:col-span-1"
+              icon={<ArrowClockwise size={18} />}
+              onClick={onRetest}
+            >
+              {t("retest")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="h-12 w-full justify-center text-[14px]"
+              icon={<ShareNetwork size={18} />}
+              loading={sharing}
+              onClick={onShare}
+            >
+              {sharing ? t("sharing") : t("share")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="h-12 w-full justify-center text-[14px]"
+              icon={<Plus size={18} />}
+              onClick={onNewSub}
+            >
+              {t("newSub")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="col-span-2 h-12 w-full justify-center text-[14px] text-kumo-subtle sm:col-span-1"
+              icon={<WarningCircle size={18} />}
+              onClick={onReport}
+            >
+              {t("report")}
+            </Button>
+          </div>
         </div>
       </section>
-      )}
 
-      <div className="z-result-actions">
-        <div className="grid w-full grid-cols-2 gap-2">
-          <Button
-            variant="primary"
-            size="lg"
-            className="col-span-2 h-12 w-full justify-center text-[14px] sm:col-span-1"
-            icon={<ArrowClockwise size={18} />}
-            onClick={onRetest}
-          >
-            {t("retest")}
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="h-12 w-full justify-center text-[14px]"
-            icon={<ShareNetwork size={18} />}
-            loading={sharing}
-            onClick={onShare}
-          >
-            {sharing ? t("sharing") : t("share")}
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="h-12 w-full justify-center text-[14px]"
-            icon={<Plus size={18} />}
-            onClick={onNewSub}
-          >
-            {t("newSub")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            className="col-span-2 h-12 w-full justify-center text-[14px] text-kumo-subtle sm:col-span-1"
-            icon={<WarningCircle size={18} />}
-            onClick={onReport}
-          >
-            {t("report")}
-          </Button>
-        </div>
-      </div>
-
-      <details className="z-card z-brand-details">
+      <details className="z-tile z-brand-details">
         <summary>
           <span className="flex items-center gap-2">
             <ImageSquare size={18} aria-hidden="true" />
@@ -296,7 +305,7 @@ export function ResultView({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="mt-1 min-h-11 px-2 text-[12px] text-kumo-danger"
+                  className="mt-1 min-h-11 px-3 text-[12px] text-kumo-danger"
                   icon={<X size={14} />}
                   onClick={onClearLogo}
                 >
@@ -315,7 +324,7 @@ export function ResultView({
               size="sm"
               maxLength={60}
               value={brandName}
-              className="h-11 text-[16px] sm:text-[14px]"
+              className="h-11 w-full text-[16px] sm:text-[14px]"
               placeholder={t("brandNamePlaceholder")}
               onChange={(event) => onBrandName(event.target.value)}
             />

@@ -73,10 +73,46 @@
   unicode-range: U+0000-00FF, U+0100-024F, U+2000-206F, U+20AC, U+2122, U+2191, U+2193;
 }
 
+/* ---------------------------------------------------------------- tokens */
+
 :root {
-  --z-radius: 18px;
-  --z-header-h: 57px;
+  --z-radius: 14px;
+  --z-radius-sm: 10px;
+  --z-radius-lg: 16px;
+  --z-header-h: 64px;
+  --z-gap: 16px;
+  --z-pad: 24px;
+  --z-pad-sm: 16px;
+  --z-shadow: 0 1px 2px var(--color-kumo-shadow-drop),
+    0 18px 36px -30px var(--color-kumo-shadow-drop);
+  --z-shadow-raised: 0 1px 2px var(--color-kumo-shadow-drop),
+    0 6px 16px -12px var(--color-kumo-shadow-drop);
+  --z-tile-bg: var(--color-kumo-base);
+  --z-tile-border: var(--color-kumo-line);
+  --color-kumo-brand: #1d4ed8;
 }
+
+[data-theme="dark"] {
+  --color-kumo-brand: #3b82f6;
+  --z-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 18px 40px -30px rgba(0, 0, 0, 0.9);
+  --z-shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px -16px rgba(0, 0, 0, 0.8);
+}
+
+/* Keep every primary action the same blue as the logo tile. */
+:root {
+  --kumo-button-emphasis-bg: #1d4ed8;
+  --kumo-button-emphasis-gradient-start: #1d4ed8;
+  --kumo-button-emphasis-gradient-end: #1d4ed8;
+  --kumo-button-emphasis-ring: #1d4ed8;
+}
+[data-theme="dark"] {
+  --kumo-button-emphasis-bg: #3b82f6;
+  --kumo-button-emphasis-gradient-start: #3b82f6;
+  --kumo-button-emphasis-gradient-end: #3b82f6;
+  --kumo-button-emphasis-ring: #3b82f6;
+}
+
+/* ------------------------------------------------------------------ base */
 
 * {
   box-sizing: border-box;
@@ -121,10 +157,16 @@ body {
 
 .z-container {
   width: 100%;
-  max-width: 780px;
+  max-width: 1120px;
   margin-inline: auto;
-  padding-inline: clamp(16px, 4.5vw, 24px);
+  padding-inline: clamp(16px, 4vw, 24px);
 }
+
+.z-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- header */
 
 .z-header {
   position: sticky;
@@ -135,12 +177,16 @@ body {
   backdrop-filter: blur(12px);
 }
 
+.z-header > div {
+  height: var(--z-header-h);
+}
+
 .z-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--z-radius-sm);
   color: inherit;
   text-decoration: none;
 }
@@ -152,12 +198,13 @@ body {
 .z-live-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   height: 44px;
-  padding-inline: 10px;
+  padding-inline: 12px;
   border: 1px solid var(--color-kumo-line);
   border-radius: 999px;
   background: var(--color-kumo-base);
+  box-shadow: var(--z-shadow-raised);
   color: var(--text-color-kumo-default);
   cursor: pointer;
   transition: background 160ms ease, border-color 160ms ease;
@@ -165,6 +212,7 @@ body {
 
 .z-live-pill:hover {
   background: var(--color-kumo-tint);
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 35%, var(--color-kumo-line));
 }
 
 .z-live-dot {
@@ -175,9 +223,174 @@ body {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-kumo-success) 18%, transparent);
 }
 
-.z-num {
-  font-variant-numeric: tabular-nums;
+/* ----------------------------------------------------------------- tiles */
+
+.z-tile {
+  position: relative;
+  padding: var(--z-pad);
+  border: 1px solid var(--z-tile-border);
+  border-radius: var(--z-radius);
+  background: var(--z-tile-bg);
+  box-shadow: var(--z-shadow);
 }
+
+.z-tile--hero {
+  padding: clamp(24px, 4vw, 40px);
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 18%, var(--color-kumo-line));
+  background: color-mix(in oklab, var(--color-kumo-brand) 4%, var(--color-kumo-base));
+}
+
+.z-tile--start {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 22%, var(--color-kumo-line));
+  background: color-mix(in oklab, var(--color-kumo-brand) 5%, var(--color-kumo-base));
+}
+
+.z-tile--recessed {
+  box-shadow: none;
+  background: var(--color-kumo-recessed);
+}
+
+.z-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-hint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-color-kumo-subtle);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+/*
+ * Kumo's ghost is text-only and secondary relies on a ring that the previous
+ * global box-shadow reset erased. Give every button a visible surface, while
+ * keeping Kumo's focus-visible outline (the app-level :focus-visible rule).
+ */
+[data-kumo-component="Button"] {
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 600;
+  background-image: none !important;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+[data-kumo-component="Button"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+[data-kumo-component="Button"][class*="bg-inherit"] {
+  border: 1px solid var(--color-kumo-line);
+  background-color: var(--color-kumo-tint);
+  box-shadow: var(--z-shadow-raised);
+}
+
+[data-kumo-component="Button"][class*="bg-inherit"]:not(:disabled):hover {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
+  background-color: var(--color-kumo-elevated);
+}
+
+[data-kumo-component="Button"][class*="bg-inherit"][class*="text-kumo-danger"] {
+  border-color: color-mix(in oklab, var(--color-kumo-danger) 28%, var(--color-kumo-line));
+  background-color: var(--color-kumo-danger-tint);
+}
+
+[data-kumo-component="Button"][class*="bg-inherit"][class*="text-kumo-danger"]:not(:disabled):hover {
+  border-color: color-mix(in oklab, var(--color-kumo-danger) 55%, var(--color-kumo-line));
+}
+
+[data-kumo-component="Button"].ring-kumo-line {
+  border: 1px solid var(--color-kumo-line);
+  background-color: var(--color-kumo-base);
+  box-shadow: var(--z-shadow-raised);
+}
+
+[data-kumo-component="Button"].ring-kumo-line:not(:disabled):hover {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
+  background-color: var(--color-kumo-tint);
+}
+
+[data-kumo-component="Button"].ring-kumo-line[class*="text-kumo-danger"] {
+  border-color: color-mix(in oklab, var(--color-kumo-danger) 30%, var(--color-kumo-line));
+}
+
+[data-kumo-component="Button"][class*="kumo-button-emphasis-bg"] {
+  border: 1px solid color-mix(in oklab, var(--color-kumo-brand) 78%, #000);
+  background-color: var(--color-kumo-brand) !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px var(--color-kumo-shadow-drop),
+    0 8px 18px -12px color-mix(in oklab, var(--color-kumo-brand) 55%, transparent);
+}
+
+[data-kumo-component="Button"][class*="kumo-button-emphasis-bg"]:not(:disabled):hover {
+  background-color: color-mix(in oklab, var(--color-kumo-brand) 88%, #000) !important;
+}
+
+[data-kumo-component="Button"] svg {
+  flex: 0 0 auto;
+}
+
+.z-btn-ghost {
+  min-height: 44px;
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 12px;
+  background-color: var(--color-kumo-tint);
+  box-shadow: var(--z-shadow-raised);
+  font-weight: 600;
+}
+
+.z-btn-ghost:hover {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
+  background-color: var(--color-kumo-elevated);
+}
+
+/* ------------------------------------------------------------------ page */
+
+.z-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--z-gap);
+  padding-block: 24px 48px;
+}
+
+.z-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: center;
+}
+
+.z-page-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.z-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.z-page-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-color-kumo-subtle);
+}
+
+/* --------------------------------------------------------------- landing */
 
 .z-landing {
   display: flex;
@@ -191,128 +404,104 @@ body {
   flex: 1;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(18px, 3.2vh, 28px);
-  max-width: 680px;
-  padding-block: clamp(20px, 5vh, 56px) 14px;
+  gap: var(--z-gap);
+  max-width: 920px;
+  padding-block: clamp(24px, 6vh, 64px) 24px;
+}
+
+.z-hero {
+  text-align: center;
 }
 
 .z-hero-title {
-  max-width: 16ch;
-  font-size: clamp(30px, 7.2vw, 50px);
+  max-width: 18ch;
+  margin-inline: auto;
+  font-size: clamp(32px, 5.4vw, 52px);
   font-weight: 800;
-  line-height: 1.16;
+  line-height: 1.14;
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .z-hero-sub {
-  max-width: 42ch;
-  margin-top: 10px;
+  max-width: 44ch;
+  margin: 12px auto 0;
   font-size: 14px;
   line-height: 1.8;
   color: var(--text-color-kumo-subtle);
 }
 
-.z-sample-ruler {
-  max-width: 380px;
-  margin-top: 14px;
+.z-sample-tile {
+  max-width: 520px;
+  margin: 24px auto 0;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--z-radius-sm);
+  background: var(--color-kumo-base);
 }
 
-.z-card {
-  border: 1px solid var(--color-kumo-line);
-  border-radius: var(--z-radius);
-  background: var(--color-kumo-base);
-  box-shadow: 0 1px 2px var(--color-kumo-shadow-drop);
+.z-sample-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-sample-note {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-color-kumo-subtle);
 }
 
 .z-input-card {
-  padding: 16px;
-}
-
-.z-field-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-color-kumo-subtle);
-}
-
-.z-privacy {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  font-size: 12px;
-  color: var(--text-color-kumo-subtle);
+  padding: clamp(16px, 3vw, 24px);
 }
 
 .z-inline-error {
   margin-top: 12px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-danger) 24%, var(--color-kumo-line));
+  border-radius: var(--z-radius-sm);
   background: var(--color-kumo-danger-tint);
   color: var(--text-color-kumo-danger);
   font-size: 13px;
   line-height: 1.7;
 }
 
-.z-eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-color-kumo-subtle);
-}
-
-.z-how {
-  padding-top: 14px;
-  border-top: 1px solid var(--color-kumo-line);
-}
-
-.z-how-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 8px;
-  padding: 0;
-  list-style: none;
-}
-
-.z-how-item {
+.z-privacy-tile {
   display: flex;
-  align-items: flex-start;
-  gap: 7px;
-}
-
-.z-how-num {
-  display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: var(--color-kumo-brand);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.z-how-item h3 {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.z-how-item p {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 1.6;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-kumo-hairline);
+  border-radius: var(--z-radius-sm);
+  background: var(--color-kumo-recessed);
   color: var(--text-color-kumo-subtle);
+  font-size: 12px;
+  text-align: center;
 }
 
 .z-footer {
-  border-top: 1px solid var(--color-kumo-line);
+  border-top: 1px solid var(--color-kumo-hairline);
+  background: color-mix(in oklab, var(--color-kumo-canvas) 92%, transparent);
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+.z-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding-block: 8px;
+}
+
+/* ----------------------------------------------------------------- ruler */
 
 .z-ruler {
   position: relative;
@@ -368,6 +557,15 @@ body {
   fill: var(--color-kumo-danger);
 }
 
+.z-ruler-brand line,
+.z-ruler-marker.z-ruler-brand {
+  stroke: var(--color-kumo-brand);
+}
+
+.z-ruler-dot.z-ruler-brand {
+  fill: var(--color-kumo-brand);
+}
+
 .z-ruler-labels {
   position: relative;
   height: 14px;
@@ -401,6 +599,8 @@ body {
 .z-tone-danger {
   color: var(--text-color-kumo-danger);
 }
+
+/* --------------------------------------------------------------- details */
 
 .z-details {
   margin-top: 12px;
@@ -439,7 +639,7 @@ body {
   margin: 8px 0 0;
   padding: 12px;
   overflow: auto;
-  border-radius: 10px;
+  border-radius: var(--z-radius-sm);
   background: var(--color-kumo-recessed);
   color: var(--text-color-kumo-default);
   font-family: var(--font-mono);
@@ -459,59 +659,100 @@ body {
   min-height: 32px;
 }
 
-.z-page {
-  padding-block: 20px 40px;
+/* ----------------------------------------------------------------- setup */
+
+.z-setup-page {
+  max-width: 1120px;
 }
 
-.z-page-head {
+.z-sub-tile {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.z-page-title {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.z-page-sub {
-  margin-top: 4px;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-color-kumo-subtle);
-}
-
-.z-setup-card {
-  padding: 16px;
+  gap: 12px 16px;
+  padding: 16px 20px;
 }
 
 .z-sub-summary {
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-kumo-line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.z-sub-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.z-sub-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-brand) 18%, var(--color-kumo-line));
+  border-radius: var(--z-radius-sm);
+  background: color-mix(in oklab, var(--color-kumo-brand) 7%, var(--color-kumo-base));
+  color: var(--color-kumo-brand);
+}
+
+.z-sub-host {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .z-warning-line {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  margin-top: 10px;
+  flex-basis: 100%;
+  margin: 0;
   padding: 8px 10px;
-  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-warning) 22%, var(--color-kumo-line));
+  border-radius: var(--z-radius-sm);
   background: var(--color-kumo-warning-tint);
   color: var(--text-color-kumo-warning);
   font-size: 12px;
   line-height: 1.6;
 }
 
+.z-setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--z-gap);
+  align-items: start;
+}
+
+.z-tile--configs {
+  padding: 16px;
+}
+
 .z-list-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  padding-block: 10px 6px;
+  padding: 4px 4px 12px;
+}
+
+.z-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px 12px;
+  border-bottom: 1px solid var(--color-kumo-line);
+}
+
+.z-bulk-actions [data-kumo-component="Button"] {
+  flex: 1 1 auto;
+  padding-inline: 14px;
 }
 
 .z-config-list {
@@ -519,9 +760,10 @@ body {
   flex-direction: column;
   gap: 6px;
   max-height: 46vh;
-  overflow-y: auto;
+  margin-top: 12px;
   padding: 2px;
   margin-inline: -2px;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 
@@ -531,13 +773,14 @@ body {
   align-items: stretch;
   overflow: hidden;
   border: 1px solid var(--color-kumo-line);
-  border-radius: 12px;
+  border-radius: var(--z-radius-sm);
   background: var(--color-kumo-base);
-  transition: border-color 140ms ease, background 140ms ease;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 
 .z-config-row:hover {
-  border-color: color-mix(in oklab, var(--color-kumo-brand) 30%, var(--color-kumo-line));
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 32%, var(--color-kumo-line));
+  box-shadow: var(--z-shadow-raised);
 }
 
 .z-config-row:has(:focus-visible) {
@@ -546,7 +789,7 @@ body {
 }
 
 .z-config-row.is-selected {
-  border-color: color-mix(in oklab, var(--color-kumo-brand) 55%, var(--color-kumo-line));
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 52%, var(--color-kumo-line));
   background: color-mix(in oklab, var(--color-kumo-brand) 6%, var(--color-kumo-base));
 }
 
@@ -554,10 +797,10 @@ body {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   min-height: 56px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -576,6 +819,13 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+.z-config-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
 .z-config-row.is-selected .z-config-check {
   color: var(--color-kumo-brand);
 }
@@ -585,6 +835,7 @@ body {
   align-items: center;
   gap: 3px;
   padding: 2px 6px;
+  border: 1px solid var(--color-kumo-hairline);
   border-radius: 6px;
   background: var(--color-kumo-recessed);
   color: var(--text-color-kumo-subtle);
@@ -595,12 +846,32 @@ body {
   color: var(--text-color-kumo-danger);
 }
 
+.z-config-row > [data-kumo-component="Button"] {
+  align-self: center;
+  margin-inline-end: 6px;
+}
+
+.z-setup-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--z-gap);
+}
+
+.z-tile--settings {
+  padding: 16px 20px;
+}
+
 .z-settings {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 16px;
-  margin-top: 16px;
-  padding-top: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.z-setting {
+  padding-block: 12px;
+}
+
+.z-setting + .z-setting {
   border-top: 1px solid var(--color-kumo-line);
 }
 
@@ -638,17 +909,14 @@ body {
   font-size: 13px;
 }
 
-.z-hint {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-color-kumo-subtle);
+.z-tile--start {
+  padding: 16px;
 }
 
 .z-start {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 10px;
 }
 
 .z-start-note {
@@ -660,17 +928,19 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+/* -------------------------------------------------------------- progress */
+
 .z-progress-page {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  max-width: 620px;
+  max-width: 720px;
   min-height: calc(100svh - var(--z-header-h));
   padding-block: 24px;
 }
 
 .z-progress-card {
-  padding: 20px;
+  padding: clamp(20px, 3vw, 28px);
 }
 
 .z-progress-title {
@@ -686,14 +956,14 @@ body {
 }
 
 .z-progress-ruler {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .z-timeline {
   display: flex;
   justify-content: space-between;
   gap: 4px;
-  margin-top: 14px;
+  margin-top: 20px;
   padding: 0;
   list-style: none;
 }
@@ -715,8 +985,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--color-kumo-line);
   border-radius: 50%;
   background: var(--color-kumo-base);
@@ -741,17 +1011,22 @@ body {
 
 .z-timeline-line {
   position: absolute;
-  top: 17px;
-  inset-inline-start: calc(50% + 20px);
-  width: calc(100% - 40px);
+  top: 18px;
+  inset-inline-start: calc(50% + 22px);
+  width: calc(100% - 44px);
   height: 1px;
   background: var(--color-kumo-line);
 }
 
+.z-stage-card {
+  padding: 16px;
+}
+
 .z-stage {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 12px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-kumo-hairline);
+  border-radius: var(--z-radius-sm);
   background: var(--color-kumo-recessed);
 }
 
@@ -774,33 +1049,48 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+.z-stage .z-hint {
+  margin-top: 4px;
+}
+
 .z-progress-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .z-log-details {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
+/* ---------------------------------------------------------------- result */
+
 .z-result-page {
-  max-width: 700px;
+  max-width: 1080px;
+}
+
+.z-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--z-gap);
+  align-items: start;
 }
 
 .z-result-card {
-  padding: 20px;
+  padding: clamp(20px, 3vw, 32px);
+  text-align: center;
 }
 
 .z-coef {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 2px;
-  margin-top: 10px;
-  font-size: clamp(64px, 18vw, 104px);
+  margin-top: 12px;
+  font-size: clamp(64px, 12vw, 104px);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.045em;
@@ -813,7 +1103,7 @@ body {
 }
 
 .z-result-ruler {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .z-verdict {
@@ -829,20 +1119,64 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+.z-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 0;
+  list-style: none;
+  text-align: start;
+}
+
+.z-notes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-tile--perconfig {
+  padding: 20px;
+}
+
+.z-result-list {
+  margin-top: 6px;
+}
+
+.z-result-row {
+  display: block;
+  padding-block: 10px;
+  border-top: 1px solid var(--color-kumo-line);
+}
+
+.z-result-row:first-child {
+  border-top: 0;
+}
+
+.z-result-row-ratio {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.z-tile--stats {
+  padding: 16px;
+}
+
 .z-result-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  margin-top: 16px;
-  overflow: hidden;
-  border: 1px solid var(--color-kumo-line);
-  border-radius: 12px;
-  background: var(--color-kumo-line);
+  gap: 8px;
+  margin: 0;
 }
 
 .z-result-stats > div {
-  padding: 10px 12px;
-  background: var(--color-kumo-base);
+  padding: 12px 14px;
+  border: 1px solid var(--color-kumo-hairline);
+  border-radius: var(--z-radius-sm);
+  background: var(--color-kumo-recessed);
 }
 
 .z-result-stats dt {
@@ -858,90 +1192,82 @@ body {
   text-align: right;
 }
 
-.z-notes {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
-  padding: 0;
-  list-style: none;
-}
-
-.z-notes li {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-color-kumo-subtle);
-}
-
-.z-result-list-card {
-  margin-top: 12px;
+.z-tile--actions {
   padding: 16px;
-}
-
-.z-result-list {
-  margin-top: 6px;
-}
-
-.z-result-row {
-  display: block;
-  padding-block: 9px;
-  border-top: 1px solid var(--color-kumo-line);
-}
-
-.z-result-row:first-child {
-  border-top: 0;
-}
-
-.z-result-row-ratio {
-  font-size: 16px;
-  font-weight: 700;
 }
 
 .z-result-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 14px;
+}
+
+.z-result-actions .z-action-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .z-brand-details {
-  margin-top: 14px;
+  margin: 0;
   padding: 0;
 }
 
 .z-brand-details summary {
   display: flex;
   align-items: center;
-  min-height: 48px;
-  padding-inline: 14px;
+  min-height: 52px;
+  padding-inline: 20px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 600;
+}
+
+.z-brand-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.z-brand-details summary::after {
+  content: "+";
+  margin-inline-start: auto;
+  padding-inline-start: 8px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-brand-details[open] summary::after {
+  content: "−";
 }
 
 .z-brand-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 0 14px 14px;
+  padding: 0 20px 20px;
 }
 
 .z-disclaimer {
-  margin-top: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-kumo-hairline);
+  border-radius: var(--z-radius-sm);
+  background: var(--color-kumo-recessed);
   font-size: 12px;
   color: var(--text-color-kumo-subtle);
   text-align: center;
 }
 
+/* ----------------------------------------------------------------- error */
+
 .z-error-page {
-  max-width: 560px;
+  max-width: 600px;
   padding-top: clamp(24px, 8vh, 80px);
 }
 
 .z-error-card {
-  padding: 24px;
+  padding: clamp(24px, 5vw, 36px);
   text-align: center;
 }
 
@@ -949,9 +1275,10 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   margin-bottom: 12px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-danger) 24%, var(--color-kumo-line));
   border-radius: 50%;
   background: var(--color-kumo-danger-tint);
   color: var(--text-color-kumo-danger);
@@ -976,11 +1303,17 @@ body {
   margin-top: 16px;
 }
 
+/* --------------------------------------------------------------- dialogs */
+
 .z-dialog {
   z-index: 40;
+  width: min(calc(100vw - 32px), 560px);
   max-height: calc(100svh - 4rem);
   overflow-y: auto;
-  border-radius: var(--z-radius);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--z-radius-lg);
+  background: var(--color-kumo-base);
+  box-shadow: 0 24px 64px -24px var(--color-kumo-shadow-drop);
 }
 
 [data-base-ui-portal] > div[role="presentation"] {
@@ -993,6 +1326,19 @@ body {
 
 .z-live-tabs [role="tab"] {
   min-width: 44px;
+}
+
+.z-dialog-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.z-dialog-tile {
+  padding: 12px 14px;
+  border: 1px solid var(--color-kumo-hairline);
+  border-radius: var(--z-radius-sm);
+  background: var(--color-kumo-recessed);
 }
 
 .z-live-group {
@@ -1033,6 +1379,15 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+.z-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ----------------------------------------------------------------- toast */
+
 .z-toast {
   position: fixed;
   bottom: 20px;
@@ -1040,6 +1395,7 @@ body {
   z-index: 100;
   max-width: calc(100vw - 32px);
   padding: 10px 16px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-contrast) 70%, transparent);
   border-radius: 999px;
   background: var(--color-kumo-contrast);
   color: var(--text-color-kumo-inverse);
@@ -1060,18 +1416,75 @@ body {
   }
 }
 
-@media (max-width: 640px) {
-  .z-input-card {
-    padding: 14px;
+/* ----------------------------------------------------------- responsive */
+
+@media (min-width: 900px) {
+  .z-setup-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
 
-  .z-setup-card {
-    padding: 14px;
+  .z-setup-side {
+    position: sticky;
+    top: calc(var(--z-header-h) + 16px);
   }
 
-  .z-settings {
+  .z-config-list {
+    max-height: 448px;
+  }
+
+  .z-result-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  }
+
+  .z-result-grid.is-batch {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --z-pad: 16px;
+  }
+
+  .z-container {
+    padding-inline: 16px;
+  }
+
+  .z-header > div {
+    height: 60px;
+  }
+
+  .z-page {
+    padding-block: 16px 32px;
+  }
+
+  .z-page-title {
+    font-size: 21px;
+  }
+
+  .z-hero-title {
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  .z-hero-sub {
+    font-size: 13px;
+  }
+
+  .z-sample-tile {
+    margin-top: 18px;
+    padding: 12px;
+  }
+
+  .z-input-card {
+    padding: 16px;
+  }
+
+  .z-privacy-tile {
+    padding: 10px 12px;
+  }
+
+  .z-tile--configs {
+    padding: 12px;
   }
 
   .z-config-list {
@@ -1079,20 +1492,106 @@ body {
     overflow: visible;
   }
 
-  .z-result-card {
-    padding: 16px;
+  .z-config-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "check name"
+      "meta meta";
+    align-items: center;
+    gap: 4px 8px;
+    padding-inline: 10px;
+    padding-block: 10px;
   }
 
-  .z-progress-card {
-    padding: 16px;
+  .z-config-check {
+    grid-area: check;
+  }
+
+  .z-config-name {
+    grid-area: name;
+  }
+
+  .z-config-meta {
+    grid-area: meta;
+    flex-wrap: wrap;
+    padding-inline-start: 29px;
   }
 
   .z-result-stats > div {
-    padding: 8px 10px;
+    padding: 10px;
   }
 
   .z-result-stats dd {
     font-size: 14px;
+  }
+
+  .z-result-card {
+    padding: 20px 16px;
+  }
+
+  .z-tile--perconfig {
+    padding: 16px;
+  }
+
+  .z-brand-details summary {
+    padding-inline: 16px;
+  }
+
+  .z-brand-body {
+    padding: 0 16px 16px;
+  }
+
+  .z-progress-card {
+    padding: 18px 16px;
+  }
+
+  .z-error-actions [data-kumo-component="Button"] {
+    flex: 1 1 100%;
+  }
+
+  .z-dialog {
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 480px) {
+  .z-result-stats > div {
+    padding: 10px;
+  }
+
+  .z-result-stats dt {
+    font-size: 11px;
+  }
+
+  .z-result-stats dd {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 380px) {
+  .z-bulk-actions [data-kumo-component="Button"] {
+    flex: 1 1 100%;
+  }
+
+  .z-result-actions .z-action-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .z-result-actions .z-action-grid > * {
+    grid-column: 1 / -1;
+  }
+
+  .z-result-stats > div {
+    padding: 8px;
+  }
+
+  .z-result-stats dt {
+    font-size: 11px;
+  }
+
+  .z-result-stats dd {
+    font-size: 12px;
   }
 }
 
@@ -1105,154 +1604,4 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-.z-bulk-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 12px;
-}
-
-.z-bulk-actions > button {
-  flex: 1 1 auto;
-}
-
-.z-usage {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-color-kumo-subtle);
-}
-
-.z-usage-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.z-usage-item b {
-  font-weight: 500;
-  color: var(--text-color-kumo-default);
-  font-variant-numeric: tabular-nums;
-  unicode-bidi: isolate;
-}
-
-.z-setup-page {
-  max-width: 980px;
-}
-
-@media (min-width: 900px) {
-  .z-setup-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 16px 24px;
-    align-items: start;
-  }
-
-  .z-setup-side {
-    position: sticky;
-    top: 80px;
-  }
-}
-
-@media (min-width: 900px) {
-  .z-config-list {
-    max-height: 448px;
-  }
-}
-
-
-/* strong blue accent, matching the previous UI */
-:root {
-  --color-kumo-brand: #1d4ed8;
-}
-[data-theme="dark"] {
-  --color-kumo-brand: #3b82f6;
-}
-
-/* live counter should match the quiet icon buttons */
-.z-live-pill {
-  border: 0;
-  background: transparent;
-  border-radius: 10px;
-  padding-inline: 8px;
-}
-.z-live-pill:hover {
-  background: var(--color-kumo-tint);
-}
-
-/* Keep every primary action the same blue as the logo tile */
-:root {
-  --kumo-button-emphasis-bg: #1d4ed8;
-  --kumo-button-emphasis-gradient-start: #1d4ed8;
-  --kumo-button-emphasis-gradient-end: #1d4ed8;
-  --kumo-button-emphasis-ring: #1d4ed8;
-}
-
-[data-theme="dark"] {
-  --kumo-button-emphasis-bg: #3b82f6;
-  --kumo-button-emphasis-gradient-start: #3b82f6;
-  --kumo-button-emphasis-gradient-end: #3b82f6;
-  --kumo-button-emphasis-ring: #3b82f6;
-}
-
-.z-ruler-brand line,
-.z-ruler-marker.z-ruler-brand {
-  stroke: var(--color-kumo-brand);
-}
-
-.z-ruler-dot.z-ruler-brand {
-  fill: var(--color-kumo-brand);
-}
-
-.z-sample-ruler .z-num {
-  color: var(--color-kumo-brand);
-}
-
-/* Center page-level copy, keep data rows start-aligned */
-.z-hero-title,
-.z-hero-sub {
-  text-align: center;
-  margin-inline: auto;
-}
-
-.z-page-head { text-align: center; }
-.z-page-head > div:first-child { flex: 1 1 auto; min-width: 0; }
-.z-page-title,
-.z-page-sub,
-.z-eyebrow { text-align: center; }
-
-.z-result-card { text-align: center; }
-.z-result-card .z-result-stats,
-.z-result-card .z-result-list-card,
-.z-result-card .z-result-row { text-align: start; }
-.z-result-card .z-result-actions { justify-content: center; }
-
-.z-error-card,
-.z-error-text { text-align: center; }
-.z-error-actions { justify-content: center; }
-
-.z-privacy {
-  justify-content: center;
-  text-align: center;
-}
-
-.z-app button,
-.z-app [data-kumo-button],
-.z-app button::before,
-.z-app button::after,
-.z-app [data-kumo-button]::before,
-.z-app [data-kumo-button]::after {
-  background-image: none !important;
-}
-
-.z-app [data-kumo-component="Button"] {
-  --kumo-button-emphasis-bg: var(--color-kumo-brand) !important;
-  --kumo-button-emphasis-gradient-start: var(--color-kumo-brand) !important;
-  --kumo-button-emphasis-gradient-end: var(--color-kumo-brand) !important;
-  --kumo-button-emphasis-ring: var(--color-kumo-brand) !important;
-  box-shadow: none !important;
 }

@@ -34,11 +34,11 @@ export function Landing({
   return (
     <div className="z-landing">
       <main className="z-container z-landing-main">
-        <section className="z-hero">
+        <section className="z-tile z-tile--hero z-hero">
           <h1 className="z-hero-title">{t("heroTitle")}</h1>
           <p className="z-hero-sub">{t("heroSub")}</p>
-          <div className="z-sample-ruler">
-            <div className="flex items-center justify-between text-[12px] text-kumo-subtle">
+          <div className="z-sample-tile">
+            <div className="z-sample-head">
               <span>{t("sample")}</span>
               <span className="z-num font-semibold text-kumo-brand" dir="ltr">
                 1.38×
@@ -50,10 +50,11 @@ export function Landing({
               labels
               ariaLabel={t("rulerAria")}
             />
+            <p className="z-sample-note">{t("sampleNote")}</p>
           </div>
         </section>
 
-        <section className="z-card z-input-card" aria-label={t("subLabel")}>
+        <section className="z-tile z-input-card" aria-label={t("subLabel")}>
           <form
             className="flex flex-col gap-3 sm:flex-row sm:items-end"
             noValidate
@@ -122,22 +123,22 @@ export function Landing({
               )}
             </div>
           )}
-
-          <p className="z-privacy">
-            <LockSimple size={14} aria-hidden="true" />
-            {t("privacy")}
-          </p>
         </section>
+
+        <p className="z-privacy-tile">
+          <LockSimple size={14} aria-hidden="true" />
+          {t("privacy")}
+        </p>
 
       </main>
 
       <footer className="z-footer">
-        <div className="z-container flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="z-container z-footer-inner">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="min-h-11 px-2 text-[12px]"
+              className="min-h-11 px-3 text-[12px]"
               onClick={onSelfHost}
             >
               {t("selfHost")}
@@ -145,7 +146,7 @@ export function Landing({
             <Button
               variant="ghost"
               size="sm"
-              className="min-h-11 px-2 text-[12px]"
+              className="min-h-11 px-3 text-[12px]"
               onClick={onReport}
             >
               {t("report")}
