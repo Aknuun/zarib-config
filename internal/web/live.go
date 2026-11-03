@@ -33,17 +33,41 @@ type failStats struct {
 	Other   int `json:"other,omitempty"`
 }
 
+type statBucket struct {
+	Tests      int             `json:"tests,omitempty"`
+	WithRatio  int             `json:"with_ratio,omitempty"`
+	Normal     int             `json:"normal,omitempty"`
+	Invalid    int             `json:"invalid,omitempty"`
+	Tunnel     int             `json:"tunnel,omitempty"`
+	NonTunnel  int             `json:"non_tunnel,omitempty"`
+	Unknown    int             `json:"unknown_tunnel,omitempty"`
+	Downloaded int64           `json:"downloaded,omitempty"`
+	Deducted   int64           `json:"deducted,omitempty"`
+	Proxy      int             `json:"proxy,omitempty"`
+	Failed     failStats       `json:"failed,omitempty"`
+	IPs        map[string]bool `json:"ips,omitempty"`
+}
+
+// maxUniqueIPs bounds the all-time set so stats.json cannot grow forever.
+const maxUniqueIPs = 20000
+
 type liveStats struct {
-	Day        string          `json:"day"`
-	Tests      int             `json:"tests"`
-	WithRatio  int             `json:"with_ratio"`
-	Normal     int             `json:"normal"`
-	Invalid    int             `json:"invalid"`
-	Tunnel     int             `json:"tunnel"`
-	NonTunnel  int             `json:"non_tunnel"`
-	Unknown    int             `json:"unknown_tunnel"`
-	Downloaded int64           `json:"downloaded"`
-	Deducted   int64           `json:"deducted"`
+	Hours       map[string]*statBucket `json:"hours,omitempty"`
+	Days        map[string]*statBucket `json:"days,omitempty"`
+	Total       statBucket             `json:"total"`
+	TotalUnique int                    `json:"total_unique,omitempty"`
+
+	// Old flat shape, read only for migration.
+	Day        string          `json:"day,omitempty"`
+	Tests      int             `json:"tests,omitempty"`
+	WithRatio  int             `json:"with_ratio,omitempty"`
+	Normal     int             `json:"normal,omitempty"`
+	Invalid    int             `json:"invalid,omitempty"`
+	Tunnel     int             `json:"tunnel,omitempty"`
+	NonTunnel  int             `json:"non_tunnel,omitempty"`
+	Unknown    int             `json:"unknown_tunnel,omitempty"`
+	Downloaded int64           `json:"downloaded,omitempty"`
+	Deducted   int64           `json:"deducted,omitempty"`
 	ProxyToday int             `json:"proxy_today,omitempty"`
 	VisitorIPs map[string]bool `json:"visitor_ips,omitempty"`
 
@@ -71,9 +95,106 @@ type liveStats struct {
 	TotalDeducted   int64 `json:"total_deducted,omitempty"`
 	TotalProxy      int   `json:"total_proxy,omitempty"`
 
-	FailToday failStats `json:"fail_today"`
-	FailMonth failStats `json:"fail_month"`
-	FailTotal failStats `json:"fail_total"`
+	FailToday failStats `json:"fail_today,omitempty"`
+	FailMonth failStats `json:"fail_month,omitempty"`
+	FailTotal failStats `json:"fail_total,omitempty"`
+}
+
+func (b *statBucket) addIP(key string) bool {
+	if b.IPs == nil {
+		b.IPs = map[string]bool{}
+	}
+	if b.IPs[key] {
+		return false
+	}
+	b.IPs[key] = true
+	return true
+}
+
+func (b *statBucket) add(other *statBucket) {
+	if other == nil {
+		return
+	}
+	b.Tests += other.Tests
+	b.WithRatio += other.WithRatio
+	b.Normal += other.Normal
+	b.Invalid += other.Invalid
+	b.Tunnel += other.Tunnel
+	b.NonTunnel += other.NonTunnel
+	b.Unknown += other.Unknown
+	b.Downloaded += other.Downloaded
+	b.Deducted += other.Deducted
+	b.Proxy += other.Proxy
+	b.Failed.Total += other.Failed.Total
+	b.Failed.Connect += other.Failed.Connect
+	b.Failed.Fetch += other.Failed.Fetch
+	b.Failed.Core += other.Failed.Core
+	b.Failed.Timeout += other.Failed.Timeout
+	b.Failed.Usage += other.Failed.Usage
+	b.Failed.Other += other.Failed.Other
+	for key := range other.IPs {
+		b.addIP(key)
+	}
+}
+
+func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
+	b.Tests++
+	switch value := result.Ratio; {
+	case value >= 1.06:
+		b.WithRatio++
+	case value >= 0.95:
+		b.Normal++
+	default:
+		b.Invalid++
+	}
+	if tunnel == nil {
+		b.Unknown++
+	} else if *tunnel {
+		b.Tunnel++
+	} else {
+		b.NonTunnel++
+	}
+	if result.DownloadedBytes > 0 {
+		b.Downloaded += result.DownloadedBytes
+	}
+	if result.DeltaTotal > 0 {
+		b.Deducted += result.DeltaTotal
+	}
+}
+
+func (b *statBucket) addFail(code string) {
+	b.Failed.Total++
+	switch code {
+	case "probe_failed", "resolve_failed":
+		b.Failed.Connect++
+	case "fetch_failed", "no_configs", "pick_out_of_range":
+		b.Failed.Fetch++
+	case "xray_failed":
+		b.Failed.Core++
+	case "timeout":
+		b.Failed.Timeout++
+	case "usage_unchanged":
+		b.Failed.Usage++
+	default:
+		b.Failed.Other++
+	}
+}
+
+func (s *liveStats) clearLegacy() {
+	s.Day = ""
+	s.Tests, s.WithRatio, s.Normal, s.Invalid = 0, 0, 0, 0
+	s.Tunnel, s.NonTunnel, s.Unknown = 0, 0, 0
+	s.Downloaded, s.Deducted, s.ProxyToday = 0, 0, 0
+	s.VisitorIPs = nil
+	s.Month = ""
+	s.MonthTests, s.MonthWithRatio, s.MonthNormal, s.MonthInvalid = 0, 0, 0, 0
+	s.MonthTunnel, s.MonthNonTunnel, s.MonthUnknown = 0, 0, 0
+	s.MonthDownloaded, s.MonthDeducted, s.MonthProxy = 0, 0, 0
+	s.MonthVisitorIPs = nil
+	s.TotalTests, s.TotalWithRatio, s.TotalNormal, s.TotalInvalid = 0, 0, 0, 0
+	s.TotalTunnel, s.TotalNonTunnel, s.TotalUnknown = 0, 0, 0
+	s.TotalDownloaded, s.TotalDeducted, s.TotalProxy = 0, 0, 0
+	s.FailToday, s.FailMonth, s.FailTotal = failStats{}, failStats{}, failStats{}
 }
 
 type geoEntry struct {
@@ -91,6 +212,10 @@ type presenceIn struct {
 
 func todayKey() string {
 	return time.Now().Format("2006-01-02")
+}
+
+func hourKey() string {
+	return time.Now().Format("2006-01-02T15")
 }
 
 func monthKey() string {
@@ -123,70 +248,141 @@ func (s *server) loadStats() {
 }
 
 func (s *server) applyLoadedStats(stats liveStats) {
-	if stats.Month == "" {
-		if len(stats.Day) >= 7 {
-			stats.Month = stats.Day[:7]
-		} else {
-			stats.Month = monthKey()
-		}
-		stats.MonthTests = stats.Tests
-		stats.MonthWithRatio = stats.WithRatio
-		stats.MonthNormal = stats.Normal
-		stats.MonthInvalid = stats.Invalid
-		stats.MonthTunnel = stats.Tunnel
-		stats.MonthNonTunnel = stats.NonTunnel
-		stats.MonthUnknown = stats.Unknown
-		stats.MonthDownloaded = stats.Downloaded
-		stats.MonthDeducted = stats.Deducted
-		stats.TotalTests = stats.Tests
-		stats.TotalWithRatio = stats.WithRatio
-		stats.TotalNormal = stats.Normal
-		stats.TotalInvalid = stats.Invalid
-		stats.TotalTunnel = stats.Tunnel
-		stats.TotalNonTunnel = stats.NonTunnel
-		stats.TotalUnknown = stats.Unknown
-		stats.TotalDownloaded = stats.Downloaded
-		stats.TotalDeducted = stats.Deducted
-	}
+	stats, migrated := migrateStats(stats)
 	s.mu.Lock()
 	s.live = stats
+	if migrated {
+		s.saveStatsLocked()
+	}
+	s.rollStatsLocked()
 	s.mu.Unlock()
 }
 
+// migrateStats converts the old day/month/total shape into hourly/daily buckets.
+// Old data has no per-day breakdown, so the best available totals are seeded
+// into the current day (d30) and current hour (h24).
+func migrateStats(stats liveStats) (liveStats, bool) {
+	if stats.Hours == nil {
+		stats.Hours = map[string]*statBucket{}
+	}
+	if stats.Days == nil {
+		stats.Days = map[string]*statBucket{}
+	}
+	if stats.Total.IPs == nil {
+		stats.Total.IPs = map[string]bool{}
+	}
+
+	legacy := stats.Day != "" || stats.Month != "" || stats.Tests != 0 ||
+		stats.MonthTests != 0 || stats.TotalTests != 0 || stats.ProxyToday != 0 ||
+		stats.MonthProxy != 0 || stats.TotalProxy != 0 || len(stats.VisitorIPs) > 0 ||
+		len(stats.MonthVisitorIPs) > 0 || stats.FailToday.Total != 0 ||
+		stats.FailMonth.Total != 0 || stats.FailTotal.Total != 0
+	if !legacy {
+		if stats.TotalUnique < len(stats.Total.IPs) {
+			stats.TotalUnique = len(stats.Total.IPs)
+		}
+		return stats, false
+	}
+
+	day := statBucket{
+		Tests: stats.Tests, WithRatio: stats.WithRatio, Normal: stats.Normal,
+		Invalid: stats.Invalid, Tunnel: stats.Tunnel, NonTunnel: stats.NonTunnel,
+		Unknown: stats.Unknown, Downloaded: stats.Downloaded, Deducted: stats.Deducted,
+		Proxy: stats.ProxyToday, Failed: stats.FailToday,
+	}
+	month := statBucket{
+		Tests: stats.MonthTests, WithRatio: stats.MonthWithRatio, Normal: stats.MonthNormal,
+		Invalid: stats.MonthInvalid, Tunnel: stats.MonthTunnel, NonTunnel: stats.MonthNonTunnel,
+		Unknown: stats.MonthUnknown, Downloaded: stats.MonthDownloaded, Deducted: stats.MonthDeducted,
+		Proxy: stats.MonthProxy, Failed: stats.FailMonth,
+	}
+	total := statBucket{
+		Tests: stats.TotalTests, WithRatio: stats.TotalWithRatio, Normal: stats.TotalNormal,
+		Invalid: stats.TotalInvalid, Tunnel: stats.TotalTunnel, NonTunnel: stats.TotalNonTunnel,
+		Unknown: stats.TotalUnknown, Downloaded: stats.TotalDownloaded, Deducted: stats.TotalDeducted,
+		Proxy: stats.TotalProxy, Failed: stats.FailTotal,
+	}
+	empty := func(b statBucket) bool {
+		return b.Tests == 0 && b.Downloaded == 0 && b.Deducted == 0 && b.Proxy == 0 && b.Failed.Total == 0
+	}
+	if stats.Month == "" {
+		month = day
+	}
+	if empty(total) {
+		if !empty(month) {
+			total = month
+		} else {
+			total = day
+		}
+	}
+	if empty(month) {
+		month = day
+	}
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	hour := now.Format("2006-01-02T15")
+	seedDay := month
+	if day.Tests > seedDay.Tests {
+		seedDay = day
+	}
+	if !empty(seedDay) {
+		if stats.Days[today] == nil {
+			stats.Days[today] = &statBucket{}
+		}
+		stats.Days[today].add(&seedDay)
+	}
+	if !empty(day) {
+		if stats.Hours[hour] == nil {
+			stats.Hours[hour] = &statBucket{}
+		}
+		stats.Hours[hour].add(&day)
+	}
+	stats.Total.add(&total)
+
+	if stats.Days[today] == nil {
+		stats.Days[today] = &statBucket{}
+	}
+	if stats.Hours[hour] == nil {
+		stats.Hours[hour] = &statBucket{}
+	}
+	for key := range stats.VisitorIPs {
+		stats.Days[today].addIP(key)
+		stats.Hours[hour].addIP(key)
+		stats.Total.addIP(key)
+	}
+	for key := range stats.MonthVisitorIPs {
+		stats.Days[today].addIP(key)
+		stats.Hours[hour].addIP(key)
+		stats.Total.addIP(key)
+	}
+	if stats.TotalUnique < len(stats.Total.IPs) {
+		stats.TotalUnique = len(stats.Total.IPs)
+	}
+	stats.clearLegacy()
+	return stats, true
+}
+
 func (s *server) rollStatsLocked() {
-	today := todayKey()
-	month := monthKey()
+	now := time.Now()
+	if s.live.Hours == nil {
+		s.live.Hours = map[string]*statBucket{}
+	}
+	if s.live.Days == nil {
+		s.live.Days = map[string]*statBucket{}
+	}
 	changed := false
-	if s.live.Day != today {
-		s.live.Day = today
-		s.live.Tests = 0
-		s.live.WithRatio = 0
-		s.live.Normal = 0
-		s.live.Invalid = 0
-		s.live.Tunnel = 0
-		s.live.NonTunnel = 0
-		s.live.Unknown = 0
-		s.live.Downloaded = 0
-		s.live.Deducted = 0
-		s.live.FailToday = failStats{}
-		s.live.ProxyToday = 0
-		s.live.VisitorIPs = map[string]bool{}
+	hour := now.Format("2006-01-02T15")
+	today := now.Format("2006-01-02")
+	if s.live.Hours[hour] == nil {
+		s.live.Hours[hour] = &statBucket{}
 		changed = true
 	}
-	if s.live.Month != month {
-		s.live.Month = month
-		s.live.MonthTests = 0
-		s.live.MonthWithRatio = 0
-		s.live.MonthNormal = 0
-		s.live.MonthInvalid = 0
-		s.live.MonthTunnel = 0
-		s.live.MonthNonTunnel = 0
-		s.live.MonthUnknown = 0
-		s.live.MonthDownloaded = 0
-		s.live.MonthDeducted = 0
-		s.live.FailMonth = failStats{}
-		s.live.MonthProxy = 0
-		s.live.MonthVisitorIPs = map[string]bool{}
+	if s.live.Days[today] == nil {
+		s.live.Days[today] = &statBucket{}
+		changed = true
+	}
+	if s.pruneStatsLocked(now) {
 		changed = true
 	}
 	if changed {
@@ -194,10 +390,53 @@ func (s *server) rollStatsLocked() {
 	}
 }
 
+func (s *server) hourBucketLocked() *statBucket {
+	key := hourKey()
+	bucket := s.live.Hours[key]
+	if bucket == nil {
+		bucket = &statBucket{}
+		s.live.Hours[key] = bucket
+	}
+	return bucket
+}
+
+func (s *server) dayBucketLocked() *statBucket {
+	key := todayKey()
+	bucket := s.live.Days[key]
+	if bucket == nil {
+		bucket = &statBucket{}
+		s.live.Days[key] = bucket
+	}
+	return bucket
+}
+
+func (s *server) pruneStatsLocked(now time.Time) bool {
+	changed := false
+	hourCutoff := now.Add(-24 * time.Hour)
+	for key := range s.live.Hours {
+		at, err := time.ParseInLocation("2006-01-02T15", key, time.Local)
+		if err != nil || at.Before(hourCutoff) {
+			delete(s.live.Hours, key)
+			changed = true
+		}
+	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	dayCutoff := today.AddDate(0, 0, -29)
+	for key := range s.live.Days {
+		at, err := time.ParseInLocation("2006-01-02", key, time.Local)
+		if err != nil || at.Before(dayCutoff) {
+			delete(s.live.Days, key)
+			changed = true
+		}
+	}
+	return changed
+}
+
 func (s *server) saveStatsLocked() {
 	if s.statsFile == "" {
 		return
 	}
+	s.pruneStatsLocked(time.Now())
 	content, err := json.Marshal(s.live)
 	if err != nil {
 		return
@@ -233,46 +472,9 @@ func (s *server) recordResult(result *ratio.Result, tunnel *bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.rollStatsLocked()
-	s.live.Tests++
-	s.live.MonthTests++
-	s.live.TotalTests++
-	switch value := result.Ratio; {
-	case value >= 1.06:
-		s.live.WithRatio++
-		s.live.MonthWithRatio++
-		s.live.TotalWithRatio++
-	case value >= 0.95:
-		s.live.Normal++
-		s.live.MonthNormal++
-		s.live.TotalNormal++
-	default:
-		s.live.Invalid++
-		s.live.MonthInvalid++
-		s.live.TotalInvalid++
-	}
-	if tunnel == nil {
-		s.live.Unknown++
-		s.live.MonthUnknown++
-		s.live.TotalUnknown++
-	} else if *tunnel {
-		s.live.Tunnel++
-		s.live.MonthTunnel++
-		s.live.TotalTunnel++
-	} else {
-		s.live.NonTunnel++
-		s.live.MonthNonTunnel++
-		s.live.TotalNonTunnel++
-	}
-	if result.DownloadedBytes > 0 {
-		s.live.Downloaded += result.DownloadedBytes
-		s.live.MonthDownloaded += result.DownloadedBytes
-		s.live.TotalDownloaded += result.DownloadedBytes
-	}
-	if result.DeltaTotal > 0 {
-		s.live.Deducted += result.DeltaTotal
-		s.live.MonthDeducted += result.DeltaTotal
-		s.live.TotalDeducted += result.DeltaTotal
-	}
+	s.hourBucketLocked().addResult(result, tunnel)
+	s.dayBucketLocked().addResult(result, tunnel)
+	s.live.Total.addResult(result, tunnel)
 	s.saveStatsLocked()
 }
 
@@ -283,26 +485,9 @@ func (s *server) recordJobError(code string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.rollStatsLocked()
-	add := func(stats *failStats) {
-		stats.Total++
-		switch code {
-		case "probe_failed", "resolve_failed":
-			stats.Connect++
-		case "fetch_failed", "no_configs", "pick_out_of_range":
-			stats.Fetch++
-		case "xray_failed":
-			stats.Core++
-		case "timeout":
-			stats.Timeout++
-		case "usage_unchanged":
-			stats.Usage++
-		default:
-			stats.Other++
-		}
-	}
-	add(&s.live.FailToday)
-	add(&s.live.FailMonth)
-	add(&s.live.FailTotal)
+	s.hourBucketLocked().addFail(code)
+	s.dayBucketLocked().addFail(code)
+	s.live.Total.addFail(code)
 	s.saveStatsLocked()
 }
 
@@ -310,10 +495,49 @@ func (s *server) recordProxyUse() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.rollStatsLocked()
-	s.live.ProxyToday++
-	s.live.MonthProxy++
-	s.live.TotalProxy++
+	s.hourBucketLocked().Proxy++
+	s.dayBucketLocked().Proxy++
+	s.live.Total.Proxy++
 	s.saveStatsLocked()
+}
+
+func (s *server) rangeStatsLocked(hourly bool, from time.Time) statBucket {
+	out := statBucket{IPs: map[string]bool{}}
+	if hourly {
+		for key, bucket := range s.live.Hours {
+			at, err := time.ParseInLocation("2006-01-02T15", key, time.Local)
+			if err != nil || at.Before(from) {
+				continue
+			}
+			out.add(bucket)
+		}
+		return out
+	}
+	for key, bucket := range s.live.Days {
+		at, err := time.ParseInLocation("2006-01-02", key, time.Local)
+		if err != nil || at.Before(from) {
+			continue
+		}
+		out.add(bucket)
+	}
+	return out
+}
+
+func statView(bucket statBucket, unique int) map[string]any {
+	return map[string]any{
+		"tests":          bucket.Tests,
+		"with_ratio":     bucket.WithRatio,
+		"normal":         bucket.Normal,
+		"invalid":        bucket.Invalid,
+		"tunnel":         bucket.Tunnel,
+		"non_tunnel":     bucket.NonTunnel,
+		"unknown_tunnel": bucket.Unknown,
+		"downloaded":     bucket.Downloaded,
+		"deducted":       bucket.Deducted,
+		"failed":         bucket.Failed,
+		"proxy":          bucket.Proxy,
+		"unique_ips":     unique,
+	}
 }
 
 func (s *server) liveSnapshotLocked() map[string]any {
@@ -327,51 +551,29 @@ func (s *server) liveSnapshotLocked() map[string]any {
 		online++
 	}
 	s.rollStatsLocked()
+
+	current := time.Now()
+	midnight := time.Date(current.Year(), current.Month(), current.Day(), 0, 0, 0, 0, time.Local)
+	h24 := s.rangeStatsLocked(true, current.Truncate(time.Hour).Add(-23*time.Hour))
+	d7 := s.rangeStatsLocked(false, midnight.AddDate(0, 0, -6))
+	d30 := s.rangeStatsLocked(false, midnight.AddDate(0, 0, -29))
+	unique := s.live.TotalUnique
+	if unique < len(s.live.Total.IPs) {
+		unique = len(s.live.Total.IPs)
+	}
+	todayView := statView(h24, len(h24.IPs))
+	todayView["date"] = todayKey()
+	monthView := statView(d30, len(d30.IPs))
+	monthView["month"] = monthKey()
 	return map[string]any{
-		"online": online,
-		"today": map[string]any{
-			"date":           s.live.Day,
-			"tests":          s.live.Tests,
-			"with_ratio":     s.live.WithRatio,
-			"normal":         s.live.Normal,
-			"invalid":        s.live.Invalid,
-			"tunnel":         s.live.Tunnel,
-			"non_tunnel":     s.live.NonTunnel,
-			"unknown_tunnel": s.live.Unknown,
-			"downloaded":     s.live.Downloaded,
-			"deducted":       s.live.Deducted,
-			"failed":         s.live.FailToday,
-			"proxy":          s.live.ProxyToday,
-			"unique_ips":     len(s.live.VisitorIPs),
-		},
-		"monthly": map[string]any{
-			"month":          s.live.Month,
-			"tests":          s.live.MonthTests,
-			"with_ratio":     s.live.MonthWithRatio,
-			"normal":         s.live.MonthNormal,
-			"invalid":        s.live.MonthInvalid,
-			"tunnel":         s.live.MonthTunnel,
-			"non_tunnel":     s.live.MonthNonTunnel,
-			"unknown_tunnel": s.live.MonthUnknown,
-			"downloaded":     s.live.MonthDownloaded,
-			"deducted":       s.live.MonthDeducted,
-			"failed":         s.live.FailMonth,
-			"proxy":          s.live.MonthProxy,
-			"unique_ips":     len(s.live.MonthVisitorIPs),
-		},
-		"overall": map[string]any{
-			"tests":          s.live.TotalTests,
-			"with_ratio":     s.live.TotalWithRatio,
-			"normal":         s.live.TotalNormal,
-			"invalid":        s.live.TotalInvalid,
-			"tunnel":         s.live.TotalTunnel,
-			"non_tunnel":     s.live.TotalNonTunnel,
-			"unknown_tunnel": s.live.TotalUnknown,
-			"downloaded":     s.live.TotalDownloaded,
-			"deducted":       s.live.TotalDeducted,
-			"failed":         s.live.FailTotal,
-			"proxy":          s.live.TotalProxy,
-		},
+		"online":  online,
+		"h24":     statView(h24, len(h24.IPs)),
+		"d7":      statView(d7, len(d7.IPs)),
+		"d30":     statView(d30, len(d30.IPs)),
+		"overall": statView(s.live.Total, unique),
+		// Aliases for older clients.
+		"today":   todayView,
+		"monthly": monthView,
 	}
 }
 
@@ -382,18 +584,23 @@ func (s *server) recordVisitorLocked(ip string) {
 	}
 	sum := sha256.Sum256([]byte(ip))
 	key := hex.EncodeToString(sum[:])
-	if s.live.VisitorIPs == nil {
-		s.live.VisitorIPs = map[string]bool{}
+	s.rollStatsLocked()
+	changed := s.hourBucketLocked().addIP(key)
+	if s.dayBucketLocked().addIP(key) {
+		changed = true
 	}
-	if s.live.MonthVisitorIPs == nil {
-		s.live.MonthVisitorIPs = map[string]bool{}
+	if s.live.Total.IPs == nil {
+		s.live.Total.IPs = map[string]bool{}
 	}
-	if s.live.VisitorIPs[key] {
-		return
+	// shortcut: all-time unique stops growing once the bounded set is full.
+	if !s.live.Total.IPs[key] && len(s.live.Total.IPs) < maxUniqueIPs {
+		s.live.Total.IPs[key] = true
+		s.live.TotalUnique++
+		changed = true
 	}
-	s.live.VisitorIPs[key] = true
-	s.live.MonthVisitorIPs[key] = true
-	s.saveStatsLocked()
+	if changed {
+		s.saveStatsLocked()
+	}
 }
 
 func (s *server) presenceHandler(w http.ResponseWriter, r *http.Request) {

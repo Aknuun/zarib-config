@@ -13,19 +13,21 @@ interface LiveDialogProps {
   live: LiveStats | null;
 }
 
-type Range = "today" | "month" | "all";
+type Range = "h24" | "d7" | "d30" | "all";
 
 export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) {
   const t = (key: MessageKey, vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
-  const [range, setRange] = useState<Range>("today");
+  const [range, setRange] = useState<Range>("h24");
 
   const bucket = live
-    ? range === "today"
-      ? live.today
-      : range === "month"
-        ? live.monthly
-        : live.overall
+    ? range === "h24"
+      ? live.h24
+      : range === "d7"
+        ? live.d7
+        : range === "d30"
+          ? live.d30
+          : live.overall
     : null;
   const failed = bucket?.failed || {};
   const failedTotal = Number(failed.total) || 0;
@@ -70,8 +72,9 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
           value={range}
           onValueChange={(value) => setRange(value as Range)}
           tabs={[
-            { value: "today", label: t("today") },
-            { value: "month", label: t("month") },
+            { value: "h24", label: t("last24h") },
+            { value: "d7", label: t("last7d") },
+            { value: "d30", label: t("last30d") },
             { value: "all", label: t("all") },
           ]}
           variant="segmented"

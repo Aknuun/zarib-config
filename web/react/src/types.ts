@@ -108,9 +108,12 @@ export interface LiveBucket {
 
 export interface LiveStats {
   online: number;
-  today: LiveBucket;
-  monthly: LiveBucket;
+  h24: LiveBucket;
+  d7: LiveBucket;
+  d30: LiveBucket;
   overall: LiveBucket;
+  today?: LiveBucket;
+  monthly?: LiveBucket;
 }
 
 export interface JobRecord {

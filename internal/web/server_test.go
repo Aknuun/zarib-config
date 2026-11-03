@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -140,7 +142,7 @@ func TestPresenceCountsDistinctClients(t *testing.T) {
 	if data["online"].(float64) != 2 {
 		t.Fatalf("unexpected online count: %v", data["online"])
 	}
-	for _, key := range []string{"today", "monthly", "overall"} {
+	for _, key := range []string{"h24", "d7", "d30", "overall", "today", "monthly"} {
 		if _, ok := data[key].(map[string]any); !ok {
 			t.Fatalf("missing %s stats: %+v", key, data)
 		}
@@ -164,22 +166,20 @@ func TestRecordResultClassifiesRatios(t *testing.T) {
 	s.recordResult(&ratio.Result{Ratio: 1.0, DownloadedBytes: 100, DeltaTotal: 100}, nil)
 	s.recordResult(&ratio.Result{Ratio: 0.5, DownloadedBytes: 100, DeltaTotal: 50}, boolPtr(false))
 	s.mu.Lock()
-	stats := s.live
+	hour := *s.live.Hours[hourKey()]
+	day := *s.live.Days[todayKey()]
+	total := s.live.Total
 	s.mu.Unlock()
-	if stats.Tests != 3 || stats.WithRatio != 1 || stats.Normal != 1 || stats.Invalid != 1 {
-		t.Fatalf("unexpected ratio stats: %+v", stats)
-	}
-	if stats.Tunnel != 1 || stats.NonTunnel != 1 || stats.Unknown != 1 {
-		t.Fatalf("unexpected tunnel stats: %+v", stats)
-	}
-	if stats.Downloaded != 300 || stats.Deducted != 300 {
-		t.Fatalf("unexpected traffic stats: %+v", stats)
-	}
-	if stats.MonthTests != 3 || stats.TotalTests != 3 {
-		t.Fatalf("unexpected monthly/total test stats: %+v", stats)
-	}
-	if stats.MonthDownloaded != 300 || stats.TotalDownloaded != 300 {
-		t.Fatalf("unexpected monthly/total traffic stats: %+v", stats)
+	for name, stats := range map[string]statBucket{"hour": hour, "day": day, "total": total} {
+		if stats.Tests != 3 || stats.WithRatio != 1 || stats.Normal != 1 || stats.Invalid != 1 {
+			t.Fatalf("unexpected %s ratio stats: %+v", name, stats)
+		}
+		if stats.Tunnel != 1 || stats.NonTunnel != 1 || stats.Unknown != 1 {
+			t.Fatalf("unexpected %s tunnel stats: %+v", name, stats)
+		}
+		if stats.Downloaded != 300 || stats.Deducted != 300 {
+			t.Fatalf("unexpected %s traffic stats: %+v", name, stats)
+		}
 	}
 }
 
@@ -189,14 +189,15 @@ func TestRecordJobErrorClassifiesFailures(t *testing.T) {
 		s.recordJobError(code)
 	}
 	s.mu.Lock()
-	stats := s.live
+	hour := *s.live.Hours[hourKey()]
+	day := *s.live.Days[todayKey()]
+	total := s.live.Total
 	s.mu.Unlock()
-	failed := stats.FailToday
-	if failed.Total != 7 || failed.Connect != 2 || failed.Fetch != 1 || failed.Core != 1 || failed.Timeout != 1 || failed.Usage != 1 || failed.Other != 1 {
-		t.Fatalf("unexpected failure stats: %+v", failed)
-	}
-	if stats.FailMonth != failed || stats.FailTotal != failed {
-		t.Fatalf("unexpected monthly/total failures: %+v", stats)
+	for name, stats := range map[string]statBucket{"hour": hour, "day": day, "total": total} {
+		failed := stats.Failed
+		if failed.Total != 7 || failed.Connect != 2 || failed.Fetch != 1 || failed.Core != 1 || failed.Timeout != 1 || failed.Usage != 1 || failed.Other != 1 {
+			t.Fatalf("unexpected %s failure stats: %+v", name, failed)
+		}
 	}
 }
 
@@ -370,18 +371,156 @@ func TestReportRejectsInvalidSubURL(t *testing.T) {
 }
 
 func TestRecordProxyUse(t *testing.T) {
-	s := &server{live: liveStats{Day: todayKey(), Month: monthKey()}}
+	s := testServer(t)
 	s.recordProxyUse()
 	s.recordProxyUse()
-	if s.live.ProxyToday != 2 || s.live.MonthProxy != 2 || s.live.TotalProxy != 2 {
-		t.Fatalf("proxy counters: today=%d month=%d total=%d", s.live.ProxyToday, s.live.MonthProxy, s.live.TotalProxy)
+	s.mu.Lock()
+	hour := s.live.Hours[hourKey()].Proxy
+	day := s.live.Days[todayKey()].Proxy
+	total := s.live.Total.Proxy
+	s.mu.Unlock()
+	if hour != 2 || day != 2 || total != 2 {
+		t.Fatalf("proxy counters: hour=%d day=%d total=%d", hour, day, total)
 	}
 	s.mu.Lock()
 	snapshot := s.liveSnapshotLocked()
 	s.mu.Unlock()
-	today, _ := snapshot["today"].(map[string]any)
-	if today["proxy"] != 2 {
-		t.Fatalf("snapshot proxy = %v", today["proxy"])
+	h24, _ := snapshot["h24"].(map[string]any)
+	if h24["proxy"] != 2 {
+		t.Fatalf("snapshot proxy = %v", h24["proxy"])
+	}
+}
+
+func TestLoadStatsMigratesOldShape(t *testing.T) {
+	dir := t.TempDir()
+	s := testServer(t)
+	s.statsFile = filepath.Join(dir, "stats.json")
+	old := liveStats{
+		Day: todayKey(), Month: monthKey(),
+		Tests: 5, WithRatio: 2, Normal: 1, Invalid: 2,
+		Tunnel: 1, NonTunnel: 2, Unknown: 2,
+		Downloaded: 500, Deducted: 400, ProxyToday: 3,
+		VisitorIPs: map[string]bool{"a": true},
+		MonthTests: 20, MonthWithRatio: 8, MonthNormal: 4, MonthInvalid: 8,
+		MonthTunnel: 4, MonthNonTunnel: 8, MonthUnknown: 8,
+		MonthDownloaded: 2000, MonthDeducted: 1600, MonthProxy: 12,
+		MonthVisitorIPs: map[string]bool{"a": true, "b": true},
+		TotalTests:      50, TotalWithRatio: 20, TotalNormal: 10, TotalInvalid: 20,
+		TotalTunnel: 10, TotalNonTunnel: 20, TotalUnknown: 20,
+		TotalDownloaded: 5000, TotalDeducted: 4000, TotalProxy: 30,
+		FailToday: failStats{Total: 1, Timeout: 1},
+		FailMonth: failStats{Total: 4, Timeout: 2, Other: 2},
+		FailTotal: failStats{Total: 10, Timeout: 5, Other: 5},
+	}
+	content, err := json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.statsFile, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	s.loadStats()
+
+	s.mu.Lock()
+	totalTests := s.live.Total.Tests
+	totalFailed := s.live.Total.Failed.Total
+	day := s.live.Days[todayKey()]
+	hour := s.live.Hours[hourKey()]
+	totalUnique := s.live.TotalUnique
+	s.mu.Unlock()
+	if totalTests != 50 || totalFailed != 10 {
+		t.Fatalf("migrated total: tests=%d failed=%d", totalTests, totalFailed)
+	}
+	if day == nil || day.Tests != 20 || day.Downloaded != 2000 || day.Proxy != 12 {
+		t.Fatalf("migrated day bucket: %+v", day)
+	}
+	if hour == nil || hour.Tests != 5 || hour.Downloaded != 500 || hour.Proxy != 3 {
+		t.Fatalf("migrated hour bucket: %+v", hour)
+	}
+	if totalUnique != 2 || len(day.IPs) != 2 || len(hour.IPs) != 2 {
+		t.Fatalf("migrated IPs: total=%d day=%d hour=%d", totalUnique, len(day.IPs), len(hour.IPs))
+	}
+
+	written, err := os.ReadFile(s.statsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(written, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw["hours"] == nil || raw["days"] == nil {
+		t.Fatalf("new shape was not saved: %s", written)
+	}
+	if _, ok := raw["day"]; ok {
+		t.Fatalf("legacy fields were not cleared: %s", written)
+	}
+
+	// Loading the migrated file again must not double the seeded data.
+	s.loadStats()
+	s.mu.Lock()
+	totalTests = s.live.Total.Tests
+	day = s.live.Days[todayKey()]
+	s.mu.Unlock()
+	if totalTests != 50 || day == nil || day.Tests != 20 {
+		t.Fatalf("migration is not idempotent: total=%d day=%+v", totalTests, day)
+	}
+}
+
+func TestRangeAggregationAndPruning(t *testing.T) {
+	s := testServer(t)
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	currentHour := now.Format("2006-01-02T15")
+	recentHour := now.Add(-2 * time.Hour).Format("2006-01-02T15")
+	oldHour := now.Add(-25 * time.Hour).Format("2006-01-02T15")
+	recentDay := now.AddDate(0, 0, -2).Format("2006-01-02")
+	weekAgoDay := now.AddDate(0, 0, -7).Format("2006-01-02")
+	oldDay := now.AddDate(0, 0, -40).Format("2006-01-02")
+	s.live = liveStats{
+		Hours: map[string]*statBucket{
+			currentHour: {Tests: 3, Proxy: 1, Failed: failStats{Total: 1, Timeout: 1}, IPs: map[string]bool{"a": true}},
+			recentHour:  {Tests: 4, Proxy: 2, Failed: failStats{Total: 2, Connect: 2}, IPs: map[string]bool{"b": true}},
+			oldHour:     {Tests: 100, IPs: map[string]bool{"c": true}},
+		},
+		Days: map[string]*statBucket{
+			today:      {Tests: 5, IPs: map[string]bool{"a": true}},
+			recentDay:  {Tests: 6, IPs: map[string]bool{"b": true}},
+			weekAgoDay: {Tests: 7, IPs: map[string]bool{"c": true}},
+			oldDay:     {Tests: 100, IPs: map[string]bool{"d": true}},
+		},
+		Total:       statBucket{Tests: 1000, IPs: map[string]bool{"a": true, "b": true}},
+		TotalUnique: 2,
+	}
+
+	s.mu.Lock()
+	snapshot := s.liveSnapshotLocked()
+	hours := len(s.live.Hours)
+	days := len(s.live.Days)
+	s.mu.Unlock()
+
+	h24, _ := snapshot["h24"].(map[string]any)
+	d7, _ := snapshot["d7"].(map[string]any)
+	d30, _ := snapshot["d30"].(map[string]any)
+	overall, _ := snapshot["overall"].(map[string]any)
+	if h24["tests"] != 7 || h24["proxy"] != 3 || h24["unique_ips"] != 2 {
+		t.Fatalf("h24 = %+v", h24)
+	}
+	if failed := h24["failed"].(failStats); failed.Total != 3 || failed.Connect != 2 || failed.Timeout != 1 {
+		t.Fatalf("h24 failed = %+v", failed)
+	}
+	if d7["tests"] != 11 || d7["unique_ips"] != 2 {
+		t.Fatalf("d7 = %+v", d7)
+	}
+	if d30["tests"] != 18 || d30["unique_ips"] != 3 {
+		t.Fatalf("d30 = %+v", d30)
+	}
+	if overall["tests"] != 1000 || overall["unique_ips"] != 2 {
+		t.Fatalf("overall = %+v", overall)
+	}
+	if hours != 2 || days != 3 {
+		t.Fatalf("pruning left hours=%d days=%d", hours, days)
 	}
 }
 
