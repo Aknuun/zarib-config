@@ -1239,3 +1239,20 @@ body {
   justify-content: center;
   text-align: center;
 }
+
+.z-app button,
+.z-app [data-kumo-button],
+.z-app button::before,
+.z-app button::after,
+.z-app [data-kumo-button]::before,
+.z-app [data-kumo-button]::after {
+  background-image: none !important;
+}
+
+.z-app [data-kumo-component="Button"] {
+  --kumo-button-emphasis-bg: var(--color-kumo-brand) !important;
+  --kumo-button-emphasis-gradient-start: var(--color-kumo-brand) !important;
+  --kumo-button-emphasis-gradient-end: var(--color-kumo-brand) !important;
+  --kumo-button-emphasis-ring: var(--color-kumo-brand) !important;
+  box-shadow: none !important;
+}

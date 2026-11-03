@@ -55,7 +55,7 @@ export function Landing({
 
         <section className="z-card z-input-card" aria-label={t("subLabel")}>
           <form
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
@@ -103,7 +103,7 @@ export function Landing({
               type="submit"
               variant="primary"
               size="lg"
-              className="h-12 shrink-0 self-center px-5 text-[14px]"
+              className="h-12 shrink-0 self-center px-5 text-[14px] sm:self-end"
               loading={inspecting}
               icon={!inspecting ? <ArrowLeft size={18} /> : undefined}
             >
