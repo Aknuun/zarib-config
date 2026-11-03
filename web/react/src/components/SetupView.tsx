@@ -28,6 +28,7 @@ interface SetupViewProps {
   onToggle: (index: number) => void;
   onRemove: () => void;
   onStart: () => void;
+  onStartAll: () => void;
   onSize: (value: number) => void;
   onBg: (value: boolean) => void;
   onPatchConfig: (index: number, patch: Partial<SubConfig>) => void;
@@ -44,6 +45,7 @@ export function SetupView({
   onToggle,
   onRemove,
   onStart,
+  onStartAll,
   onSize,
   onBg,
   onPatchConfig,
@@ -412,19 +414,44 @@ export function SetupView({
         </div>
 
         <div className="z-start">
-          <Button
-            variant="primary"
-            size="lg"
-            className="h-12 w-full text-[14px]"
-            icon={!starting ? <Play size={18} weight="fill" /> : undefined}
-            loading={starting}
-            disabled={selected.size === 0 || starting}
-            onClick={onStart}
-          >
-            {selected.size > 0
-              ? t("startN", { n: selected.size })
-              : t("start")}
-          </Button>
+          {selected.size > 1 ? (
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button
+                variant="primary"
+                size="lg"
+                className="h-12 text-[14px]"
+                icon={!starting ? <Play size={18} weight="fill" /> : undefined}
+                loading={starting}
+                disabled={starting}
+                onClick={onStart}
+              >
+                {t("startN", { n: selected.size })}
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="h-12 text-[14px]"
+                disabled={starting}
+                onClick={onStartAll}
+              >
+                {t("startAll")}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              className="h-12 w-full text-[14px]"
+              icon={!starting ? <Play size={18} weight="fill" /> : undefined}
+              loading={starting}
+              disabled={selected.size === 0 || starting}
+              onClick={onStart}
+            >
+              {selected.size > 0
+                ? t("startN", { n: selected.size })
+                : t("start")}
+            </Button>
+          )}
           <p className="z-start-note">
             <WarningCircle size={14} aria-hidden="true" />
             {t("idleHint")}

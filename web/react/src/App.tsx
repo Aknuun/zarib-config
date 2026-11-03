@@ -675,9 +675,16 @@ export default function App() {
     );
   }
 
-  async function startTest() {
+  function startAll() {
     if (!sub || starting) return;
-    const picks = [...selected].sort((a, b) => a - b);
+    const all = sub.configs.map((config) => config.index);
+    setSelected(new Set(all));
+    void startTest(all);
+  }
+
+  async function startTest(picksOverride?: number[]) {
+    if (!sub || starting) return;
+    const picks = [...(picksOverride ?? selected)].sort((a, b) => a - b);
     if (!picks.length) {
       showToast(t("noSelection"));
       return;
@@ -851,6 +858,7 @@ export default function App() {
             onToggle={toggleConfig}
             onRemove={resetToLanding}
             onStart={() => void startTest()}
+          onStartAll={startAll}
             onSize={setSize}
             onBg={(value) => {
               setBg(value);
