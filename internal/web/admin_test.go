@@ -104,7 +104,7 @@ func TestAdminAuthRateLimit(t *testing.T) {
 	}
 }
 
-func TestReportPersistsWithoutSubURL(t *testing.T) {
+func TestReportPersistsSubURL(t *testing.T) {
 	telegram := okTelegram(t)
 	defer telegram.Close()
 	s := adminTestServer(t)
@@ -112,7 +112,7 @@ func TestReportPersistsWithoutSubURL(t *testing.T) {
 	s.telegramChatID = "12345"
 	s.telegramAPIBase = telegram.URL
 
-	payload := `{"description":"bad ratio","sub_url":"https://example.com/private-sub","view":"error",` +
+	payload := `{"description":"bad ratio https://example.com/private-sub","sub_url":"https://example.com/private-sub","view":"error",` +
 		`"error_code":"xray_failed","error_message":"core failed","error_log":["line one","line two"],` +
 		`"meta":{"page":"/","platform":"Linux"},"result":{"ratio":1.5,"downloaded_bytes":1024,"delta_total":1536}}`
 	request := httptest.NewRequest(http.MethodPost, "/api/report", strings.NewReader(payload))
@@ -130,14 +130,18 @@ func TestReportPersistsWithoutSubURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(content), "private-sub") {
-		t.Fatalf("reports file contains the subscription URL: %s", content)
-	}
 	var record storedReport
 	if err := json.Unmarshal([]byte(strings.TrimSpace(string(content))), &record); err != nil {
 		t.Fatalf("stored report is not valid JSON: %v", err)
 	}
-	if record.Description != "bad ratio" || record.View != "error" || record.ErrorCode != "xray_failed" {
+	if record.SubURL != "https://example.com/private-sub" {
+		t.Fatalf("subscription URL was not stored: %+v", record)
+	}
+	// Other free-text fields are still redacted.
+	if strings.Contains(record.Description, "private-sub") || !strings.Contains(record.Description, "<link>") {
+		t.Fatalf("description was not redacted: %q", record.Description)
+	}
+	if record.View != "error" || record.ErrorCode != "xray_failed" {
 		t.Fatalf("unexpected stored report: %+v", record)
 	}
 	if record.ErrorMessage != "core failed" || len(record.ErrorLog) != 2 {
@@ -156,8 +160,8 @@ func TestReportPersistsWithoutSubURL(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(string(content))), &raw); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := raw["sub_url"]; ok {
-		t.Fatalf("stored report has a sub_url field: %s", content)
+	if raw["sub_url"] != "https://example.com/private-sub" {
+		t.Fatalf("stored report has no sub_url field: %s", content)
 	}
 	info, err := os.Stat(s.reportsFile)
 	if err != nil {
@@ -200,7 +204,7 @@ func TestReportAcceptsLargeErrorLog(t *testing.T) {
 	}
 }
 
-func TestAdminReportsHideSubURL(t *testing.T) {
+func TestAdminReportsShowSubURL(t *testing.T) {
 	telegram := okTelegram(t)
 	defer telegram.Close()
 	s := adminTestServer(t)
@@ -225,8 +229,8 @@ func TestAdminReportsHideSubURL(t *testing.T) {
 		t.Fatalf("unexpected admin status %d: %s", response.Code, response.Body.String())
 	}
 	body := response.Body.String()
-	if strings.Contains(body, "private-sub") {
-		t.Fatalf("admin response contains the subscription URL: %s", body)
+	if !strings.Contains(body, "private-sub") {
+		t.Fatalf("admin response is missing the subscription URL: %s", body)
 	}
 	if !strings.Contains(body, "bad ratio") || !strings.Contains(body, "timeout") {
 		t.Fatalf("admin response is missing the report: %s", body)
@@ -241,6 +245,9 @@ func TestAdminReportsHideSubURL(t *testing.T) {
 	if data.Count != 1 || len(data.Reports) != 1 {
 		t.Fatalf("unexpected report count: %+v", data)
 	}
+	if data.Reports[0].SubURL != "https://example.com/private-sub" {
+		t.Fatalf("admin report is missing sub_url: %+v", data.Reports[0])
+	}
 }
 
 func TestAdminPageRendersStatsAndReports(t *testing.T) {
@@ -248,6 +255,7 @@ func TestAdminPageRendersStatsAndReports(t *testing.T) {
 	if err := s.storeReport(storedReport{
 		Time:         time.Now().UTC().Format(time.RFC3339Nano),
 		Description:  "page report",
+		SubURL:       "https://example.com/page-sub",
 		ErrorCode:    "timeout",
 		ErrorMessage: "core failed",
 		ErrorLog:     []string{"line one", "line two"},
@@ -270,12 +278,9 @@ func TestAdminPageRendersStatsAndReports(t *testing.T) {
 		t.Fatalf("unexpected content type: %s", contentType)
 	}
 	body := response.Body.String()
-	for _, want := range []string{"پنل مدیریت ضریب", "۲۴ ساعت اخیر", "۷ روز اخیر", "۳۰ روز اخیر", "page report", "timeout", "line one", "core failed", "1.50"} {
+	for _, want := range []string{"پنل مدیریت ضریب", "۲۴ ساعت اخیر", "۷ روز اخیر", "۳۰ روز اخیر", "page report", "timeout", "line one", "core failed", "1.50", "https://example.com/page-sub"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("admin page missing %q", want)
 		}
-	}
-	if strings.Contains(body, "sub_url") {
-		t.Fatal("admin page exposes a sub_url field")
 	}
 }

@@ -189,6 +189,15 @@ systemctl daemon-reload
 systemctl enable v2ray-ratio.service
 systemctl restart v2ray-ratio.service
 
+log "Installing the 6-hour backup timer ..."
+install -m 0755 "$SRC/web/deploy/backup.sh" /usr/local/bin/zarib-backup
+sed "s|/opt/v2ray-ratio|$APP_DIR|g" "$SRC/web/deploy/zarib-backup.service" \
+  > /etc/systemd/system/zarib-backup.service
+chmod 0644 /etc/systemd/system/zarib-backup.service
+install -m 0644 "$SRC/web/deploy/zarib-backup.timer" /etc/systemd/system/zarib-backup.timer
+systemctl daemon-reload
+systemctl enable --now zarib-backup.timer
+
 SERVER_NAMES="$DOMAIN"
 if [ -n "$OLD_DOMAIN" ]; then
   SERVER_NAMES="$SERVER_NAMES $OLD_DOMAIN"
@@ -224,9 +233,10 @@ else
 fi
 
 if [ -f /etc/zarib-config/telegram.env ]; then
-  log "Telegram error reports: enabled (/etc/zarib-config/telegram.env)."
+  log "Telegram error reports and backups: enabled (/etc/zarib-config/telegram.env)."
 else
-  log "Telegram error reports: disabled (set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID to enable)."
+  log "Telegram error reports and backups: disabled (set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID to enable)."
+  log "warning: the backup timer will fail until Telegram credentials are set."
 fi
 
 if [ -f /etc/zarib-config/admin.env ]; then

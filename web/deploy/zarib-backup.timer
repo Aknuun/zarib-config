@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the Zarib Config backup every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00/6:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

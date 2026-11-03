@@ -295,17 +295,18 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   </div>
 
   <section>
-    <div class="section-head"><h2>گزارش‌های خطا</h2><p>{{len .Reports}} گزارش (بدون لینک ساب)</p></div>
+    <div class="section-head"><h2>گزارش‌های خطا</h2><p>{{len .Reports}} گزارش</p></div>
   </section>
   {{if .Reports}}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>زمان</th><th>شرح</th><th>خطا</th><th>صفحه</th><th>IP</th><th></th></tr></thead>
+      <thead><tr><th>زمان</th><th>شرح</th><th>لینک ساب</th><th>خطا</th><th>صفحه</th><th>IP</th><th></th></tr></thead>
       <tbody>
         {{range .Reports}}
         <tr>
           <td class="nowrap">{{shortTime .Time}}</td>
           <td class="desc">{{.Description}}</td>
+          <td class="desc mono" dir="ltr">{{if .SubURL}}<a href="{{.SubURL}}">{{.SubURL}}</a>{{else}}—{{end}}</td>
           <td>{{if .ErrorCode}}<code>{{.ErrorCode}}</code>{{else}}—{{end}}</td>
           <td>{{if .View}}{{.View}}{{else}}{{with .Meta}}{{with index . "page"}}{{.}}{{end}}{{end}}{{end}}</td>
           <td class="mono">{{.IP}}</td>

@@ -28,10 +28,11 @@ const (
 	maxAdminReports       = 200
 )
 
-// storedReport is what the admin panel sees. It intentionally has no sub_url.
+// storedReport is what the admin panel sees.
 type storedReport struct {
 	Time           string            `json:"time"`
 	Description    string            `json:"description"`
+	SubURL         string            `json:"sub_url,omitempty"`
 	View           string            `json:"view,omitempty"`
 	ErrorCode      string            `json:"error_code,omitempty"`
 	ErrorMessage   string            `json:"error_message,omitempty"`
@@ -106,6 +107,7 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 	record := storedReport{
 		Time:           time.Now().UTC().Format(time.RFC3339Nano),
 		Description:    redactURLs(description),
+		SubURL:         subURL,
 		View:           truncateText(strings.TrimSpace(payload.View), 64),
 		ErrorCode:      truncateText(strings.TrimSpace(payload.ErrorCode), 80),
 		ErrorMessage:   truncateText(redactURLs(strings.TrimSpace(payload.ErrorMessage)), maxReportErrorMessage),

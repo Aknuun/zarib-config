@@ -1,0 +1,14 @@
+[Unit]
+Description=Zarib Config backup to Telegram
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=APP_DIR=/opt/v2ray-ratio
+ExecStart=/usr/local/bin/zarib-backup
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/v2ray-ratio/backups
