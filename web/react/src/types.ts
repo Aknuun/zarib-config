@@ -38,6 +38,7 @@ export interface RatioResult {
   version: string;
   tested_at: string;
   config: string | null;
+  configs_tested?: number;
   core: string;
   xray_version: string;
   downloaded_bytes: number;
@@ -72,6 +73,7 @@ export interface Job {
   error: string;
   error_code: string;
   log: string[];
+  mode?: "single" | "batch";
   pick: number;
   size_mb: number;
   core: string;
@@ -121,6 +123,7 @@ export interface JobRecord {
   bg: boolean;
   total: number;
   completed: number;
+  batch?: boolean;
   configs: Array<Pick<SubConfig, "index" | "protocol" | "target" | "remark">>;
   queue: number[];
   results: Array<{

@@ -48,6 +48,7 @@ type job struct {
 	Log         []string
 	Cancel      bool
 	TimedOut    bool
+	Mode        string
 	Pick        int
 	SizeMB      float64
 	Core        string
@@ -91,6 +92,7 @@ type publicJob struct {
 	Error     string        `json:"error"`
 	ErrorCode string        `json:"error_code"`
 	Log       []string      `json:"log"`
+	Mode      string        `json:"mode"`
 	Pick      int           `json:"pick"`
 	SizeMB    float64       `json:"size_mb"`
 	Core      string        `json:"core"`
@@ -102,6 +104,7 @@ type inspectIn struct {
 
 type jobIn struct {
 	SubURL  string   `json:"sub_url"`
+	Mode    string   `json:"mode"`
 	Pick    *int     `json:"pick"`
 	SizeMB  *float64 `json:"size_mb"`
 	Claimed *float64 `json:"claimed"`
@@ -349,8 +352,15 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
 		return
 	}
+	batch := strings.EqualFold(strings.TrimSpace(payload.Mode), "batch")
+	if payload.Mode != "" && !batch && !strings.EqualFold(strings.TrimSpace(payload.Mode), "single") {
+		apiError(w, "invalid_input", "Invalid test mode.", http.StatusBadRequest)
+		return
+	}
 	pick := 1
-	if payload.Pick != nil {
+	if batch {
+		pick = 0
+	} else if payload.Pick != nil {
 		pick = *payload.Pick
 	}
 	sizeMB := ratio.DefaultSizeMB
@@ -377,7 +387,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "invalid_input", "Invalid test size.", http.StatusBadRequest)
 		return
 	}
-	if pick < 1 || pick > 500 {
+	if !batch && (pick < 1 || pick > 500) {
 		apiError(w, "invalid_input", "Invalid config number.", http.StatusBadRequest)
 		return
 	}
@@ -424,9 +434,13 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	now := float64(time.Now().UnixNano()) / 1e9
 	subKey := fmt.Sprintf("%x", sha256.Sum256([]byte(subURL)))
+	mode := "single"
+	if batch {
+		mode = "batch"
+	}
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
-		Pick: pick, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
+		Mode: mode, Pick: pick, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
@@ -454,11 +468,11 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	s.jobs[jobID] = item
 	s.mu.Unlock()
-	go s.runJob(jobID, wait, drift, payload.Claimed, syncMode)
+	go s.runJob(jobID, wait, drift, payload.Claimed, syncMode, batch)
 	writeJSON(w, http.StatusOK, map[string]any{"id": jobID, "status": "queued"})
 }
 
-func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMode bool) {
+func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMode bool, batch bool) {
 	s.sem <- struct{}{}
 	defer func() { <-s.sem }()
 	s.mu.Lock()
@@ -492,11 +506,16 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		return
 	}
 	args := []string{
-		"--sub-file", subFile, "--pick", strconv.Itoa(pick),
+		"--sub-file", subFile,
 		"--size", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--chunk", strconv.FormatFloat(sizeMB, 'g', -1, 64),
 		"--wait", strconv.Itoa(wait), "--drift-window", strconv.Itoa(drift), "--json-out", resultFile,
 		"--control-file", controlFile, "--auto-extend", "--core", core, "--probe-retries", "0", "--probe-wait", "0",
+	}
+	if batch {
+		args = append(args, "--batch-all")
+	} else {
+		args = append(args, "--pick", strconv.Itoa(pick))
 	}
 	if syncMode {
 		args = append(args, "--sync")
@@ -702,9 +721,9 @@ func (s *server) progressFromLine(jobID, line string) {
 		stage, progress = "drift", 30
 	case strings.Contains(stripped, "Background usage"):
 		stage, progress = "drift", 35
-	case strings.Contains(stripped, "Starting test download"):
+	case strings.Contains(stripped, "Starting test download") || strings.Contains(stripped, "Starting batch download"):
 		stage, progress = "downloading", 35
-	case strings.Contains(stripped, "Download finished"):
+	case strings.Contains(stripped, "Download finished") || strings.Contains(stripped, "Batch download finished"):
 		stage, progress = "waiting", 85
 	case strings.Contains(stripped, "Waiting for the panel"):
 		stage, progress = "waiting", 85
@@ -826,7 +845,7 @@ func publicJobFrom(item *job) publicJob {
 		Progress: round1(item.Progress), Message: item.Message,
 		Elapsed: round1(elapsed), Created: item.Created, Result: item.Result,
 		Error: item.Error, ErrorCode: item.ErrorCode, Log: copied,
-		Pick: item.Pick, SizeMB: item.SizeMB, Core: item.Core,
+		Mode: item.Mode, Pick: item.Pick, SizeMB: item.SizeMB, Core: item.Core,
 	}
 }
 
@@ -1021,7 +1040,7 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 	}
 	text := strings.ToLower(strings.Join(logs, "\n"))
 	switch {
-	case strings.Contains(text, "did not respond through the proxy"):
+	case strings.Contains(text, "did not respond through the proxy") || strings.Contains(text, "no data was downloaded"):
 		return "probe_failed"
 	case strings.Contains(text, "cannot resolve host"):
 		return "resolve_failed"

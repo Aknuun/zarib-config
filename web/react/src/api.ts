@@ -97,6 +97,25 @@ export function createJob(input: {
   });
 }
 
+export function createBatchJob(input: {
+  sub_url: string;
+  size_mb: number;
+  sync: boolean;
+}) {
+  return request<{ id: string; status: string }>("/api/jobs", {
+    method: "POST",
+    body: JSON.stringify({
+      sub_url: input.sub_url,
+      mode: "batch",
+      size_mb: input.size_mb,
+      wait: 2,
+      drift: 0,
+      sync: input.sync,
+      core: "auto",
+    }),
+  });
+}
+
 export function getJob(id: string) {
   return request<Job>(`/api/jobs/${id}`, {}, { timeout: 120_000 });
 }

@@ -17,6 +17,7 @@ import {
 interface ShareOptions {
   aggregate: Aggregate;
   rows: TestRow[];
+  batch?: boolean;
   lang: Lang;
   theme: "light" | "dark";
   brandName: string;
@@ -194,7 +195,7 @@ function renderCanvas(
   options: ShareOptions,
   brandImage: HTMLImageElement | null,
 ): HTMLCanvasElement {
-  const { aggregate, rows, lang, theme, brandName } = options;
+  const { aggregate, rows, batch, lang, theme, brandName } = options;
   const t = (key: MessageKey, vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
   const colors = COLORS[theme];
@@ -374,7 +375,7 @@ function renderCanvas(
     });
   });
 
-  if (listRows.length > 0) {
+  if (listRows.length > 0 && !batch) {
     drawText(ctx, t("perConfig"), rtl ? W - pad : pad, listStart - 28, {
       size: 22,
       weight: 600,

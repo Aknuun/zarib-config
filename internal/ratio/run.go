@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,7 @@ type Options struct {
 	Claimed      *float64
 	JSONOut      string
 	KeepTemp     bool
+	BatchAll     bool
 }
 
 func DefaultOptions() Options {
@@ -685,6 +687,7 @@ type Result struct {
 	Version                  string   `json:"version"`
 	TestedAt                 string   `json:"tested_at"`
 	Config                   *string  `json:"config"`
+	ConfigsTested            int      `json:"configs_tested,omitempty"`
 	Core                     string   `json:"core"`
 	XrayVersion              string   `json:"xray_version"`
 	DownloadedBytes          int64    `json:"downloaded_bytes"`
@@ -746,12 +749,36 @@ func outboundHasTLS(outbound map[string]any) bool {
 	return security == "tls" || security == "reality"
 }
 
-func runSingle(ctx context.Context, opts Options, subURL, configText string) (*runResult, error) {
-	baseConfig, outbound, targetTag, _, scanText, err := BuildClientConfig(configText)
+type configSession struct {
+	child    *Child
+	tmpdir   string
+	coreUsed string
+	xrayPath string
+	port     int
+	keep     bool
+}
+
+func (session *configSession) Close(keepTemp bool) {
+	if session == nil {
+		return
+	}
+	if session.child != nil {
+		session.child.Stop()
+	}
+	if session.tmpdir != "" {
+		if keepTemp && session.keep {
+			fmt.Println(C("Temporary files: "+session.tmpdir, "dim"))
+		} else {
+			os.RemoveAll(session.tmpdir)
+		}
+	}
+}
+
+func startConfigSession(ctx context.Context, opts Options, configText string) (*configSession, error) {
+	baseConfig, outbound, targetTag, _, _, err := BuildClientConfig(configText)
 	if err != nil {
 		return nil, err
 	}
-	_ = scanText
 	proxyOutbound := outbound
 	if baseConfig != nil {
 		proxyOutbound = findProxyOutbound(baseConfig, targetTag)
@@ -773,24 +800,8 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		coreNames = []string{"legacy", "latest"}
 	}
 	var coreErrors []string
-	var xrayPath, coreUsed string
-	var child *Child
-	var tmpdir, cfgPath, logPath string
-	success := false
-	defer func() {
-		if child != nil {
-			child.Stop()
-		}
-		if tmpdir != "" {
-			if opts.KeepTemp && success {
-				fmt.Println(C("Temporary files: "+tmpdir, "dim"))
-			} else {
-				os.RemoveAll(tmpdir)
-			}
-		}
-	}()
 	for coreIndex, coreName := range coreNames {
-		xrayPath, err = EnsureXray(coreName)
+		xrayPath, err := EnsureXray(coreName)
 		if err != nil {
 			coreErrors = append(coreErrors, fmt.Sprintf("%s: %v", coreName, err))
 			if len(coreNames) > 1 {
@@ -806,17 +817,19 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		if err != nil {
 			return nil, err
 		}
-		tmpdir, err = os.MkdirTemp("", "ratio-test-")
+		tmpdir, err := os.MkdirTemp("", "ratio-test-")
 		if err != nil {
 			return nil, ratioErrorf("Could not create temporary files: %v", err)
 		}
-		cfgPath = filepath.Join(tmpdir, "config.json")
-		logPath = filepath.Join(tmpdir, "xray.log")
+		cfgPath := filepath.Join(tmpdir, "config.json")
+		logPath := filepath.Join(tmpdir, "xray.log")
 		payload, err := json.MarshalIndent(config, "", "  ")
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not encode the Xray config: %v", err)
 		}
 		if err := os.WriteFile(cfgPath, payload, 0o600); err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not write the Xray config: %v", err)
 		}
 		testCtx, cancel := context.WithTimeout(ctx, 40*time.Second)
@@ -830,9 +843,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			}
 			err = ratioErrorf("The config is not valid for Xray:\n%s", message)
 			coreErrors = append(coreErrors, fmt.Sprintf("%s: %v", coreName, err))
-			child = nil
 			os.RemoveAll(tmpdir)
-			tmpdir = ""
 			if coreIndex < len(coreNames)-1 {
 				fmt.Println(C(fmt.Sprintf("Xray core '%s' failed: %v", coreName, err), "yellow"))
 				fmt.Println(C("Trying another Xray core ...", "cyan"))
@@ -842,37 +853,41 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		}
 		port, err = FreePort()
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, err
 		}
 		config, err = PrepareConfig(baseConfig, outbound, targetTag, port)
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, err
 		}
 		payload, err = json.MarshalIndent(config, "", "  ")
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not encode the Xray config: %v", err)
 		}
 		if err := os.WriteFile(cfgPath, payload, 0o600); err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not write the Xray config: %v", err)
 		}
 		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not open the Xray log: %v", err)
 		}
 		command := exec.Command(xrayPath, "run", "-c", cfgPath)
 		command.Stdout = logFile
 		command.Stderr = logFile
-		child, err = StartChild(command)
+		child, err := StartChild(command)
 		logFile.Close()
 		if err != nil {
+			os.RemoveAll(tmpdir)
 			return nil, ratioErrorf("Could not start Xray: %v", err)
 		}
 		if err := WaitForPort(port, child, logPath, 15*time.Second); err != nil {
 			coreErrors = append(coreErrors, fmt.Sprintf("%s: %v", coreName, err))
 			child.Stop()
-			child = nil
 			os.RemoveAll(tmpdir)
-			tmpdir = ""
 			if coreIndex < len(coreNames)-1 {
 				fmt.Println(C(fmt.Sprintf("Xray core '%s' failed: %v", coreName, err), "yellow"))
 				fmt.Println(C("Trying another Xray core ...", "cyan"))
@@ -888,9 +903,7 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 		if err := ProbeWithRetry(ctx, port, probeURLs, opts.ProbeTimeout, opts.ProbeRetries, opts.ProbeWait, IsInteractive()); err != nil {
 			coreErrors = append(coreErrors, fmt.Sprintf("%s: %v", coreName, err))
 			child.Stop()
-			child = nil
 			os.RemoveAll(tmpdir)
-			tmpdir = ""
 			if coreIndex < len(coreNames)-1 {
 				fmt.Println(C(fmt.Sprintf("Xray core '%s' failed: %v", coreName, err), "yellow"))
 				fmt.Println(C("Trying another Xray core ...", "cyan"))
@@ -898,112 +911,304 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 			}
 			return nil, err
 		}
-		coreUsed = coreName
-		if opts.ProbeOnly {
-			fmt.Println(C(fmt.Sprintf("Connection OK (%s).", coreUsed), "green"))
-			success = true
-			return &runResult{Core: coreUsed, XrayPath: xrayPath, ProbeOnly: true}, nil
-		}
-		fmt.Println(C(fmt.Sprintf("Connection OK (%s). Reading baseline usage ...", coreUsed), "green"))
-		time.Sleep(2 * time.Second)
-		before, err := ReadUsage(subURL, 3, 3*time.Second)
-		if err != nil {
-			return nil, err
-		}
-		beforeTime := time.Now()
-		driftRate := 0.0
-		reportBackground := func(driftBytes int64, driftWindow float64) {
-			if driftBytes <= 0 {
-				fmt.Println(C("No background usage detected.", "dim"))
-				return
-			}
-			driftRate = float64(driftBytes) / driftWindow
-			if driftBytes >= 64*1024 {
-				fmt.Println(C(fmt.Sprintf("Warning: the subscription is consuming data while idle (%s in %.0fs, about %s/s).",
-					Human(driftBytes), driftWindow, HumanFloat(driftRate)), "yellow"))
-				fmt.Println(C("Results will be corrected using this background rate.", "dim"))
-			} else {
-				fmt.Println(C(fmt.Sprintf("Background usage is small (%s) and will be accounted for.", Human(driftBytes)), "dim"))
-			}
-		}
-		if opts.Sync {
-			fmt.Println(C("Measuring background usage across the panel's update cycle ...", "cyan"))
-			first, _, firstTime, readErr := readUsageAfterWithLabel(ctx, subURL, *before, 75, "Measuring background usage (waiting for the panel update) ...")
-			if readErr != nil {
-				return nil, readErr
-			}
-			if first.Used() == before.Used() {
-				fmt.Println(C("No background usage detected.", "dim"))
-				before = first
-				beforeTime = firstTime
-			} else {
-				second, _, secondTime, readErr := readUsageAfterWithLabel(ctx, subURL, *first, 75, "Measuring background usage (waiting for the next panel update) ...")
-				if readErr != nil {
-					return nil, readErr
-				}
-				driftWindow := secondTime.Sub(firstTime).Seconds()
-				if driftWindow < 0.001 {
-					driftWindow = 0.001
-				}
-				reportBackground(second.Used()-first.Used(), driftWindow)
-				before = second
-				beforeTime = secondTime
-			}
-		} else if opts.DriftWindow > 0 {
-			driftStart := *before
-			driftStartTime := beforeTime
-			Countdown(opts.DriftWindow, "Measuring background usage")
-			before, err = ReadUsage(subURL, 3, 3*time.Second)
-			if err != nil {
-				return nil, err
-			}
-			beforeTime = time.Now()
-			driftWindow := beforeTime.Sub(driftStartTime).Seconds()
-			if driftWindow < 0.001 {
-				driftWindow = 0.001
-			}
-			reportBackground(before.Used()-driftStart.Used(), driftWindow)
-		}
-		totalBytes := int64(0)
-		if opts.SizeMB != nil {
-			totalBytes = int64(*opts.SizeMB * 1024 * 1024)
-		} else {
-			totalBytes = int64(DefaultSizeMB * 1024 * 1024)
-		}
-		chunkBytes := int64(opts.ChunkMB * 1024 * 1024)
-		if chunkBytes < 256*1024 {
-			chunkBytes = 256 * 1024
-		}
-		fmt.Println(C(fmt.Sprintf("Starting test download (%s) ...", Human(totalBytes)), "cyan"))
-		started := time.Now()
-		downloaded, targetURL := DownloadWithFallback(ctx, port, opts, totalBytes, chunkBytes)
-		elapsed := time.Since(started).Seconds()
-		if targetURL != opts.TestURL {
-			fmt.Println(C(fmt.Sprintf("Using fallback test target: %s", targetURL), "yellow"))
-		}
-		if downloaded <= 0 {
-			return nil, ratioErrorf("No data was downloaded through the config.")
-		}
-		if downloaded < totalBytes {
-			fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
-		}
-		fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
-		after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend, time.Duration(opts.Wait)*time.Minute)
-		if err != nil {
-			return nil, err
-		}
-		driftUsed := int64(driftRate * maxFloat(0, afterTime.Sub(beforeTime).Seconds()))
-		success = true
-		return &runResult{
-			Before: *before, After: *after, Readings: readings, AfterTime: afterTime,
-			Downloaded: downloaded, Elapsed: elapsed, Core: coreUsed, XrayPath: xrayPath,
-			DriftRate: driftRate, DriftUsed: driftUsed,
+		return &configSession{
+			child: child, tmpdir: tmpdir, coreUsed: coreName,
+			xrayPath: xrayPath, port: port,
 		}, nil
 	}
 	if len(coreErrors) > 0 {
 		return nil, ratioErrorf("No Xray core could start the config. %s", strings.Join(coreErrors, " | "))
 	}
 	return nil, ratioErrorf("No Xray core could start the config.")
+}
+
+func measureBaseline(ctx context.Context, opts Options, subURL string, before *Usage) (*Usage, time.Time, float64, error) {
+	beforeTime := time.Now()
+	driftRate := 0.0
+	reportBackground := func(driftBytes int64, driftWindow float64) {
+		if driftBytes <= 0 {
+			fmt.Println(C("No background usage detected.", "dim"))
+			return
+		}
+		driftRate = float64(driftBytes) / driftWindow
+		if driftBytes >= 64*1024 {
+			fmt.Println(C(fmt.Sprintf("Warning: the subscription is consuming data while idle (%s in %.0fs, about %s/s).",
+				Human(driftBytes), driftWindow, HumanFloat(driftRate)), "yellow"))
+			fmt.Println(C("Results will be corrected using this background rate.", "dim"))
+		} else {
+			fmt.Println(C(fmt.Sprintf("Background usage is small (%s) and will be accounted for.", Human(driftBytes)), "dim"))
+		}
+	}
+	if opts.Sync {
+		fmt.Println(C("Measuring background usage across the panel's update cycle ...", "cyan"))
+		first, _, firstTime, readErr := readUsageAfterWithLabel(ctx, subURL, *before, 75, "Measuring background usage (waiting for the panel update) ...")
+		if readErr != nil {
+			return nil, time.Time{}, 0, readErr
+		}
+		if first.Used() == before.Used() {
+			fmt.Println(C("No background usage detected.", "dim"))
+			before = first
+			beforeTime = firstTime
+		} else {
+			second, _, secondTime, readErr := readUsageAfterWithLabel(ctx, subURL, *first, 75, "Measuring background usage (waiting for the next panel update) ...")
+			if readErr != nil {
+				return nil, time.Time{}, 0, readErr
+			}
+			driftWindow := secondTime.Sub(firstTime).Seconds()
+			if driftWindow < 0.001 {
+				driftWindow = 0.001
+			}
+			reportBackground(second.Used()-first.Used(), driftWindow)
+			before = second
+			beforeTime = secondTime
+		}
+	} else if opts.DriftWindow > 0 {
+		driftStart := *before
+		driftStartTime := beforeTime
+		Countdown(opts.DriftWindow, "Measuring background usage")
+		refreshed, err := ReadUsage(subURL, 3, 3*time.Second)
+		if err != nil {
+			return nil, time.Time{}, 0, err
+		}
+		before = refreshed
+		beforeTime = time.Now()
+		driftWindow := beforeTime.Sub(driftStartTime).Seconds()
+		if driftWindow < 0.001 {
+			driftWindow = 0.001
+		}
+		reportBackground(before.Used()-driftStart.Used(), driftWindow)
+	}
+	return before, beforeTime, driftRate, nil
+}
+
+func runSingle(ctx context.Context, opts Options, subURL, configText string) (*runResult, error) {
+	session, err := startConfigSession(ctx, opts, configText)
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close(opts.KeepTemp)
+	coreUsed := session.coreUsed
+	if opts.ProbeOnly {
+		fmt.Println(C(fmt.Sprintf("Connection OK (%s).", coreUsed), "green"))
+		session.keep = true
+		return &runResult{Core: coreUsed, XrayPath: session.xrayPath, ProbeOnly: true}, nil
+	}
+	fmt.Println(C(fmt.Sprintf("Connection OK (%s). Reading baseline usage ...", coreUsed), "green"))
+	time.Sleep(2 * time.Second)
+	before, err := ReadUsage(subURL, 3, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	before, beforeTime, driftRate, err := measureBaseline(ctx, opts, subURL, before)
+	if err != nil {
+		return nil, err
+	}
+	totalBytes := int64(DefaultSizeMB * 1024 * 1024)
+	if opts.SizeMB != nil {
+		totalBytes = int64(*opts.SizeMB * 1024 * 1024)
+	}
+	chunkBytes := int64(opts.ChunkMB * 1024 * 1024)
+	if chunkBytes < 256*1024 {
+		chunkBytes = 256 * 1024
+	}
+	fmt.Println(C(fmt.Sprintf("Starting test download (%s) ...", Human(totalBytes)), "cyan"))
+	started := time.Now()
+	downloaded, targetURL := DownloadWithFallback(ctx, session.port, opts, totalBytes, chunkBytes)
+	elapsed := time.Since(started).Seconds()
+	if targetURL != opts.TestURL {
+		fmt.Println(C(fmt.Sprintf("Using fallback test target: %s", targetURL), "yellow"))
+	}
+	if downloaded <= 0 {
+		return nil, ratioErrorf("No data was downloaded through the config.")
+	}
+	if downloaded < totalBytes {
+		fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded.", Human(downloaded), Human(totalBytes)), "yellow"))
+	}
+	fmt.Println(C(fmt.Sprintf("Download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
+	after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend, time.Duration(opts.Wait)*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	driftUsed := int64(driftRate * maxFloat(0, afterTime.Sub(beforeTime).Seconds()))
+	session.keep = true
+	return &runResult{
+		Before: *before, After: *after, Readings: readings, AfterTime: afterTime,
+		Downloaded: downloaded, Elapsed: elapsed, Core: coreUsed, XrayPath: session.xrayPath,
+		DriftRate: driftRate, DriftUsed: driftUsed,
+	}, nil
+}
+
+const batchConcurrency = 4
+
+type batchConfigOutcome struct {
+	downloaded int64
+	core       string
+	xrayPath   string
+	err        error
+}
+
+func configTextFor(item Config) string {
+	if item.JSON != nil {
+		payload, _ := json.Marshal(item.JSON)
+		return string(payload)
+	}
+	return item.URI
+}
+
+func runBatch(ctx context.Context, opts Options, subURL string) (*Result, error) {
+	sizeMB, err := resolveSize(opts)
+	if err != nil {
+		return nil, err
+	}
+	opts.SizeMB = &sizeMB
+	fmt.Println("Reading configs from the subscription ...")
+	body, _, err := Fetch(subURL, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	configs := ExtractConfigs(body)
+	if len(configs) == 0 {
+		fmt.Println("No supported configs found in the subscription.")
+		return nil, ErrNoConfigs
+	}
+	fmt.Printf("Testing all %d configs with one usage baseline and one final usage read.\n", len(configs))
+	fmt.Println(C("Reading subscription info ...", "cyan"))
+	initialUsage, err := ReadUsage(subURL, 3, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	usageLine := fmt.Sprintf("Current subscription usage: upload %s | download %s",
+		Human(initialUsage.Upload), Human(initialUsage.Download))
+	if initialUsage.Total != nil {
+		remaining := *initialUsage.Total - initialUsage.Upload - initialUsage.Download
+		if remaining > 0 {
+			usageLine += " | remaining " + Human(remaining)
+		}
+	}
+	fmt.Println(C(usageLine, "dim"))
+	before, beforeTime, driftRate, err := measureBaseline(ctx, opts, subURL, initialUsage)
+	if err != nil {
+		return nil, err
+	}
+	totalBytes := int64(sizeMB * 1024 * 1024)
+	chunkBytes := int64(opts.ChunkMB * 1024 * 1024)
+	if chunkBytes < 256*1024 {
+		chunkBytes = 256 * 1024
+	}
+	fmt.Println(C(fmt.Sprintf("Starting batch download of %s per config across %d configs ...", Human(totalBytes), len(configs)), "cyan"))
+	started := time.Now()
+	outcomes := make(chan batchConfigOutcome, len(configs))
+	jobs := make(chan Config)
+	workers := batchConcurrency
+	if len(configs) < workers {
+		workers = len(configs)
+	}
+	var startMu sync.Mutex
+	var wg sync.WaitGroup
+	for index := 0; index < workers; index++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range jobs {
+				if ctx.Err() != nil {
+					outcomes <- batchConfigOutcome{err: ctx.Err()}
+					continue
+				}
+				label := item.Remark
+				if label == "" {
+					label = item.Target
+				}
+				// Serialize startup so workers cannot race on local ports or the Xray download.
+				startMu.Lock()
+				session, startErr := startConfigSession(ctx, opts, configTextFor(item))
+				startMu.Unlock()
+				if startErr != nil {
+					fmt.Println(C(fmt.Sprintf("Config %s failed: %v", label, startErr), "yellow"))
+					outcomes <- batchConfigOutcome{err: startErr}
+					continue
+				}
+				fmt.Println(C(fmt.Sprintf("Connection OK (%s) for %s; downloading ...", session.coreUsed, label), "green"))
+				downloaded, _ := DownloadWithFallback(ctx, session.port, opts, totalBytes, chunkBytes)
+				session.keep = downloaded > 0
+				session.Close(opts.KeepTemp)
+				if downloaded < totalBytes {
+					fmt.Println(C(fmt.Sprintf("Warning: only %s of %s was downloaded through %s.", Human(downloaded), Human(totalBytes), label), "yellow"))
+				}
+				outcomes <- batchConfigOutcome{downloaded: downloaded, core: session.coreUsed, xrayPath: session.xrayPath}
+			}
+		}()
+	}
+	for _, item := range configs {
+		jobs <- item
+	}
+	close(jobs)
+	wg.Wait()
+	close(outcomes)
+	var downloaded int64
+	var coreUsed, xrayPath string
+	failures := 0
+	for outcome := range outcomes {
+		if outcome.err != nil {
+			failures++
+			continue
+		}
+		downloaded += outcome.downloaded
+		if coreUsed == "" {
+			coreUsed, xrayPath = outcome.core, outcome.xrayPath
+		}
+	}
+	elapsed := time.Since(started).Seconds()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if downloaded <= 0 {
+		return nil, ratioErrorf("No data was downloaded through any config.")
+	}
+	if failures > 0 {
+		fmt.Println(C(fmt.Sprintf("%d of %d configs failed; the ratio uses only successful downloads.", failures, len(configs)), "yellow"))
+	}
+	fmt.Println(C(fmt.Sprintf("Batch download finished: %s in %.1fs.", Human(downloaded), elapsed), "green"))
+	after, readings, afterTime, err := WaitForUsageWithControl(ctx, subURL, *before, downloaded, opts.ControlFile, opts.AutoExtend, time.Duration(opts.Wait)*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	driftUsed := int64(driftRate * maxFloat(0, afterTime.Sub(beforeTime).Seconds()))
+	final := &runResult{
+		Before: *before, After: *after, Readings: readings, AfterTime: afterTime,
+		Downloaded: downloaded, Elapsed: elapsed, Core: coreUsed, XrayPath: xrayPath,
+		DriftRate: driftRate, DriftUsed: driftUsed,
+	}
+	return finalizeResult(opts, final, "All configs", nil, len(configs))
+}
+
+func resolveSize(opts Options) (float64, error) {
+	sizeMB := DefaultSizeMB
+	if opts.SizeMB != nil {
+		sizeMB = *opts.SizeMB
+	} else if IsInteractive() {
+		def := fmt.Sprintf("%g", DefaultSizeMB)
+		raw, err := Ask("Test size in MB", &def)
+		if err != nil {
+			return 0, err
+		}
+		value, err := ParseFloat(raw)
+		if err != nil {
+			return 0, ratioErrorf("Invalid test size.")
+		}
+		sizeMB = value
+	}
+	if sizeMB <= 0 {
+		return 0, ratioErrorf("Test size must be greater than zero.")
+	}
+	if !opts.FreeSize {
+		if sizeMB < MinSizeMB {
+			return 0, ratioErrorf("Minimum test size is %g MB.", MinSizeMB)
+		}
+		if sizeMB > MaxSizeMB {
+			return 0, ratioErrorf("Maximum test size is %g MB.", MaxSizeMB)
+		}
+	}
+	return sizeMB, nil
 }
 
 func maxFloat(a, b float64) float64 {
@@ -1050,6 +1255,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 			fmt.Printf("%d) %s | %s | %s\n", index+1, item.Protocol, item.Target, remark)
 		}
 		return nil, nil
+	}
+	if opts.BatchAll {
+		return runBatch(ctx, opts, subURL)
 	}
 	configArg := opts.Config
 	var availableConfigs []Config
@@ -1101,31 +1309,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 			}
 		}
 	}
-	sizeMB := DefaultSizeMB
-	if opts.SizeMB != nil {
-		sizeMB = *opts.SizeMB
-	} else if IsInteractive() {
-		def := fmt.Sprintf("%g", DefaultSizeMB)
-		raw, err := Ask("Test size in MB", &def)
-		if err != nil {
-			return nil, err
-		}
-		value, err := ParseFloat(raw)
-		if err != nil {
-			return nil, ratioErrorf("Invalid test size.")
-		}
-		sizeMB = value
-	}
-	if sizeMB <= 0 {
-		return nil, ratioErrorf("Test size must be greater than zero.")
-	}
-	if !opts.FreeSize {
-		if sizeMB < MinSizeMB {
-			return nil, ratioErrorf("Minimum test size is %g MB.", MinSizeMB)
-		}
-		if sizeMB > MaxSizeMB {
-			return nil, ratioErrorf("Maximum test size is %g MB.", MaxSizeMB)
-		}
+	sizeMB, err := resolveSize(opts)
+	if err != nil {
+		return nil, err
 	}
 	opts.SizeMB = &sizeMB
 	wait := opts.Wait
@@ -1196,6 +1382,21 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	if final.ProbeOnly {
 		return nil, nil
 	}
+	return finalizeResult(opts, final, remark, claimed, 0)
+}
+
+func netUsage(used, downloaded, driftUsed int64) (int64, bool) {
+	if driftUsed <= 0 {
+		return used, false
+	}
+	candidate := used - driftUsed
+	if candidate > 0 && candidate >= downloaded/4 {
+		return candidate, true
+	}
+	return used, false
+}
+
+func finalizeResult(opts Options, final *runResult, remark string, claimed *float64, configsTested int) (*Result, error) {
 	deltaUp := final.After.Upload - final.Before.Upload
 	deltaDown := final.After.Download - final.Before.Download
 	used := deltaUp + deltaDown
@@ -1203,15 +1404,10 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, ratioErrorf("Usage reported by the subscription did not change. The panel may be delayed or may only show usage in its dashboard.")
 	}
 	rawRatio := float64(used) / float64(final.Downloaded)
-	netUsed := used
-	if final.DriftUsed > 0 {
-		candidate := used - final.DriftUsed
-		if candidate > 0 && candidate >= final.Downloaded/4 {
-			netUsed = candidate
-		} else {
-			fmt.Println(C("Warning: the background estimate was too large to apply safely; showing the raw result.", "yellow"))
-			final.DriftUsed = 0
-		}
+	netUsed, driftApplied := netUsage(used, final.Downloaded, final.DriftUsed)
+	if final.DriftUsed > 0 && !driftApplied {
+		fmt.Println(C("Warning: the background estimate was too large to apply safely; showing the raw result.", "yellow"))
+		final.DriftUsed = 0
 	}
 	ratio := float64(netUsed) / float64(final.Downloaded)
 	matches := false
@@ -1247,6 +1443,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	fmt.Println(C(strings.Repeat("=", 54), "cyan"))
 	if remark != "" {
 		fmt.Println(C("Config: "+remark, "dim"))
+	}
+	if configsTested > 0 {
+		fmt.Println(C(fmt.Sprintf("Configs tested: %d", configsTested), "dim"))
 	}
 	fmt.Println()
 	fmt.Println(C("  REAL COEFFICIENT", "bold"))
@@ -1290,7 +1489,8 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	fmt.Println(C(strings.Repeat("=", 54), "cyan"))
 	result := &Result{
 		Version: Version, TestedAt: time.Now().UTC().Format(time.RFC3339Nano),
-		Core: final.Core, XrayVersion: XrayVersion(final.XrayPath),
+		ConfigsTested: configsTested,
+		Core:          final.Core, XrayVersion: XrayVersion(final.XrayPath),
 		DownloadedBytes: final.Downloaded, UsageBefore: final.Before, UsageAfter: final.After,
 		DeltaUpload: deltaUp, DeltaDownload: deltaDown, DeltaTotal: used,
 		Ratio: roundTo(ratio, 4), RatioRaw: roundTo(rawRatio, 4),

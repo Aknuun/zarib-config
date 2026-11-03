@@ -29,6 +29,7 @@ interface ResultViewProps {
   lang: Lang;
   aggregate: Aggregate;
   rows: TestRow[];
+  batch: boolean;
   sharing: boolean;
   onShare: () => void;
   onRetest: () => void;
@@ -45,6 +46,7 @@ export function ResultView({
   lang,
   aggregate,
   rows,
+  batch,
   sharing,
   onShare,
   onRetest,
@@ -91,9 +93,11 @@ export function ResultView({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="z-eyebrow">{t("resultEyebrow")}</p>
           <div className="flex flex-wrap gap-1.5">
-            {aggregate.count > 1 && (
+            {batch ? (
+              <Badge variant="secondary">{t("batchBadge", { n: aggregate.count })}</Badge>
+            ) : aggregate.count > 1 ? (
               <Badge variant="secondary">{t("averageNote", { n: aggregate.count })}</Badge>
-            )}
+            ) : null}
             {invalid ? (
               <Badge variant="error">{t("badgeInvalid")}</Badge>
             ) : noRatio ? (
@@ -118,6 +122,8 @@ export function ResultView({
         />
 
         <p className="z-verdict">{verdict}</p>
+
+        {batch && <p className="z-hint">{t("batchNote")}</p>}
 
         <dl className="z-result-stats">
           <div>
@@ -146,6 +152,7 @@ export function ResultView({
         )}
       </section>
 
+      {!batch && (
       <section className="z-card z-result-list-card" aria-labelledby="per-config-title">
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="per-config-title" className="text-[14px] font-semibold">
@@ -204,6 +211,7 @@ export function ResultView({
           })}
         </div>
       </section>
+      )}
 
       <div className="z-result-actions">
         <div className="grid w-full grid-cols-2 gap-2">

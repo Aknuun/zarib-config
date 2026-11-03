@@ -15,6 +15,7 @@ interface ProgressViewProps {
   lang: Lang;
   job: Job | null;
   batch: { total: number; completed: number; startedAt: number };
+  batchMode: boolean;
   nextName: string | null;
   reconnecting: boolean;
   canceling: boolean;
@@ -33,6 +34,7 @@ export function ProgressView({
   lang,
   job,
   batch,
+  batchMode,
   nextName,
   reconnecting,
   canceling,
@@ -52,10 +54,12 @@ export function ProgressView({
 
   const stage = job?.stage || "queued";
   const progress = job?.progress || 0;
-  const percent = Math.min(
-    99,
-    Math.max(0, ((batch.completed + progress / 100) / Math.max(1, batch.total)) * 100),
-  );
+  const percent = batchMode
+    ? Math.min(99, Math.max(0, progress))
+    : Math.min(
+        99,
+        Math.max(0, ((batch.completed + progress / 100) / Math.max(1, batch.total)) * 100),
+      );
   targetRef.current = percent;
 
   useEffect(() => {
@@ -107,9 +111,11 @@ export function ProgressView({
           <div>
             <p className="z-eyebrow">{t("progressEyebrow")}</p>
             <h1 id="progress-title" className="z-progress-title">
-              {batch.total > 1
-                ? t("progressOf", { i: current, n: batch.total })
-                : t("progressSingle")}
+              {batchMode
+                ? t("progressBatch", { n: batch.total })
+                : batch.total > 1
+                  ? t("progressOf", { i: current, n: batch.total })
+                  : t("progressSingle")}
             </h1>
           </div>
           <div className="text-end">

@@ -11,6 +11,7 @@ import { ReportDialog } from "./components/ReportDialog";
 import {
   ApiError,
   cancelJob,
+  createBatchJob,
   createJob,
   getHealth,
   getJob,
@@ -147,7 +148,7 @@ function computeAggregate(rows: TestRow[]): Aggregate | null {
     deducted,
     background,
     excluded: successes.length - basis.length,
-    count: basis.length,
+    count: Number(last.configs_tested) || basis.length,
     duration,
     testedAt: last.tested_at,
     core: last.core,
@@ -200,6 +201,7 @@ export default function App() {
   const [starting, setStarting] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [batch, setBatch] = useState<BatchState | null>(null);
+  const [batchMode, setBatchMode] = useState(false);
   const [testPicks, setTestPicks] = useState<number[]>([]);
   const [results, setResults] = useState<TestRow[]>([]);
   const [reconnecting, setReconnecting] = useState(false);
@@ -495,6 +497,7 @@ export default function App() {
       });
       setSize(record.size || 25);
       setBg(Boolean(record.bg));
+      setBatchMode(Boolean(record.batch));
       setSelected(new Set(configs.map((config) => config.index)));
       setTestPicks(configs.map((config) => config.index).sort((a, b) => a - b));
       setBatch({
@@ -560,8 +563,9 @@ export default function App() {
         };
       }
 
-      const currentConfig =
-        configs.find((config) => config.index === record.pick) || fallback(record.pick);
+      const currentConfig = record.batch
+        ? { index: 0, protocol: "", target: "", remark: "All configs" }
+        : configs.find((config) => config.index === record.pick) || fallback(record.pick);
       const rows = [
         ...prior,
         {
@@ -636,6 +640,7 @@ export default function App() {
       setSelected(new Set());
       setResults([]);
       setError(null);
+      setBatchMode(false);
       setUrl(normalized);
       setView("setup");
       scrollTop();
@@ -675,11 +680,85 @@ export default function App() {
     );
   }
 
-  function startAll() {
+  async function startBatch() {
     if (!sub || starting) return;
-    const all = sub.configs.map((config) => config.index);
-    setSelected(new Set(all));
-    void startTest(all);
+    const picks = sub.configs.map((config) => config.index).sort((a, b) => a - b);
+    if (picks.length < 2) {
+      await startTest(picks);
+      return;
+    }
+    activeRef.current = { cancelled: false, jobId: null };
+    setStarting(true);
+    setError(null);
+    setResults([]);
+    setJob(null);
+    setReconnecting(false);
+    setCanceling(false);
+    setBatchMode(true);
+    setTestPicks(picks);
+    const startedAt = Date.now();
+    setBatch({ total: picks.length, completed: 0, startedAt });
+    setView("progress");
+    scrollTop();
+    try {
+      const created = await createBatchJob({
+        sub_url: sub.url,
+        size_mb: size,
+        sync: bg,
+      });
+      if (activeRef.current.cancelled) {
+        void cancelJob(created.id).catch(() => null);
+        return;
+      }
+      activeRef.current.jobId = created.id;
+      saveRecord({
+        id: created.id,
+        url: sub.url,
+        host: sub.host,
+        pick: 0,
+        label: "All configs",
+        startedAt,
+        size,
+        bg,
+        total: picks.length,
+        completed: 0,
+        batch: true,
+        configs: sub.configs.map(configMeta),
+        queue: [],
+        results: [],
+      });
+      const outcome = await pollJob(created.id);
+      activeRef.current.jobId = null;
+      clearRecord();
+      if (activeRef.current.cancelled) {
+        setView("setup");
+        return;
+      }
+      finish([
+        {
+          pick: 0,
+          config: { index: 0, protocol: "", target: "", remark: "All configs" },
+          result: outcome.result,
+          errorCode: outcome.errorCode,
+          errorMessage: outcome.errorMessage,
+          errorLog: outcome.errorLog,
+        },
+      ]);
+    } catch (caught) {
+      if (caught instanceof CancelledError) {
+        setView("setup");
+        return;
+      }
+      const apiError = caught instanceof ApiError ? caught : null;
+      setError({
+        code: apiError?.code || "unknown",
+        message: apiError?.message || "",
+        log: apiError?.log || [],
+      });
+      setView("error");
+    } finally {
+      setStarting(false);
+    }
   }
 
   async function startTest(picksOverride?: number[]) {
@@ -696,6 +775,7 @@ export default function App() {
     setJob(null);
     setReconnecting(false);
     setCanceling(false);
+    setBatchMode(false);
     setTestPicks(picks);
     const startedAt = Date.now();
     setBatch({ total: picks.length, completed: 0, startedAt });
@@ -748,6 +828,7 @@ export default function App() {
     activeRef.current.jobId = null;
     setJob(null);
     setBatch(null);
+    setBatchMode(false);
     setResults([]);
     setReconnecting(false);
     setError(null);
@@ -765,6 +846,7 @@ export default function App() {
     setError(null);
     setJob(null);
     setBatch(null);
+    setBatchMode(false);
     setTestPicks([]);
     setUrl("");
     setInspectError(null);
@@ -780,6 +862,7 @@ export default function App() {
       const outcome = await shareResult({
         aggregate,
         rows: results,
+        batch: batchMode,
         lang,
         theme,
         brandName,
@@ -858,7 +941,7 @@ export default function App() {
             onToggle={toggleConfig}
             onRemove={resetToLanding}
             onStart={() => void startTest()}
-          onStartAll={startAll}
+            onStartAll={() => void startBatch()}
             onSize={setSize}
             onBg={(value) => {
               setBg(value);
@@ -874,7 +957,8 @@ export default function App() {
             lang={lang}
             job={job}
             batch={currentBatch}
-            nextName={nextName}
+            batchMode={batchMode}
+            nextName={batchMode ? null : nextName}
             reconnecting={reconnecting}
             canceling={canceling}
             onCancel={() => void cancelTest()}
@@ -886,10 +970,11 @@ export default function App() {
             lang={lang}
             aggregate={aggregate}
             rows={results}
+            batch={batchMode}
             sharing={sharing}
             onShare={() => void onShare()}
             onNewSub={resetToLanding}
-          onRetest={() => void startTest()}
+            onRetest={() => void (batchMode ? startBatch() : startTest())}
             onReport={() => setReportOpen(true)}
             brandName={brandName}
             brandImage={brandImage}
@@ -906,7 +991,7 @@ export default function App() {
             message={error.message}
             log={error.log}
             canRetry={Boolean(sub)}
-            onRetry={() => void startTest()}
+            onRetry={() => void (batchMode ? startBatch() : startTest())}
             onChooseConfig={() => {
               setView("setup");
               scrollTop();

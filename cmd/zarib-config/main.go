@@ -296,6 +296,7 @@ func runCLI(args []string) int {
 		claimed      = fs.Float64("claimed", 0, "Claimed coefficient")
 		jsonOut      = fs.String("json-out", "", "Save the result to a JSON file")
 		keepTemp     = fs.Bool("keep-temp", false, "Keep temporary files")
+		batchAll     = fs.Bool("batch-all", false, "Test every config with one usage baseline and one final usage read")
 		version      = fs.Bool("version", false, "Print the version")
 	)
 	fs.Usage = func() {
@@ -342,6 +343,7 @@ func runCLI(args []string) int {
 	opts.FreeSize = true
 	opts.JSONOut = *jsonOut
 	opts.KeepTemp = *keepTemp
+	opts.BatchAll = *batchAll
 	sizeValue := *size
 	opts.SizeMB = &sizeValue
 	if provided["pick"] {

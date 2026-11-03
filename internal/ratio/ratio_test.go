@@ -547,6 +547,32 @@ func TestProbeRetriesThenSucceeds(t *testing.T) {
 	}
 }
 
+func TestBatchNetUsageAndRatio(t *testing.T) {
+	cases := []struct {
+		name       string
+		used       int64
+		downloaded int64
+		drift      int64
+		want       int64
+		applied    bool
+	}{
+		{"no drift", 1000, 500, 0, 1000, false},
+		{"drift applied", 1000, 500, 200, 800, true},
+		{"drift too large", 1000, 500, 1000, 1000, false},
+		{"drift below quarter", 1000, 1000, 800, 1000, false},
+	}
+	for _, item := range cases {
+		got, applied := netUsage(item.used, item.downloaded, item.drift)
+		if got != item.want || applied != item.applied {
+			t.Fatalf("%s: netUsage(%d, %d, %d) = (%d, %v), want (%d, %v)",
+				item.name, item.used, item.downloaded, item.drift, got, applied, item.want, item.applied)
+		}
+	}
+	if ratio := float64(800) / float64(500); ratio != 1.6 {
+		t.Fatalf("unexpected batch ratio: %v", ratio)
+	}
+}
+
 func mustObject(t *testing.T, value any) map[string]any {
 	t.Helper()
 	object, ok := value.(map[string]any)
