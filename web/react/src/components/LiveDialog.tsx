@@ -105,6 +105,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
             <h3 className="z-live-group">{t("quality")}</h3>
             <dl>
               {row(t("statOnline"), live ? String(live.online) : "—")}
+          {row(t("statUnique"), live ? (bucket?.unique_ips != null ? String(bucket.unique_ips) : "—") : "—")}
               {row(
                 <Tooltip
                   content={t("proxyHint")}

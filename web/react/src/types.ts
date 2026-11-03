@@ -101,6 +101,7 @@ export interface LiveBucket {
   unknown_tunnel: number;
   downloaded: number;
   deducted: number;
+  unique_ips?: number;
   proxy: number;
   failed: FailStats;
 }

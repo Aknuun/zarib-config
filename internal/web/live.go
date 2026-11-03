@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,29 +34,31 @@ type failStats struct {
 }
 
 type liveStats struct {
-	Day        string `json:"day"`
-	Tests      int    `json:"tests"`
-	WithRatio  int    `json:"with_ratio"`
-	Normal     int    `json:"normal"`
-	Invalid    int    `json:"invalid"`
-	Tunnel     int    `json:"tunnel"`
-	NonTunnel  int    `json:"non_tunnel"`
-	Unknown    int    `json:"unknown_tunnel"`
-	Downloaded int64  `json:"downloaded"`
-	Deducted   int64  `json:"deducted"`
-	ProxyToday int    `json:"proxy_today,omitempty"`
+	Day        string          `json:"day"`
+	Tests      int             `json:"tests"`
+	WithRatio  int             `json:"with_ratio"`
+	Normal     int             `json:"normal"`
+	Invalid    int             `json:"invalid"`
+	Tunnel     int             `json:"tunnel"`
+	NonTunnel  int             `json:"non_tunnel"`
+	Unknown    int             `json:"unknown_tunnel"`
+	Downloaded int64           `json:"downloaded"`
+	Deducted   int64           `json:"deducted"`
+	ProxyToday int             `json:"proxy_today,omitempty"`
+	VisitorIPs map[string]bool `json:"visitor_ips,omitempty"`
 
-	Month           string `json:"month,omitempty"`
-	MonthTests      int    `json:"month_tests,omitempty"`
-	MonthWithRatio  int    `json:"month_with_ratio,omitempty"`
-	MonthNormal     int    `json:"month_normal,omitempty"`
-	MonthInvalid    int    `json:"month_invalid,omitempty"`
-	MonthTunnel     int    `json:"month_tunnel,omitempty"`
-	MonthNonTunnel  int    `json:"month_non_tunnel,omitempty"`
-	MonthUnknown    int    `json:"month_unknown_tunnel,omitempty"`
-	MonthDownloaded int64  `json:"month_downloaded,omitempty"`
-	MonthDeducted   int64  `json:"month_deducted,omitempty"`
-	MonthProxy      int    `json:"month_proxy,omitempty"`
+	Month           string          `json:"month,omitempty"`
+	MonthTests      int             `json:"month_tests,omitempty"`
+	MonthWithRatio  int             `json:"month_with_ratio,omitempty"`
+	MonthNormal     int             `json:"month_normal,omitempty"`
+	MonthInvalid    int             `json:"month_invalid,omitempty"`
+	MonthTunnel     int             `json:"month_tunnel,omitempty"`
+	MonthNonTunnel  int             `json:"month_non_tunnel,omitempty"`
+	MonthUnknown    int             `json:"month_unknown_tunnel,omitempty"`
+	MonthDownloaded int64           `json:"month_downloaded,omitempty"`
+	MonthDeducted   int64           `json:"month_deducted,omitempty"`
+	MonthProxy      int             `json:"month_proxy,omitempty"`
+	MonthVisitorIPs map[string]bool `json:"month_visitor_ips,omitempty"`
 
 	TotalTests      int   `json:"total_tests,omitempty"`
 	TotalWithRatio  int   `json:"total_with_ratio,omitempty"`
@@ -166,6 +170,7 @@ func (s *server) rollStatsLocked() {
 		s.live.Deducted = 0
 		s.live.FailToday = failStats{}
 		s.live.ProxyToday = 0
+		s.live.VisitorIPs = map[string]bool{}
 		changed = true
 	}
 	if s.live.Month != month {
@@ -181,6 +186,7 @@ func (s *server) rollStatsLocked() {
 		s.live.MonthDeducted = 0
 		s.live.FailMonth = failStats{}
 		s.live.MonthProxy = 0
+		s.live.MonthVisitorIPs = map[string]bool{}
 		changed = true
 	}
 	if changed {
@@ -336,6 +342,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"deducted":       s.live.Deducted,
 			"failed":         s.live.FailToday,
 			"proxy":          s.live.ProxyToday,
+			"unique_ips":     len(s.live.VisitorIPs),
 		},
 		"monthly": map[string]any{
 			"month":          s.live.Month,
@@ -350,6 +357,7 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"deducted":       s.live.MonthDeducted,
 			"failed":         s.live.FailMonth,
 			"proxy":          s.live.MonthProxy,
+			"unique_ips":     len(s.live.MonthVisitorIPs),
 		},
 		"overall": map[string]any{
 			"tests":          s.live.TotalTests,
@@ -365,6 +373,27 @@ func (s *server) liveSnapshotLocked() map[string]any {
 			"proxy":          s.live.TotalProxy,
 		},
 	}
+}
+
+func (s *server) recordVisitorLocked(ip string) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return
+	}
+	sum := sha256.Sum256([]byte(ip))
+	key := hex.EncodeToString(sum[:])
+	if s.live.VisitorIPs == nil {
+		s.live.VisitorIPs = map[string]bool{}
+	}
+	if s.live.MonthVisitorIPs == nil {
+		s.live.MonthVisitorIPs = map[string]bool{}
+	}
+	if s.live.VisitorIPs[key] {
+		return
+	}
+	s.live.VisitorIPs[key] = true
+	s.live.MonthVisitorIPs[key] = true
+	s.saveStatsLocked()
 }
 
 func (s *server) presenceHandler(w http.ResponseWriter, r *http.Request) {
@@ -383,6 +412,7 @@ func (s *server) presenceHandler(w http.ResponseWriter, r *http.Request) {
 		s.presence = map[string]float64{}
 	}
 	s.presence[payload.ID] = nowSeconds()
+	s.recordVisitorLocked(ip)
 	view := s.liveSnapshotLocked()
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, view)
