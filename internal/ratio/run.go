@@ -43,6 +43,7 @@ type Options struct {
 	JSONOut      string
 	KeepTemp     bool
 	BatchAll     bool
+	BatchPicks   string
 }
 
 func DefaultOptions() Options {
@@ -1040,6 +1041,28 @@ func runSingle(ctx context.Context, opts Options, subURL, configText string) (*r
 
 const batchConcurrency = 4
 
+func pickBatchConfigs(configs []Config, raw string) ([]Config, error) {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\t'
+	})
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("select at least one config")
+	}
+	seen := make(map[int]bool, len(parts))
+	picked := make([]Config, 0, len(parts))
+	for _, part := range parts {
+		number, err := strconv.Atoi(NormalizeDigits(part))
+		if err != nil || number < 1 || number > len(configs) {
+			return nil, fmt.Errorf("config number must be between 1 and %d", len(configs))
+		}
+		if !seen[number] {
+			seen[number] = true
+			picked = append(picked, configs[number-1])
+		}
+	}
+	return picked, nil
+}
+
 type batchConfigOutcome struct {
 	downloaded int64
 	core       string
@@ -1071,7 +1094,13 @@ func runBatch(ctx context.Context, opts Options, subURL string) (*Result, error)
 		fmt.Println("No supported configs found in the subscription.")
 		return nil, ErrNoConfigs
 	}
-	fmt.Printf("Testing all %d configs with one usage baseline and one final usage read.\n", len(configs))
+	if opts.BatchPicks != "" {
+		configs, err = pickBatchConfigs(configs, opts.BatchPicks)
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Printf("Testing %d selected configs with one usage baseline and one final usage read.\n", len(configs))
 	fmt.Println(C("Reading subscription info ...", "cyan"))
 	initialUsage, err := ReadUsage(subURL, 3, 3*time.Second)
 	if err != nil {
@@ -1178,7 +1207,7 @@ func runBatch(ctx context.Context, opts Options, subURL string) (*Result, error)
 		Downloaded: downloaded, Elapsed: elapsed, Core: coreUsed, XrayPath: xrayPath,
 		DriftRate: driftRate, DriftUsed: driftUsed,
 	}
-	return finalizeResult(opts, final, "All configs", nil, len(configs))
+	return finalizeResult(opts, final, "Selected configs", nil, len(configs))
 }
 
 func resolveSize(opts Options) (float64, error) {

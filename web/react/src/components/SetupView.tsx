@@ -403,7 +403,7 @@ export function SetupView({
           <div className="z-setting">
             <Switch
               checked={bg}
-              onClick={() => onBg(!bg)}
+              onCheckedChange={onBg}
               label={t("bg")}
               size="sm"
               disabled={starting}
@@ -419,7 +419,7 @@ export function SetupView({
               <Button
                 variant="primary"
                 size="lg"
-                className="h-12 text-[14px]"
+                className="h-12 w-full justify-center text-[14px]"
                 icon={!starting ? <Play size={18} weight="fill" /> : undefined}
                 loading={starting}
                 disabled={starting}
@@ -430,7 +430,7 @@ export function SetupView({
               <Button
                 variant="secondary"
                 size="lg"
-                className="h-12 text-[14px]"
+                className="h-12 w-full justify-center text-[14px]"
                 disabled={starting}
                 onClick={onStartAll}
               >
@@ -441,7 +441,7 @@ export function SetupView({
             <Button
               variant="primary"
               size="lg"
-              className="h-12 w-full text-[14px]"
+              className="h-12 justify-center self-center px-6 text-[14px]"
               icon={!starting ? <Play size={18} weight="fill" /> : undefined}
               loading={starting}
               disabled={selected.size === 0 || starting}

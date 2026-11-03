@@ -681,6 +681,22 @@ func TestIsPublicURL(t *testing.T) {
 	}
 }
 
+func TestPickBatchConfigs(t *testing.T) {
+	configs := []Config{{Remark: "one"}, {Remark: "two"}, {Remark: "three"}}
+	picked, err := pickBatchConfigs(configs, "3, 1;1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(picked) != 2 || picked[0].Remark != "three" || picked[1].Remark != "one" {
+		t.Fatalf("unexpected picks: %+v", picked)
+	}
+	for _, raw := range []string{"", "0", "4", "x"} {
+		if _, err := pickBatchConfigs(configs, raw); err == nil {
+			t.Fatalf("expected an error for %q", raw)
+		}
+	}
+}
+
 func TestFetchBlocksPrivateAddress(t *testing.T) {
 	t.Setenv("RATIO_SAFE_FETCH", "1")
 	_, _, err := Fetch("http://127.0.0.1:9/sub", time.Second)

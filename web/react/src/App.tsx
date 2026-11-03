@@ -564,7 +564,7 @@ export default function App() {
       }
 
       const currentConfig = record.batch
-        ? { index: 0, protocol: "", target: "", remark: "All configs" }
+        ? { index: 0, protocol: "", target: "", remark: "Selected configs" }
         : configs.find((config) => config.index === record.pick) || fallback(record.pick);
       const rows = [
         ...prior,
@@ -682,7 +682,11 @@ export default function App() {
 
   async function startBatch() {
     if (!sub || starting) return;
-    const picks = sub.configs.map((config) => config.index).sort((a, b) => a - b);
+    const picks = [...selected].sort((a, b) => a - b);
+    if (!picks.length) {
+      showToast(t("noSelection"));
+      return;
+    }
     if (picks.length < 2) {
       await startTest(picks);
       return;
@@ -705,6 +709,7 @@ export default function App() {
         sub_url: sub.url,
         size_mb: size,
         sync: bg,
+        picks,
       });
       if (activeRef.current.cancelled) {
         void cancelJob(created.id).catch(() => null);
@@ -716,14 +721,16 @@ export default function App() {
         url: sub.url,
         host: sub.host,
         pick: 0,
-        label: "All configs",
+        label: "Selected configs",
         startedAt,
         size,
         bg,
         total: picks.length,
         completed: 0,
         batch: true,
-        configs: sub.configs.map(configMeta),
+        configs: sub.configs
+          .filter((config) => selected.has(config.index))
+          .map(configMeta),
         queue: [],
         results: [],
       });
@@ -737,7 +744,7 @@ export default function App() {
       finish([
         {
           pick: 0,
-          config: { index: 0, protocol: "", target: "", remark: "All configs" },
+          config: { index: 0, protocol: "", target: "", remark: "Selected configs" },
           result: outcome.result,
           errorCode: outcome.errorCode,
           errorMessage: outcome.errorMessage,
@@ -835,6 +842,20 @@ export default function App() {
     setView("setup");
     scrollTop();
     showToast(t("cancelled"));
+  }
+
+  function backToSetup() {
+    activeRef.current.cancelled = true;
+    clearRecord();
+    setResults([]);
+    setError(null);
+    setJob(null);
+    setBatch(null);
+    setBatchMode(false);
+    setTestPicks([]);
+    setReconnecting(false);
+    setView("setup");
+    scrollTop();
   }
 
   function resetToLanding() {
@@ -974,7 +995,7 @@ export default function App() {
             sharing={sharing}
             onShare={() => void onShare()}
             onNewSub={resetToLanding}
-            onRetest={() => void (batchMode ? startBatch() : startTest())}
+            onRetest={backToSetup}
             onReport={() => setReportOpen(true)}
             brandName={brandName}
             brandImage={brandImage}

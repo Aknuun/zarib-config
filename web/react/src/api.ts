@@ -101,12 +101,14 @@ export function createBatchJob(input: {
   sub_url: string;
   size_mb: number;
   sync: boolean;
+  picks: number[];
 }) {
   return request<{ id: string; status: string }>("/api/jobs", {
     method: "POST",
     body: JSON.stringify({
       sub_url: input.sub_url,
       mode: "batch",
+      picks: input.picks,
       size_mb: input.size_mb,
       wait: 2,
       drift: 0,

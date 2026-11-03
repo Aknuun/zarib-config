@@ -50,6 +50,7 @@ type job struct {
 	TimedOut    bool
 	Mode        string
 	Pick        int
+	Picks       []int
 	SizeMB      float64
 	Core        string
 	IP          string
@@ -106,6 +107,7 @@ type jobIn struct {
 	SubURL  string   `json:"sub_url"`
 	Mode    string   `json:"mode"`
 	Pick    *int     `json:"pick"`
+	Picks   []int    `json:"picks"`
 	SizeMB  *float64 `json:"size_mb"`
 	Claimed *float64 `json:"claimed"`
 	Wait    *int     `json:"wait"`
@@ -358,8 +360,20 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pick := 1
+	picks := []int{}
 	if batch {
 		pick = 0
+		seen := make(map[int]bool, len(payload.Picks))
+		for _, number := range payload.Picks {
+			if number < 1 || number > 5000 {
+				apiError(w, "invalid_input", "Invalid config number.", http.StatusBadRequest)
+				return
+			}
+			if !seen[number] {
+				seen[number] = true
+				picks = append(picks, number)
+			}
+		}
 	} else if payload.Pick != nil {
 		pick = *payload.Pick
 	}
@@ -440,7 +454,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
-		Mode: mode, Pick: pick, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
+		Mode: mode, Pick: pick, Picks: picks, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
@@ -498,6 +512,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 	item.Progress = 3
 	subFile, resultFile, jobDir, controlFile := item.SubFile, item.ResultFile, item.Dir, item.ControlFile
 	pick, sizeMB, core := item.Pick, item.SizeMB, item.Core
+	picks := item.Picks
 	s.mu.Unlock()
 	executable, err := os.Executable()
 	if err != nil {
@@ -514,6 +529,13 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 	}
 	if batch {
 		args = append(args, "--batch-all")
+		if len(picks) > 0 {
+			parts := make([]string, len(picks))
+			for index, number := range picks {
+				parts[index] = strconv.Itoa(number)
+			}
+			args = append(args, "--batch-picks", strings.Join(parts, ","))
+		}
 	} else {
 		args = append(args, "--pick", strconv.Itoa(pick))
 	}

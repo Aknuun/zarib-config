@@ -49,7 +49,7 @@ export function ErrorView({
             <Button
               variant="primary"
               size="lg"
-              className="h-12 text-[14px] max-sm:w-full"
+              className="h-12 justify-center text-[14px] max-sm:w-full"
               icon={<ArrowClockwise size={18} />}
               onClick={onRetry}
             >
@@ -60,7 +60,7 @@ export function ErrorView({
             <Button
               variant="secondary"
               size="lg"
-              className="h-12 text-[14px] max-sm:w-full"
+              className="h-12 justify-center text-[14px] max-sm:w-full"
               icon={<ArrowLeft size={18} />}
               onClick={onChooseConfig}
             >
