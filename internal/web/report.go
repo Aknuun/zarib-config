@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -19,7 +21,17 @@ const (
 	maxReportPerHour     = 5
 )
 
-var telegramClient = &http.Client{Timeout: 12 * time.Second}
+var telegramClient = newTelegramClient()
+
+func newTelegramClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if raw := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY")); raw != "" {
+		if parsed, err := url.Parse(raw); err == nil && parsed.Host != "" {
+			transport.Proxy = http.ProxyURL(parsed)
+		}
+	}
+	return &http.Client{Timeout: 12 * time.Second, Transport: transport}
+}
 
 type reportIn struct {
 	Description string            `json:"description"`
