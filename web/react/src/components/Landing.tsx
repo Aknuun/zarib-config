@@ -9,7 +9,7 @@ interface LandingProps {
   lang: Lang;
   url: string;
   onUrlChange: (value: string) => void;
-  onInspect: () => void;
+  onInspect: (value?: string) => void;
   inspecting: boolean;
   error: { message: string; detail?: string } | null;
   version: string | null;
@@ -84,6 +84,14 @@ export function Landing({
                   placeholder={t("subPlaceholder")}
                   value={url}
                   onChange={(event) => onUrlChange(event.target.value)}
+                  onPaste={(event) => {
+                    const text = event.clipboardData?.getData("text")?.trim();
+                    if (!text) return;
+                    event.preventDefault();
+                    const value = text.split(/\s+/)[0];
+                    onUrlChange(value);
+                    onInspect(value);
+                  }}
                   aria-label={t("subLabel")}
                   variant={error ? "error" : "default"}
                   aria-invalid={error ? true : undefined}
@@ -121,28 +129,6 @@ export function Landing({
           </p>
         </section>
 
-        <section className="z-how" aria-labelledby="how-title">
-          <h2 id="how-title" className="z-eyebrow">
-            {t("howTitle")}
-          </h2>
-          <ol className="z-how-list">
-            {(
-              [
-                ["how1Title", "how1Body"],
-                ["how2Title", "how2Body"],
-                ["how3Title", "how3Body"],
-              ] as const
-            ).map(([title, body], index) => (
-              <li key={title} className="z-how-item">
-                <span className="z-how-num z-num">{index + 1}</span>
-                <div>
-                  <h3>{t(title)}</h3>
-                  <p className="max-sm:hidden">{t(body)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
       </main>
 
       <footer className="z-footer">

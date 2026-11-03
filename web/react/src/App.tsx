@@ -617,8 +617,8 @@ export default function App() {
     return config ? config.remark || config.target || `#${pick}` : null;
   }, [sub, batch, testPicks]);
 
-  async function inspect() {
-    const normalized = normalizeUrl(url.trim().split(/\s+/)[0] || "");
+  async function inspect(value?: string) {
+    const normalized = normalizeUrl((value ?? url).trim().split(/\s+/)[0] || "");
     if (!normalized) {
       setInspectError({ message: t("invalidUrl") });
       return;
@@ -831,7 +831,7 @@ export default function App() {
               setUrl(value);
               if (inspectError) setInspectError(null);
             }}
-            onInspect={() => void inspect()}
+            onInspect={(value) => void inspect(value)}
             inspecting={inspecting}
             error={inspectError}
             version={version}
