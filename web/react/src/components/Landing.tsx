@@ -1,9 +1,7 @@
-import { Ruler } from "./Ruler";
 import { Button, Input } from "@cloudflare/kumo";
 import { ArrowLeft, LinkSimple, LockSimple } from "@phosphor-icons/react";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
-import { ratioPercent } from "../utils";
 
 interface LandingProps {
   lang: Lang;
@@ -37,21 +35,7 @@ export function Landing({
         <section className="z-tile z-tile--hero z-hero">
           <h1 className="z-hero-title">{t("heroTitle")}</h1>
           <p className="z-hero-sub">{t("heroSub")}</p>
-          <div className="z-sample-tile">
-            <div className="z-sample-head">
-              <span>{t("sample")}</span>
-              <span className="z-num font-semibold text-kumo-brand" dir="ltr">
-                1.38×
-              </span>
-            </div>
-            <Ruler
-              percent={ratioPercent(1.38)}
-              tone="brand"
-              labels
-              ariaLabel={t("rulerAria")}
-            />
-            <p className="z-sample-note">{t("sampleNote")}</p>
-          </div>
+          
         </section>
 
         <section className="z-tile z-input-card" aria-label={t("subLabel")}>
