@@ -188,11 +188,6 @@ export function ResultView({
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-kumo-subtle">
-                  <Badge variant="outline" className="z-num shrink-0 text-[12px]">
-                    {row.config.protocol || "json"}
-                  </Badge>
-                </div>
                 {ratio !== null && (
                   <span className="z-num mt-0.5 block text-[12px] text-kumo-subtle" dir="ltr">
                     {formatBytes(row.result?.downloaded_bytes || 0)} →{" "}
@@ -211,11 +206,11 @@ export function ResultView({
       </section>
 
       <div className="z-result-actions">
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid w-full grid-cols-2 gap-2">
           <Button
             variant="primary"
             size="lg"
-            className="h-12 text-[14px]"
+            className="col-span-2 h-12 text-[14px] sm:col-span-1"
             icon={<ArrowClockwise size={18} />}
             onClick={onRetest}
           >
@@ -230,8 +225,6 @@ export function ResultView({
           >
             {t("newSub")}
           </Button>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2">
           <Button
             variant="secondary"
             size="lg"
@@ -245,7 +238,7 @@ export function ResultView({
           <Button
             variant="ghost"
             size="lg"
-            className="h-12 text-[14px] text-kumo-subtle"
+            className="col-span-2 h-12 w-auto justify-self-center px-4 text-[14px] text-kumo-subtle sm:col-span-1"
             icon={<WarningCircle size={18} />}
             onClick={onReport}
           >
