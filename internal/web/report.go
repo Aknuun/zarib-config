@@ -22,9 +22,10 @@ const (
 var telegramClient = &http.Client{Timeout: 12 * time.Second}
 
 type reportIn struct {
-	Description string          `json:"description"`
-	SubURL      string          `json:"sub_url"`
-	Result      *reportResultIn `json:"result"`
+	Description string            `json:"description"`
+	SubURL      string            `json:"sub_url"`
+	Result      *reportResultIn   `json:"result"`
+	Meta        map[string]string `json:"meta"`
 }
 
 type reportResultIn struct {
@@ -67,7 +68,7 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	text := buildReportMessage(description, subURL, payload.Result)
+	text := buildReportMessage(description, subURL, payload.Result, reportDetails(r, payload.Meta))
 	if err := s.sendTelegram(text); err != nil {
 		apiError(w, "report_failed", "Could not send the report.", http.StatusBadGateway)
 		return
@@ -75,7 +76,39 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-func buildReportMessage(description, subURL string, result *reportResultIn) string {
+func reportDetails(r *http.Request, meta map[string]string) []string {
+	details := make([]string, 0, 16)
+	add := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			details = append(details, label+": "+truncateText(value, 300))
+		}
+	}
+	add("IP", clientIP(r))
+	add("مرورگر/سیستم", r.UserAgent())
+	add("زبان مرورگر", r.Header.Get("Accept-Language"))
+	add("Referer", r.Header.Get("Referer"))
+	labels := []struct{ key, label string }{
+		{"platform", "پلتفرم"},
+		{"ua_platform", "پلتفرم UA"},
+		{"ua_mobile", "موبایل"},
+		{"language", "زبان"},
+		{"timezone", "منطقه زمانی"},
+		{"screen", "صفحه‌نمایش"},
+		{"viewport", "پنجره"},
+		{"pixel_ratio", "نسبت پیکسل"},
+		{"touch", "لمسی"},
+		{"cores", "هسته CPU"},
+		{"memory", "حافظه GB"},
+		{"page", "صفحه"},
+	}
+	for _, item := range labels {
+		add(item.label, meta[item.key])
+	}
+	return details
+}
+
+func buildReportMessage(description, subURL string, result *reportResultIn, details []string) string {
 	var b strings.Builder
 	b.WriteString("🚨 گزارش خطا — Zarib Config\n")
 	fmt.Fprintf(&b, "نسخه: %s\n\n", ratio.Version)
@@ -106,6 +139,10 @@ func buildReportMessage(description, subURL string, result *reportResultIn) stri
 		if result.TestedAt != "" {
 			fmt.Fprintf(&b, "• زمان تست: %s\n", truncateText(result.TestedAt, 64))
 		}
+	}
+	if len(details) > 0 {
+		b.WriteString("\n\nمشخصات فرستنده:\n")
+		b.WriteString(strings.Join(details, "\n"))
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

@@ -45,9 +45,28 @@ export function ReportDialog({
     setSending(true);
     setStatus("");
     try {
+      const nav = navigator as Navigator & {
+        userAgentData?: { platform?: string; mobile?: boolean };
+        deviceMemory?: number;
+      };
+      const meta = {
+        platform: nav.platform || "",
+        ua_platform: nav.userAgentData?.platform || "",
+        ua_mobile: nav.userAgentData?.mobile ? "بله" : "خیر",
+        language: nav.language || "",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        screen: `${window.screen.width}x${window.screen.height}`,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        pixel_ratio: String(window.devicePixelRatio || 1),
+        touch: nav.maxTouchPoints > 0 ? "بله" : "خیر",
+        cores: String(nav.hardwareConcurrency || ""),
+        memory: String(nav.deviceMemory || ""),
+        page: `${window.location.pathname}${window.location.hash}`,
+      };
       await sendReport({
         description: description.trim(),
         sub_url: link.trim(),
+        meta,
         result: result
           ? {
               ratio: result.ratio,
@@ -95,6 +114,7 @@ export function ReportDialog({
             <Dialog.Description className="mt-1 text-[13px] text-kumo-subtle">
               {t("reportPrivacy")}
             </Dialog.Description>
+          <p className="mt-2 text-[12px] text-kumo-subtle">{t("reportMetaNote")}</p>
           </div>
           <Dialog.Close
             render={(props) => (

@@ -149,6 +149,7 @@ export function sendReport(input: {
   description: string;
   sub_url: string;
   result: unknown;
+  meta?: Record<string, string>;
 }) {
   return request<{ ok: boolean }>("/api/report", {
     method: "POST",

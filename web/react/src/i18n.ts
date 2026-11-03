@@ -238,6 +238,7 @@ const fa = {
   reportInvalidLink: "لینک ساب معتبر نیست.",
   reportRateLimited: "گزارش زیادی فرستادی. کمی بعد دوباره تلاش کن.",
   reportPrivacy: "گزارش از طریق ربات تلگرام برای توسعه‌دهنده ارسال می‌شود.",
+  reportMetaNote: "اطلاعات فنی (IP، مرورگر، دستگاه و صفحه‌نمایش) همراه گزارش ارسال می‌شود.",
 
   selfHostCopied: "اسکریپت کپی شد. آن را در ترمینال سرور اجرا کن.",
   selfHostFailed: "کپی نشد؛ متن را دستی انتخاب کن.",
@@ -486,6 +487,7 @@ const en: typeof fa = {
   reportInvalidLink: "The subscription link is not valid.",
   reportRateLimited: "You sent too many reports. Try again later.",
   reportPrivacy: "The report is sent to the developer through a Telegram bot.",
+  reportMetaNote: "Technical details (IP, browser, device, screen) are sent with the report.",
 
   selfHostCopied: "Script copied. Paste it into your server terminal.",
   selfHostFailed: "Copy failed; select the text manually.",
