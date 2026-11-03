@@ -157,6 +157,8 @@ export function suggestionKey(code: string | undefined) {
     case "rate_limited":
     case "busy":
       return "errorSuggestWait";
+    case "duplicate_test":
+      return "errorSuggestDuplicate";
     default:
       return "errorSuggestDefault";
   }
