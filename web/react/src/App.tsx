@@ -633,7 +633,7 @@ export default function App() {
         host: hostFromUrl(normalized),
       };
       setSub(nextSub);
-      setSelected(new Set(data.configs.slice(0, 1).map((config) => config.index)));
+      setSelected(new Set());
       setResults([]);
       setError(null);
       setUrl(normalized);
