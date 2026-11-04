@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	Version             = "1.2.15"
-	UA                  = "v2rayNG/1.9.16"
+	Version = "1.2.15"
+	// A browser UA gets the cached base64 list; some panels stream a large JSON
+	// body slowly for v2rayNG and make subscription reads time out.
+	UA                  = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 	MinSizeMB           = 5.0
 	MaxSizeMB           = 100.0
 	DefaultSizeMB       = 25.0
