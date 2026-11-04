@@ -120,6 +120,8 @@ export function errorKey(code: string | undefined) {
     "invalid_url",
     "blocked_url",
     "fetch_failed",
+    "subscription_timeout",
+    "blocked_target",
     "no_configs",
     "probe_failed",
     "resolve_failed",
@@ -155,10 +157,13 @@ export function suggestionKey(code: string | undefined) {
     case "xray_failed":
       return "errorSuggestDefault";
     case "fetch_failed":
+    case "subscription_timeout":
     case "blocked_url":
     case "invalid_url":
     case "no_configs":
       return "errorSuggestLink";
+    case "blocked_target":
+      return "errorSuggestDefault";
     case "usage_unchanged":
       return "errorSuggestPanel";
     case "rate_limited":

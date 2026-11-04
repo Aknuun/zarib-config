@@ -361,6 +361,8 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 				status = http.StatusTooManyRequests
 			case "subscription_unavailable":
 				status = http.StatusBadGateway
+			case "subscription_timeout":
+				status = http.StatusGatewayTimeout
 			}
 		}
 		fail(code, redactURLs(err.Error()), status)
@@ -1168,6 +1170,10 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 		return "resolve_failed"
 	case strings.Contains(text, "not valid for xray") || strings.Contains(text, "failed to start") || strings.Contains(text, "no xray core"):
 		return "xray_failed"
+	case strings.Contains(text, "non-public address"):
+		return "blocked_target"
+	case strings.Contains(text, "context deadline exceeded") || strings.Contains(text, "client.timeout") || strings.Contains(text, "subscription request timed out"):
+		return "subscription_timeout"
 	case strings.Contains(text, "could not read the subscription") || strings.Contains(text, "subscription request failed"):
 		return "fetch_failed"
 	case strings.Contains(text, "no supported configs") || strings.Contains(text, "no configs found"):

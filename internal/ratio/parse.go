@@ -196,7 +196,7 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 		}
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) && urlErr.Timeout() {
-			return nil, nil, ratioErrorf("Subscription request timed out.")
+			return nil, nil, &SubscriptionError{Code: "subscription_timeout", Message: "Subscription request timed out."}
 		}
 		if strings.Contains(strings.ToLower(err.Error()), "blocked") {
 			return nil, nil, ratioErrorf("Blocked a redirect to a non-public address.")
@@ -222,7 +222,11 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, MaxSubBytes+1))
 	if err != nil {
-		return nil, nil, ratioErrorf("Could not read the subscription response: %v", err)
+		message := fmt.Sprintf("Could not read the subscription response: %v", err)
+		if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) || strings.Contains(strings.ToLower(err.Error()), "timeout") {
+			return nil, nil, &SubscriptionError{Code: "subscription_timeout", Message: message}
+		}
+		return nil, nil, ratioErrorf("%s", message)
 	}
 	if len(body) > MaxSubBytes {
 		return nil, nil, ratioErrorf("Subscription response is too large.")
