@@ -1636,3 +1636,20 @@ html[lang="en"] .z-hero-title {
   min-width: 32px;
   height: 32px;
 }
+
+
+.z-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 12px;
+  background: var(--color-kumo-tint);
+  color: var(--text-color-kumo-default);
+}
+
+.z-header-icon:hover {
+  border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
+}

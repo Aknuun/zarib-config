@@ -1,5 +1,6 @@
-import { Button } from "@cloudflare/kumo";
-import { House, Moon, Sun, Translate } from "@phosphor-icons/react";
+import { useState } from "react";
+import { Button, Dialog } from "@cloudflare/kumo";
+import { GithubLogo, House, Moon, Sun, Star, Translate } from "@phosphor-icons/react";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
 
@@ -39,6 +40,7 @@ export function Header({
   showHome = false,
 }: HeaderProps) {
   const t = (key: Parameters<typeof translate>[1]) => translate(lang, key);
+  const [githubOpen, setGithubOpen] = useState(false);
   return (
     <header className="z-header">
       <div className="z-container flex h-14 items-center justify-between gap-2">
@@ -93,8 +95,39 @@ export function Header({
               onClick={onHome}
             />
           )}
+          <button
+            type="button"
+            className="z-header-icon"
+            aria-label="GitHub"
+            title="GitHub"
+            onClick={() => setGithubOpen(true)}
+          >
+            <GithubLogo size={18} aria-hidden="true" />
+          </button>
         </div>
       </div>
+      <Dialog.Root open={githubOpen} onOpenChange={setGithubOpen}>
+        <Dialog size="lg" className="z-dialog max-w-md p-5 sm:p-6">
+          <Dialog.Title className="text-[18px] font-semibold">{t("githubTitle")}</Dialog.Title>
+          <Dialog.Description className="mt-2 text-[13px] leading-6 text-kumo-subtle">
+            {t("githubBody")}
+          </Dialog.Description>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
+              icon={<Star size={16} />}
+              onClick={() =>
+                window.open("https://github.com/Aknuun/zarib-config", "_blank", "noopener,noreferrer")
+              }
+            >
+              {t("githubStar")}
+            </Button>
+            <Button variant="ghost" onClick={() => setGithubOpen(false)}>
+              {t("githubClose")}
+            </Button>
+          </div>
+        </Dialog>
+      </Dialog.Root>
     </header>
   );
 }
