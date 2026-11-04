@@ -157,12 +157,16 @@ func subProxyURL() *url.URL {
 	return parsed
 }
 
-func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
+// clientUA is the fallback for panels that serve a browser landing page to a
+// browser User-Agent instead of the subscription body.
+const clientUA = "v2rayNG/1.9.16"
+
+func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL, userAgent string) ([]byte, http.Header, error) {
 	request, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, nil, ratioErrorf("Invalid subscription URL: %v", err)
 	}
-	request.Header.Set("User-Agent", UA)
+	request.Header.Set("User-Agent", userAgent)
 	request.Header.Set("Accept", "*/*")
 	request.Header.Set("Cache-Control", "no-cache")
 	request.Header.Set("Pragma", "no-cache")
@@ -234,6 +238,22 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, ht
 	return body, response.Header, nil
 }
 
+func looksLikeHTML(body []byte) bool {
+	text := strings.ToLower(strings.TrimSpace(DecodeSubBody(body)))
+	return strings.HasPrefix(text, "<") || strings.Contains(text, "<html")
+}
+
+// fetchSubscription retries a browser landing page as a client so panels that
+// redirect browser User-Agents still return their config list.
+func fetchSubscription(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
+	body, headers, err := fetchOnce(rawURL, timeout, proxy, UA)
+	if err != nil || !looksLikeHTML(body) {
+		return body, headers, err
+	}
+	body, headers, err = fetchOnce(rawURL, timeout, proxy, clientUA)
+	return body, headers, err
+}
+
 func publicDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -274,7 +294,7 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 	if proxy != nil && directTimeout > 6*time.Second {
 		directTimeout = 6 * time.Second
 	}
-	body, headers, err := fetchOnce(rawURL, directTimeout, nil)
+	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
 	if err == nil {
 		return body, headers, false, nil
 	}
@@ -284,7 +304,7 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") {
 		return nil, nil, false, err
 	}
-	if retryBody, retryHeaders, retryErr := fetchOnce(rawURL, timeout, proxy); retryErr == nil {
+	if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, timeout, proxy); retryErr == nil {
 		return retryBody, retryHeaders, true, nil
 	}
 	return nil, nil, false, err

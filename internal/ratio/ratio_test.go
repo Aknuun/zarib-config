@@ -757,3 +757,35 @@ func TestHasIPv4Host(t *testing.T) {
 		t.Fatal("example.com should resolve over IPv4")
 	}
 }
+
+func TestFetchMetaRetriesBrowserLandingPageAsClient(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	t.Setenv("RATIO_SAFE_FETCH", "")
+	var browserHits, clientHits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.UserAgent() == UA {
+			atomic.AddInt32(&browserHits, 1)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, "<!doctype html><html><body>landing page</body></html>")
+			return
+		}
+		atomic.AddInt32(&clientHits, 1)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprint(w, "vless://00000000-0000-0000-0000-000000000000@1.1.1.1:443?security=tls")
+	}))
+	defer server.Close()
+
+	body, _, viaProxy, err := FetchMeta(server.URL, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if viaProxy {
+		t.Fatal("did not expect a proxy retry")
+	}
+	if browserHits != 1 || clientHits != 1 {
+		t.Fatalf("unexpected hits: browser=%d client=%d", browserHits, clientHits)
+	}
+	if !strings.Contains(string(body), "vless://") {
+		t.Fatalf("expected the client response, got %q", body)
+	}
+}
