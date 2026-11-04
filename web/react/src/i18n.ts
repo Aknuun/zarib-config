@@ -32,7 +32,7 @@ const fa = {
   inspect: "بررسی ساب",
   inspecting: "در حال بررسی…",
   privacy: "لینک و کانفیگ‌ها روی سرور ذخیره نمی‌شوند.",
-  privacyGithub: "کد ما در GitHub اوپن است",
+  privacyGithub: "کد ما در GitHub متن باز است",
   howTitle: "در سه قدم",
   how1Title: "مصرف را می‌خوانیم",
   how1Body: "مصرف فعلی ساب را قبل از تست ثبت می‌کنیم.",
