@@ -750,6 +750,29 @@ func outboundHasTLS(outbound map[string]any) bool {
 	return security == "tls" || security == "reality"
 }
 
+func outboundTransport(outbound map[string]any) string {
+	stream := asObject(outbound["streamSettings"])
+	if stream == nil {
+		return ""
+	}
+	return strings.ToLower(toString(stream["network"]))
+}
+
+func autoCoreNames(outbound map[string]any) []string {
+	if outbound == nil {
+		return nil
+	}
+	if outboundTransport(outbound) == "xhttp" {
+		// Legacy 1.8.24 does not know xhttp; latest rejects plain VLESS.
+		return []string{"latest", "compat"}
+	}
+	if !outboundHasTLS(outbound) {
+		// Plain VLESS is rejected by Xray 26.7.11+; compat 26.4.25 still runs it.
+		return []string{"legacy", "latest", "compat"}
+	}
+	return nil
+}
+
 type configSession struct {
 	child    *Child
 	tmpdir   string
@@ -807,9 +830,10 @@ func startConfigSession(ctx context.Context, opts Options, configText string) (*
 		fmt.Println(C("Using a test-safe copy of the JSON config (custom routing rules removed).", "dim"))
 	}
 	coreNames := CoreCandidates(opts.Core)
-	if (opts.Core == "" || strings.EqualFold(opts.Core, "auto")) && proxyOutbound != nil && !outboundHasTLS(proxyOutbound) {
-		// Plain VLESS is rejected by Xray 26.7.11+; compat 26.4.25 still runs it.
-		coreNames = []string{"legacy", "latest", "compat"}
+	if (opts.Core == "" || strings.EqualFold(opts.Core, "auto")) && proxyOutbound != nil {
+		if names := autoCoreNames(proxyOutbound); len(names) > 0 {
+			coreNames = names
+		}
 	}
 	var coreErrors []string
 	for coreIndex, coreName := range coreNames {

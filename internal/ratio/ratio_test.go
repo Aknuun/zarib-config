@@ -170,6 +170,40 @@ func TestExtractUnsupportedScheme(t *testing.T) {
 	}
 }
 
+func TestExtractConfigsSkipsPlaceholders(t *testing.T) {
+	body := strings.Join([]string{
+		"vless://00000000-0000-0000-0000-000000000000@127.0.0.1:1?encryption=none&security=none&type=tcp#remaining",
+		"vless://11111111-2222-3333-4444-555555555555@1.1.1.1:43175?encryption=none&security=none&type=tcp#expired",
+		"vless://00000000-0000-0000-0000-000000000000@example.com:443?security=tls&type=ws#dummy",
+		"vless://11111111-2222-3333-4444-555555555555@example.com:443?security=tls&type=ws#real",
+	}, "\n")
+	configs := ExtractConfigs([]byte(body))
+	if len(configs) != 1 || configs[0].Remark != "real" {
+		t.Fatalf("expected only the real config, got %+v", configs)
+	}
+}
+
+func TestAutoCoreNames(t *testing.T) {
+	cases := []struct {
+		uri  string
+		want string
+	}{
+		{"vless://11111111-2222-3333-4444-555555555555@example.com:443?security=tls&type=xhttp#xhttp", "latest,compat"},
+		{"vless://11111111-2222-3333-4444-555555555555@example.com:2020?security=none&type=tcp#plain", "legacy,latest,compat"},
+		{"vless://11111111-2222-3333-4444-555555555555@example.com:443?security=tls&type=ws#ws", ""},
+	}
+	for _, tc := range cases {
+		outbound, err := OutboundFromURI(tc.uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(autoCoreNames(outbound), ",")
+		if got != tc.want {
+			t.Fatalf("%s: got %q, want %q", tc.uri, got, tc.want)
+		}
+	}
+}
+
 func TestVLESSRealityWS(t *testing.T) {
 	uri := "vless://11111111-2222-3333-4444-555555555555@example.com:443" +
 		"?type=ws&security=reality&sni=cdn.example.com&pbk=abc&sid=12" +

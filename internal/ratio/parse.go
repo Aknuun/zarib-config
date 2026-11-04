@@ -61,6 +61,10 @@ var blockedHosts = map[string]bool{
 	"metadata": true, "instance-data": true,
 }
 
+// Panels often add a dummy info line such as "14GB remaining" or "expired"
+// that is not a usable node. Keep those out of the config picker.
+var placeholderRemarkPattern = regexp.MustCompile(`(?i)(expired|remaining|باقی[\s\x{200c}]*مانده|به[\s\x{200c}]*پایان[\s\x{200c}]*رسیده|پایان[\s\x{200c}]*رسیده|حجم[\s\x{200c}]*شما|زمان[\s\x{200c}]*شما)`)
+
 func safeFetchEnabled() bool {
 	return os.Getenv("RATIO_SAFE_FETCH") == "1"
 }
@@ -1266,6 +1270,39 @@ func serverTarget(server map[string]any) string {
 	return net.JoinHostPort(host, port)
 }
 
+func zeroUUID(outbound map[string]any) bool {
+	settings := asObject(outbound["settings"])
+	if settings == nil {
+		return false
+	}
+	var id string
+	if vnext := asArray(settings["vnext"]); len(vnext) > 0 {
+		if server := asObject(vnext[0]); server != nil {
+			if users := asArray(server["users"]); len(users) > 0 {
+				if user := asObject(users[0]); user != nil {
+					id = toString(user["id"])
+				}
+			}
+		}
+	}
+	id = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(id)), "-", "")
+	return id != "" && strings.Trim(id, "0") == ""
+}
+
+func isPlaceholderConfig(outbound map[string]any, remark string) bool {
+	if outbound == nil {
+		return false
+	}
+	host := strings.Trim(OutboundHost(outbound), "[]")
+	if ip := net.ParseIP(host); ip != nil && !isPublicIP(ip) {
+		return true
+	}
+	if zeroUUID(outbound) {
+		return true
+	}
+	return placeholderRemarkPattern.MatchString(remark) && !outboundHasTLS(outbound)
+}
+
 func ExtractConfigs(body []byte) []Config {
 	text := DecodeSubBody(body)
 	var lines []any
@@ -1346,6 +1383,9 @@ func ExtractConfigs(body []byte) []Config {
 			if remark == "" {
 				remark = toString(proxy["tag"])
 			}
+			if isPlaceholderConfig(proxy, remark) {
+				continue
+			}
 			protocol := toString(proxy["protocol"])
 			if protocol == "" {
 				protocol = "json"
@@ -1370,10 +1410,14 @@ func ExtractConfigs(body []byte) []Config {
 		if err != nil || !IsUsableHost(OutboundHost(outbound)) {
 			continue
 		}
+		remark := configRemark(line, outbound)
+		if isPlaceholderConfig(outbound, remark) {
+			continue
+		}
 		seen[line] = true
 		configs = append(configs, Config{
 			URI: line, Protocol: scheme, Target: OutboundTarget(outbound),
-			Remark: configRemark(line, outbound),
+			Remark: remark,
 		})
 	}
 	return configs
