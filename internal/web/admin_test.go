@@ -389,6 +389,7 @@ func TestFailureNotificationSendsSubURLAndLog(t *testing.T) {
 		ErrorCode:    "xray_failed",
 		ErrorMessage: "core failed",
 		Log:          []string{"line one", "line two"},
+		IP:           "203.0.113.9",
 	}
 	s.notifyFailure(failure)
 	select {
@@ -402,8 +403,11 @@ func TestFailureNotificationSendsSubURLAndLog(t *testing.T) {
 		t.Fatal("no telegram notification was sent")
 	}
 
-	// The same subscription and error code is not sent again immediately.
-	s.notifyFailure(failure)
+	// The same source and error code is not sent again immediately, even when
+	// the subscription token in the URL changes.
+	rotated := failure
+	rotated.SubURL = "https://example.com/broken-sub-rotated"
+	s.notifyFailure(rotated)
 	select {
 	case text := <-received:
 		t.Fatalf("duplicate notification was sent: %s", text)

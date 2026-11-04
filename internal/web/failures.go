@@ -13,14 +13,15 @@ import (
 )
 
 const (
-	maxFailureLog     = 120
-	maxFailureLine    = 1000
-	maxFailuresBytes  = 16 << 20
-	maxAdminFailures  = 200
-	maxFailureMessage = 2000
-	failureNotifyTTL  = 30 * time.Minute
-	failureNotifyMax  = 2000
-	maxFailureLogSend = 20
+	maxFailureLog        = 120
+	maxFailureLine       = 1000
+	maxFailuresBytes     = 16 << 20
+	maxAdminFailures     = 200
+	maxFailureMessage    = 2000
+	failureNotifyTTL     = time.Hour
+	failureNotifyMax     = 2000
+	failureNotifyPerHour = 30
+	maxFailureLogSend    = 20
 )
 
 // storedFailure is a failed test or rejected subscription kept for later review.
@@ -61,14 +62,15 @@ func (s *server) recordFailure(record storedFailure) {
 	s.notifyFailure(record)
 }
 
-// notifyFailure sends a real subscription failure to Telegram once per
-// subscription and error code per failureNotifyTTL, so a broken link does not
-// flood the chat. Invalid or non-http inputs stay in the admin list only.
+// notifyFailure sends a real subscription failure to Telegram once per source
+// IP and error code per failureNotifyTTL. The URL itself is not part of the key:
+// a client that rotates subscription tokens must not flood the chat. Invalid or
+// non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
 	if s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
 		return
 	}
-	key := record.SubURL + "\x00" + record.ErrorCode
+	key := record.IP + "\x00" + record.ErrorCode
 	now := time.Now()
 	s.notifyMu.Lock()
 	if s.notified == nil {
@@ -90,6 +92,9 @@ func (s *server) notifyFailure(record storedFailure) {
 	}
 	s.notified[key] = now
 	s.notifyMu.Unlock()
+	if !s.rateLimit("failure-notify", "global", failureNotifyPerHour) {
+		return
+	}
 	text := buildFailureMessage(record)
 	go func() {
 		if err := s.sendTelegram(text); err != nil {
