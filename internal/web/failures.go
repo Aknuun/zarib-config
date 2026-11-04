@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Aknuun/zarib-config/internal/ratio"
 )
 
 const (
@@ -16,6 +18,9 @@ const (
 	maxFailuresBytes  = 16 << 20
 	maxAdminFailures  = 200
 	maxFailureMessage = 2000
+	failureNotifyTTL  = 30 * time.Minute
+	failureNotifyMax  = 2000
+	maxFailureLogSend = 20
 )
 
 // storedFailure is a failed test or rejected subscription kept for later review.
@@ -48,9 +53,104 @@ func (s *server) recordFailure(record storedFailure) {
 	record.ErrorMessage = truncateText(redactURLs(strings.TrimSpace(record.ErrorMessage)), maxFailureMessage)
 	record.UserAgent = truncateText(record.UserAgent, 500)
 	record.Log = sanitizeFailureLog(record.Log)
-	if err := s.storeFailure(record); err != nil {
-		fmt.Printf("failures: could not store: %v\n", err)
+	if s.failuresFile != "" {
+		if err := s.storeFailure(record); err != nil {
+			fmt.Printf("failures: could not store: %v\n", err)
+		}
 	}
+	s.notifyFailure(record)
+}
+
+// notifyFailure sends a real subscription failure to Telegram once per
+// subscription and error code per failureNotifyTTL, so a broken link does not
+// flood the chat. Invalid or non-http inputs stay in the admin list only.
+func (s *server) notifyFailure(record storedFailure) {
+	if s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
+		return
+	}
+	key := record.SubURL + "\x00" + record.ErrorCode
+	now := time.Now()
+	s.notifyMu.Lock()
+	if s.notified == nil {
+		s.notified = map[string]time.Time{}
+	}
+	if last, ok := s.notified[key]; ok && now.Sub(last) < failureNotifyTTL {
+		s.notifyMu.Unlock()
+		return
+	}
+	if len(s.notified) >= failureNotifyMax {
+		for oldKey, at := range s.notified {
+			if now.Sub(at) > failureNotifyTTL {
+				delete(s.notified, oldKey)
+			}
+		}
+		if len(s.notified) >= failureNotifyMax {
+			s.notified = map[string]time.Time{}
+		}
+	}
+	s.notified[key] = now
+	s.notifyMu.Unlock()
+	text := buildFailureMessage(record)
+	go func() {
+		if err := s.sendTelegram(text); err != nil {
+			fmt.Printf("failures: could not send telegram: %v\n", err)
+		}
+	}()
+}
+
+func buildFailureMessage(record storedFailure) string {
+	var b strings.Builder
+	b.WriteString("🚨 خطای تست — Zarib Config\n")
+	fmt.Fprintf(&b, "نسخه: %s\n", ratio.Version)
+	if record.Source == "job" {
+		b.WriteString("منبع: تست\n")
+	} else {
+		b.WriteString("منبع: بررسی ساب\n")
+	}
+	fmt.Fprintf(&b, "کد خطا: %s\n", record.ErrorCode)
+	b.WriteString("لینک ساب:\n")
+	b.WriteString(record.SubURL)
+	b.WriteString("\n")
+	if record.ErrorMessage != "" {
+		fmt.Fprintf(&b, "پیام: %s\n", record.ErrorMessage)
+	}
+	if record.Mode != "" {
+		fmt.Fprintf(&b, "حالت: %s\n", record.Mode)
+	}
+	if record.Pick > 0 {
+		fmt.Fprintf(&b, "کانفیگ: %d\n", record.Pick)
+	}
+	if len(record.Picks) > 0 {
+		parts := make([]string, len(record.Picks))
+		for index, pick := range record.Picks {
+			parts[index] = fmt.Sprintf("%d", pick)
+		}
+		fmt.Fprintf(&b, "کانفیگ‌ها: %s\n", strings.Join(parts, ", "))
+	}
+	if record.SizeMB > 0 {
+		fmt.Fprintf(&b, "حجم: %.0f MB\n", record.SizeMB)
+	}
+	if record.Core != "" {
+		fmt.Fprintf(&b, "هسته: %s\n", record.Core)
+	}
+	if record.IP != "" {
+		fmt.Fprintf(&b, "IP: %s\n", record.IP)
+	}
+	if record.UserAgent != "" {
+		fmt.Fprintf(&b, "User-Agent: %s\n", record.UserAgent)
+	}
+	if len(record.Log) > 0 {
+		b.WriteString("\nلاگ:\n")
+		logs := record.Log
+		if len(logs) > maxFailureLogSend {
+			logs = logs[len(logs)-maxFailureLogSend:]
+		}
+		for _, line := range logs {
+			b.WriteString(truncateText(line, 300))
+			b.WriteString("\n")
+		}
+	}
+	return truncateText(strings.TrimRight(b.String(), "\n"), 3800)
 }
 
 func sanitizeFailureLog(lines []string) []string {

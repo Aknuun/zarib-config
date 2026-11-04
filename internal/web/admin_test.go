@@ -364,3 +364,57 @@ func TestAdminFailuresEndpointAndPage(t *testing.T) {
 		}
 	}
 }
+
+func TestFailureNotificationSendsSubURLAndLog(t *testing.T) {
+	received := make(chan string, 2)
+	telegram := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			received <- body.Text
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer telegram.Close()
+
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = telegram.URL
+	failure := storedFailure{
+		Source:       "job",
+		SubURL:       "https://example.com/broken-sub",
+		ErrorCode:    "xray_failed",
+		ErrorMessage: "core failed",
+		Log:          []string{"line one", "line two"},
+	}
+	s.notifyFailure(failure)
+	select {
+	case text := <-received:
+		for _, want := range []string{"https://example.com/broken-sub", "xray_failed", "core failed", "line one"} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("notification missing %q: %s", want, text)
+			}
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no telegram notification was sent")
+	}
+
+	// The same subscription and error code is not sent again immediately.
+	s.notifyFailure(failure)
+	select {
+	case text := <-received:
+		t.Fatalf("duplicate notification was sent: %s", text)
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Invalid inputs stay in the admin list and are not sent to Telegram.
+	s.notifyFailure(storedFailure{Source: "inspect", SubURL: "not-a-url", ErrorCode: "invalid_url"})
+	select {
+	case text := <-received:
+		t.Fatalf("invalid input was sent to Telegram: %s", text)
+	case <-time.After(200 * time.Millisecond):
+	}
+}

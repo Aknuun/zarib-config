@@ -80,6 +80,8 @@ type server struct {
 	mu              sync.Mutex
 	reportsMu       sync.Mutex
 	failuresMu      sync.Mutex
+	notifyMu        sync.Mutex
+	notified        map[string]time.Time
 	jobs            map[string]*job
 	rates           map[string]map[string][]time.Time
 	presence        map[string]float64
@@ -166,6 +168,7 @@ func Run(addr, staticDir string) error {
 		adminPassword:   os.Getenv("ADMIN_PASSWORD"),
 		jobs:            map[string]*job{},
 		rates:           map[string]map[string][]time.Time{},
+		notified:        map[string]time.Time{},
 		presence:        map[string]float64{},
 		geoCache:        map[string]geoEntry{},
 		sem:             make(chan struct{}, maxActive),
@@ -1018,6 +1021,13 @@ func (s *server) pruneLoop() {
 				delete(s.presence, id)
 			}
 		}
+		s.notifyMu.Lock()
+		for key, at := range s.notified {
+			if time.Since(at) > failureNotifyTTL {
+				delete(s.notified, key)
+			}
+		}
+		s.notifyMu.Unlock()
 		rateCutoff := time.Now().Add(-time.Hour)
 		for bucket, entries := range s.rates {
 			for ip, queue := range entries {
