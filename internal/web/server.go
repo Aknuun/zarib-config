@@ -55,6 +55,8 @@ type job struct {
 	Core        string
 	IP          string
 	SubKey      string
+	SubURL      string
+	UserAgent   string
 	Dir         string
 	SubFile     string
 	ResultFile  string
@@ -69,6 +71,7 @@ type server struct {
 	jobsDir         string
 	statsFile       string
 	reportsFile     string
+	failuresFile    string
 	telegramToken   string
 	telegramChatID  string
 	telegramAPIBase string
@@ -76,6 +79,7 @@ type server struct {
 	adminPassword   string
 	mu              sync.Mutex
 	reportsMu       sync.Mutex
+	failuresMu      sync.Mutex
 	jobs            map[string]*job
 	rates           map[string]map[string][]time.Time
 	presence        map[string]float64
@@ -154,6 +158,7 @@ func Run(addr, staticDir string) error {
 		jobsDir:         jobsDir,
 		statsFile:       filepath.Join(cacheRoot, "stats.json"),
 		reportsFile:     filepath.Join(cacheRoot, "reports.jsonl"),
+		failuresFile:    filepath.Join(cacheRoot, "failures.jsonl"),
 		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
 		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
 		telegramAPIBase: "https://api.telegram.org",
@@ -253,6 +258,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.adminReports(w, r)
+	case path == "/admin/api/failures":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.adminFailures(w, r)
 	case strings.HasPrefix(path, "/admin/"):
 		http.NotFound(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
@@ -321,12 +331,19 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subURL := strings.TrimSpace(payload.SubURL)
+	fail := func(code, message string, status int) {
+		s.recordFailure(storedFailure{
+			Source: "inspect", SubURL: subURL, ErrorCode: code, ErrorMessage: message,
+			IP: ip, UserAgent: r.UserAgent(),
+		})
+		apiError(w, code, message, status)
+	}
 	if !isValidURL(subURL) {
-		apiError(w, "invalid_url", "The subscription URL is not valid.", http.StatusBadRequest)
+		fail("invalid_url", "The subscription URL is not valid.", http.StatusBadRequest)
 		return
 	}
 	if !publicURLFn(subURL) {
-		apiError(w, "blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
+		fail("blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
 		return
 	}
 	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
@@ -343,7 +360,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 				status = http.StatusBadGateway
 			}
 		}
-		apiError(w, code, redactURLs(err.Error()), status)
+		fail(code, redactURLs(err.Error()), status)
 		return
 	}
 	if viaProxy {
@@ -352,11 +369,11 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 	usage := ratio.ParseUsage(headers, body)
 	if usage != nil {
 		if usage.Expire != nil && *usage.Expire > 0 && time.Unix(*usage.Expire, 0).Before(time.Now()) {
-			apiError(w, "subscription_expired", "This subscription has expired.", http.StatusBadRequest)
+			fail("subscription_expired", "This subscription has expired.", http.StatusBadRequest)
 			return
 		}
 		if usage.Total != nil && *usage.Total > 0 && usage.Used() >= *usage.Total {
-			apiError(w, "subscription_limited", "This subscription has no remaining volume.", http.StatusBadRequest)
+			fail("subscription_limited", "This subscription has no remaining volume.", http.StatusBadRequest)
 			return
 		}
 	}
@@ -364,10 +381,10 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 	if len(configs) == 0 {
 		trimmed := strings.TrimSpace(string(body))
 		if strings.HasPrefix(trimmed, "<") || strings.Contains(strings.ToLower(trimmed), "<html") {
-			apiError(w, "subscription_broken", "The subscription response is not a valid config list.", http.StatusBadRequest)
+			fail("subscription_broken", "The subscription response is not a valid config list.", http.StatusBadRequest)
 			return
 		}
-		apiError(w, "no_configs", "No supported configs found in the subscription.", http.StatusBadRequest)
+		fail("no_configs", "No supported configs found in the subscription.", http.StatusBadRequest)
 		return
 	}
 	items := make([]map[string]any, 0, minInt(len(configs), 100))
@@ -400,17 +417,24 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subURL := strings.TrimSpace(payload.SubURL)
+	fail := func(code, message string, status int) {
+		s.recordFailure(storedFailure{
+			Source: "job", SubURL: subURL, ErrorCode: code, ErrorMessage: message,
+			IP: ip, UserAgent: r.UserAgent(),
+		})
+		apiError(w, code, message, status)
+	}
 	if !isValidURL(subURL) {
-		apiError(w, "invalid_url", "The subscription URL is not valid.", http.StatusBadRequest)
+		fail("invalid_url", "The subscription URL is not valid.", http.StatusBadRequest)
 		return
 	}
 	if !publicURLFn(subURL) {
-		apiError(w, "blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
+		fail("blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
 		return
 	}
 	batch := strings.EqualFold(strings.TrimSpace(payload.Mode), "batch")
 	if payload.Mode != "" && !batch && !strings.EqualFold(strings.TrimSpace(payload.Mode), "single") {
-		apiError(w, "invalid_input", "Invalid test mode.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid test mode.", http.StatusBadRequest)
 		return
 	}
 	pick := 1
@@ -420,7 +444,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		seen := make(map[int]bool, len(payload.Picks))
 		for _, number := range payload.Picks {
 			if number < 1 || number > 5000 {
-				apiError(w, "invalid_input", "Invalid config number.", http.StatusBadRequest)
+				fail("invalid_input", "Invalid config number.", http.StatusBadRequest)
 				return
 			}
 			if !seen[number] {
@@ -452,19 +476,19 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		core = *payload.Core
 	}
 	if sizeMB < minSizeMB || sizeMB > maxSizeMB {
-		apiError(w, "invalid_input", "Invalid test size.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid test size.", http.StatusBadRequest)
 		return
 	}
 	if !batch && (pick < 1 || pick > 500) {
-		apiError(w, "invalid_input", "Invalid config number.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid config number.", http.StatusBadRequest)
 		return
 	}
 	if payload.Claimed != nil && (*payload.Claimed < 0.1 || *payload.Claimed > 100) {
-		apiError(w, "invalid_input", "Invalid claimed ratio.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid claimed ratio.", http.StatusBadRequest)
 		return
 	}
 	if wait < 0 || wait > 60 || drift < 0 || drift > 30 {
-		apiError(w, "invalid_input", "Invalid wait values.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid wait values.", http.StatusBadRequest)
 		return
 	}
 	validCore := false
@@ -475,12 +499,12 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !validCore {
-		apiError(w, "invalid_input", "Invalid Xray core.", http.StatusBadRequest)
+		fail("invalid_input", "Invalid Xray core.", http.StatusBadRequest)
 		return
 	}
 	jobID, err := randomID()
 	if err != nil {
-		apiError(w, "unknown", "Could not create the test.", http.StatusInternalServerError)
+		fail("unknown", "Could not create the test.", http.StatusInternalServerError)
 		return
 	}
 	jobDir := filepath.Join(s.jobsDir, jobID)
@@ -509,6 +533,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
 		Mode: mode, Pick: pick, Picks: picks, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
+		SubURL: subURL, UserAgent: r.UserAgent(),
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
@@ -517,20 +542,20 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	if running+queued >= maxQueued {
 		s.mu.Unlock()
 		os.RemoveAll(jobDir)
-		apiError(w, "busy", "The test queue is full.", http.StatusTooManyRequests)
+		fail("busy", "The test queue is full.", http.StatusTooManyRequests)
 		return
 	}
 	if perIP[ip] >= maxPerIP {
 		s.mu.Unlock()
 		os.RemoveAll(jobDir)
-		apiError(w, "busy", "Too many tests from this address. Wait for one to finish.", http.StatusTooManyRequests)
+		fail("busy", "Too many tests from this address. Wait for one to finish.", http.StatusTooManyRequests)
 		return
 	}
 	for _, existing := range s.jobs {
 		if existing.SubKey == subKey && (existing.Status == "queued" || existing.Status == "running") {
 			s.mu.Unlock()
 			os.RemoveAll(jobDir)
-			apiError(w, "duplicate_test", "This subscription already has a running test.", http.StatusConflict)
+			fail("duplicate_test", "This subscription already has a running test.", http.StatusConflict)
 			return
 		}
 	}
@@ -739,8 +764,15 @@ func (s *server) finishError(jobID, code, message string) {
 	current.Error = redactURLs(message)
 	current.ErrorCode = code
 	current.Child = nil
+	failure := storedFailure{
+		Source: "job", JobID: current.ID, Mode: current.Mode, Pick: current.Pick,
+		Picks: append([]int(nil), current.Picks...), SizeMB: current.SizeMB, Core: current.Core,
+		SubURL: current.SubURL, ErrorCode: code, ErrorMessage: message,
+		Log: append([]string(nil), current.Log...), IP: current.IP, UserAgent: current.UserAgent,
+	}
 	s.mu.Unlock()
 	s.recordJobError(code)
+	s.recordFailure(failure)
 }
 
 func (s *server) appendLog(jobID, line string) {

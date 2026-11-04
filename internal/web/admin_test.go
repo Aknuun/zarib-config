@@ -30,7 +30,7 @@ func okTelegram(t *testing.T) *httptest.Server {
 
 func TestAdminEndpointsRequireBasicAuth(t *testing.T) {
 	s := adminTestServer(t)
-	for _, path := range []string{"/admin", "/admin/api/stats", "/admin/api/reports"} {
+	for _, path := range []string{"/admin", "/admin/api/stats", "/admin/api/reports", "/admin/api/failures"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		response := httptest.NewRecorder()
 		s.route(response, request)
@@ -66,7 +66,7 @@ func TestAdminEndpointsRequireBasicAuth(t *testing.T) {
 
 func TestAdminDisabledWithoutCredentials(t *testing.T) {
 	s := testServer(t)
-	for _, path := range []string{"/admin", "/admin/api/stats", "/admin/api/reports"} {
+	for _, path := range []string{"/admin", "/admin/api/stats", "/admin/api/reports", "/admin/api/failures"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		response := httptest.NewRecorder()
 		s.route(response, request)
@@ -280,6 +280,86 @@ func TestAdminPageRendersStatsAndReports(t *testing.T) {
 	body := response.Body.String()
 	for _, want := range []string{"پنل مدیریت ضریب", "۲۴ ساعت اخیر", "۷ روز اخیر", "۳۰ روز اخیر", "page report", "timeout", "line one", "core failed", "1.50", "https://example.com/page-sub"} {
 		if !strings.Contains(body, want) {
+			t.Fatalf("admin page missing %q", want)
+		}
+	}
+}
+
+func TestInspectFailureIsStored(t *testing.T) {
+	s := testServer(t)
+	request := httptest.NewRequest(http.MethodPost, "/api/inspect", strings.NewReader(`{"sub_url":"not-a-url"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+	}
+	failures, err := s.readFailures(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failures) != 1 {
+		t.Fatalf("stored failures = %d, want 1", len(failures))
+	}
+	if failures[0].Source != "inspect" || failures[0].ErrorCode != "invalid_url" || failures[0].SubURL != "not-a-url" {
+		t.Fatalf("unexpected failure: %+v", failures[0])
+	}
+	info, err := os.Stat(s.failuresFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("failures file mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestAdminFailuresEndpointAndPage(t *testing.T) {
+	s := adminTestServer(t)
+	if err := s.storeFailure(storedFailure{
+		Time:         time.Now().UTC().Format(time.RFC3339Nano),
+		Source:       "job",
+		JobID:        "job-123",
+		Mode:         "single",
+		Pick:         2,
+		SizeMB:       10,
+		Core:         "latest",
+		SubURL:       "https://example.com/fail-sub",
+		ErrorCode:    "xray_failed",
+		ErrorMessage: "core failed",
+		Log:          []string{"probe log one", "probe log two"},
+		IP:           "203.0.113.9",
+		UserAgent:    "test-agent",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/admin/api/failures", nil)
+	request.SetBasicAuth("admin", "test-password")
+	response := httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+	}
+	var data struct {
+		Count    int             `json:"count"`
+		Failures []storedFailure `json:"failures"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &data); err != nil {
+		t.Fatal(err)
+	}
+	if data.Count != 1 || len(data.Failures) != 1 || data.Failures[0].ErrorCode != "xray_failed" {
+		t.Fatalf("unexpected failures response: %s", response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/admin", nil)
+	request.SetBasicAuth("admin", "test-password")
+	response = httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected page status %d: %s", response.Code, response.Body.String())
+	}
+	for _, want := range []string{"خطاهای تست", "xray_failed", "probe log one", "https://example.com/fail-sub", "job-123"} {
+		if !strings.Contains(response.Body.String(), want) {
 			t.Fatalf("admin page missing %q", want)
 		}
 	}

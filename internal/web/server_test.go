@@ -18,12 +18,13 @@ import (
 func testServer(t *testing.T) *server {
 	t.Helper()
 	return &server{
-		jobsDir:  t.TempDir(),
-		jobs:     map[string]*job{},
-		rates:    map[string]map[string][]time.Time{},
-		presence: map[string]float64{},
-		geoCache: map[string]geoEntry{},
-		sem:      make(chan struct{}, maxActive),
+		jobsDir:      t.TempDir(),
+		failuresFile: filepath.Join(t.TempDir(), "failures.jsonl"),
+		jobs:         map[string]*job{},
+		rates:        map[string]map[string][]time.Time{},
+		presence:     map[string]float64{},
+		geoCache:     map[string]geoEntry{},
+		sem:          make(chan struct{}, maxActive),
 	}
 }
 

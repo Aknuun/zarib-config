@@ -38,6 +38,7 @@ type adminView struct {
 	GeneratedAt string
 	Ranges      []adminRange
 	Reports     []storedReport
+	Failures    []storedFailure
 }
 
 func (s *server) adminEnabled() bool {
@@ -122,6 +123,10 @@ func (s *server) adminView() adminView {
 	if err != nil {
 		fmt.Printf("admin: could not read reports: %v\n", err)
 	}
+	failures, err := s.readFailures(maxAdminFailures)
+	if err != nil {
+		fmt.Printf("admin: could not read failures: %v\n", err)
+	}
 	online, _ := snapshot["online"].(int)
 	return adminView{
 		Online:      online,
@@ -133,7 +138,8 @@ func (s *server) adminView() adminView {
 			adminRangeFrom(snapshot, "d30", "۳۰ روز اخیر"),
 			adminRangeFrom(snapshot, "overall", "کل"),
 		},
-		Reports: reports,
+		Reports:  reports,
+		Failures: failures,
 	}
 }
 
@@ -164,7 +170,8 @@ func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
 }
 
 var adminTemplate = template.Must(template.New("admin").Funcs(template.FuncMap{
-	"bytes": humanBytes,
+	"bytes":   humanBytes,
+	"httpURL": isValidURL,
 	"shortTime": func(value string) string {
 		if at, err := time.Parse(time.RFC3339Nano, value); err == nil {
 			return at.Local().Format("2006-01-02 15:04:05")
@@ -348,6 +355,50 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   </div>
   {{else}}
   <p class="empty">هنوز گزارشی ثبت نشده است.</p>
+  {{end}}
+
+  <section>
+    <div class="section-head"><h2>خطاهای تست</h2><p>{{len .Failures}} مورد</p></div>
+  </section>
+  {{if .Failures}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>زمان</th><th>منبع</th><th>کد خطا</th><th>لینک ساب</th><th>حالت</th><th>IP</th><th></th></tr></thead>
+      <tbody>
+        {{range .Failures}}
+        <tr>
+          <td class="nowrap">{{shortTime .Time}}</td>
+          <td>{{if eq .Source "job"}}تست{{else}}بررسی ساب{{end}}</td>
+          <td>{{if .ErrorCode}}<code>{{.ErrorCode}}</code>{{else}}—{{end}}</td>
+          <td class="desc mono" dir="ltr">{{if .SubURL}}{{if httpURL .SubURL}}<a href="{{.SubURL}}">{{.SubURL}}</a>{{else}}{{.SubURL}}{{end}}{{else}}—{{end}}</td>
+          <td class="nowrap">{{if eq .Mode "batch"}}همزمان{{else if eq .Mode "single"}}تک‌به‌تک{{else}}—{{end}}{{if .Pick}} · کانفیگ {{.Pick}}{{end}}{{if .Picks}} · {{range .Picks}}{{.}} {{end}}{{end}}</td>
+          <td class="mono">{{.IP}}</td>
+          <td>
+            <details>
+              <summary>لاگ</summary>
+              <div class="details">
+                {{if .ErrorMessage}}<h4>پیام خطا</h4><pre dir="ltr">{{.ErrorMessage}}</pre>{{end}}
+                {{if .Log}}<h4>لاگ</h4><pre dir="ltr">{{range .Log}}{{.}}
+{{end}}</pre>{{end}}
+                <h4>جزئیات</h4>
+                <dl class="mini">
+                  <dt>زمان</dt><dd>{{.Time}}</dd>
+                  {{if .JobID}}<dt>شناسه تست</dt><dd class="mono">{{.JobID}}</dd>{{end}}
+                  {{if .SizeMB}}<dt>حجم</dt><dd>{{printf "%.0f" .SizeMB}} MB</dd>{{end}}
+                  {{if .Core}}<dt>هسته</dt><dd>{{.Core}}</dd>{{end}}
+                  <dt>IP</dt><dd class="mono">{{.IP}}</dd>
+                  <dt>User-Agent</dt><dd>{{.UserAgent}}</dd>
+                </dl>
+              </div>
+            </details>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="empty">هنوز خطایی ثبت نشده است.</p>
   {{end}}
 </main>
 </body>

@@ -45,7 +45,7 @@ mkdir -p "$BACKUP_DIR"
 chmod 0700 "$BACKUP_DIR"
 
 files=()
-for path in "$CACHE_DIR/stats.json" "$CACHE_DIR/reports.jsonl" "$ETC_DIR/admin.env"; do
+for path in "$CACHE_DIR/stats.json" "$CACHE_DIR/reports.jsonl" "$CACHE_DIR/failures.jsonl" "$ETC_DIR/admin.env"; do
   [ -f "$path" ] && files+=("$path")
 done
 [ "${#files[@]}" -gt 0 ] || die "nothing to back up in $CACHE_DIR or $ETC_DIR"
