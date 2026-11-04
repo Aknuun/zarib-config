@@ -790,6 +790,13 @@ func startConfigSession(ctx context.Context, opts Options, configText string) (*
 			return nil, err
 		}
 		if IPv6OnlyHost(host) && !HasGlobalIPv6() {
+			if fallback := IPv4FallbackHost(proxyOutbound); fallback != "" && SetOutboundHost(proxyOutbound, fallback) {
+				SetOutboundServerName(proxyOutbound, fallback)
+				host = fallback
+				fmt.Println(C(fmt.Sprintf("Config target is IPv6-only; retrying through %s over IPv4.", fallback), "yellow"))
+			}
+		}
+		if IPv6OnlyHost(host) && !HasGlobalIPv6() {
 			return nil, ratioErrorf("This config is IPv6-only, but the test server has no IPv6 connectivity. Test it from a mobile or IPv6 network, or choose another config.")
 		}
 		if safeFetchEnabled() && !IsPublicHost(host) {

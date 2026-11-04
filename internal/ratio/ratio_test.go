@@ -718,3 +718,34 @@ func TestIPv6OnlyHost(t *testing.T) {
 		}
 	}
 }
+
+func TestIPv4FallbackHost(t *testing.T) {
+	outbound, err := OutboundFromURI("vless://11111111-2222-3333-4444-555555555555@[2606:4700:3037::6815:4dbb]:2053?encryption=none&security=tls&sni=example.com&type=ws&host=example.com&path=%2F#test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := OutboundServerName(outbound); got != "example.com" {
+		t.Fatalf("OutboundServerName = %q", got)
+	}
+	if got := IPv4FallbackHost(outbound); got != "example.com" {
+		t.Fatalf("IPv4FallbackHost = %q", got)
+	}
+	if !SetOutboundHost(outbound, "example.com") {
+		t.Fatal("SetOutboundHost failed")
+	}
+	if got := OutboundHost(outbound); got != "example.com" {
+		t.Fatalf("OutboundHost = %q", got)
+	}
+}
+
+func TestHasIPv4Host(t *testing.T) {
+	if !HasIPv4Host("1.1.1.1") {
+		t.Fatal("1.1.1.1 should have IPv4")
+	}
+	if HasIPv4Host("2606:4700:4700::1111") {
+		t.Fatal("IPv6 literal should not have IPv4")
+	}
+	if !HasIPv4Host("example.com") {
+		t.Fatal("example.com should resolve over IPv4")
+	}
+}

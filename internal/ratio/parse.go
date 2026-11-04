@@ -1080,6 +1080,111 @@ func LooksLikeIP(host string) bool {
 	return net.ParseIP(value) != nil
 }
 
+// OutboundServerName returns the TLS/WS host of an outbound, which can be used
+// as an IPv4-reachable alternative when the address itself is IPv6-only.
+func OutboundServerName(outbound map[string]any) string {
+	stream := asObject(outbound["streamSettings"])
+	if stream == nil {
+		return ""
+	}
+	for _, key := range []string{"tlsSettings", "realitySettings"} {
+		if settings := asObject(stream[key]); settings != nil {
+			if name := strings.TrimSpace(toString(settings["serverName"])); name != "" {
+				return name
+			}
+		}
+	}
+	for _, key := range []string{"wsSettings", "xhttpSettings", "httpupgradeSettings"} {
+		if settings := asObject(stream[key]); settings != nil {
+			if name := firstCSVHost(toString(settings["host"])); name != "" {
+				return name
+			}
+			if headers := asObject(settings["headers"]); headers != nil {
+				if name := firstCSVHost(toString(headers["Host"])); name != "" {
+					return name
+				}
+			}
+		}
+	}
+	if settings := asObject(stream["grpcSettings"]); settings != nil {
+		return strings.TrimSpace(toString(settings["authority"]))
+	}
+	return ""
+}
+
+func firstCSVHost(value string) string {
+	if index := strings.IndexByte(value, ','); index >= 0 {
+		value = value[:index]
+	}
+	return strings.TrimSpace(value)
+}
+
+// SetOutboundHost replaces the server address of a vnext/servers outbound.
+func SetOutboundHost(outbound map[string]any, host string) bool {
+	settings := asObject(outbound["settings"])
+	if settings == nil {
+		return false
+	}
+	for _, key := range []string{"vnext", "servers"} {
+		if servers := asArray(settings[key]); len(servers) > 0 {
+			if server := asObject(servers[0]); server != nil {
+				server["address"] = host
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func SetOutboundServerName(outbound map[string]any, name string) {
+	stream := asObject(outbound["streamSettings"])
+	if stream == nil {
+		return
+	}
+	for _, key := range []string{"tlsSettings", "realitySettings"} {
+		if settings := asObject(stream[key]); settings != nil {
+			current := strings.TrimSpace(toString(settings["serverName"]))
+			if current == "" || LooksLikeIP(current) {
+				settings["serverName"] = name
+			}
+		}
+	}
+}
+
+func HasIPv4Host(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.To4() != nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return false
+	}
+	for _, item := range ips {
+		if item.IP.To4() != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// IPv4FallbackHost returns a domain from the config that resolves over IPv4.
+func IPv4FallbackHost(outbound map[string]any) string {
+	name := OutboundServerName(outbound)
+	if name == "" || LooksLikeIP(name) || !HasIPv4Host(name) {
+		return ""
+	}
+	if safeFetchEnabled() && !IsPublicHost(name) {
+		return ""
+	}
+	return name
+}
+
 func fileSHA256(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
