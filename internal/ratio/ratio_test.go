@@ -793,3 +793,10 @@ func TestFetchMetaRetriesBrowserLandingPageAsClient(t *testing.T) {
 		t.Fatalf("expected the client response, got %q", body)
 	}
 }
+
+func TestCoreCandidatesCompat(t *testing.T) {
+	got := CoreCandidates("compat")
+	if len(got) != 1 || got[0] != "compat" {
+		t.Fatalf("CoreCandidates(compat) = %v", got)
+	}
+}

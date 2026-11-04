@@ -21,7 +21,7 @@ func CoreCandidates(choice string) []string {
 	if choice == "" {
 		choice = "auto"
 	}
-	if choice == "latest" || choice == "legacy" || choice == "system" {
+	if choice == "latest" || choice == "legacy" || choice == "compat" || choice == "system" {
 		return []string{choice}
 	}
 	candidates := []string{"latest", "legacy"}
@@ -39,6 +39,18 @@ func xrayAssetSHA(asset string) string {
 		return "d1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c"
 	case "Xray-linux-arm32-v7a.zip":
 		return "89978508fa2ebb4a1e661f2c6ed51d241c4091b3cd17f4c65fdf20baae7dedac"
+	}
+	return ""
+}
+
+func xrayCompatAssetSHA(asset string) string {
+	switch asset {
+	case "Xray-linux-64.zip":
+		return "a4ec9c037933b6730fb29e4f7a6674647f40b0b9f40870411071dd6382ea87a8"
+	case "Xray-linux-arm64-v8a.zip":
+		return "020416fa7e1b1b04c4f97209b33f1bd4683e15272feda48c769ae2c9beb1c3de"
+	case "Xray-linux-arm32-v7a.zip":
+		return "c3b50abe8dfbb4aa392398e3adb0bb452612ccf0718a2d7e50f2374e91b38c8a"
 	}
 	return ""
 }
@@ -75,7 +87,7 @@ func XrayVersion(path string) string {
 
 func EnsureXray(core string) (string, error) {
 	core = strings.ToLower(strings.TrimSpace(core))
-	if core != "latest" && core != "legacy" && core != "system" {
+	if core != "latest" && core != "legacy" && core != "compat" && core != "system" {
 		core = "latest"
 	}
 	if core == "system" {
@@ -86,10 +98,14 @@ func EnsureXray(core string) (string, error) {
 		return found, nil
 	}
 	cache := CacheDir()
-	target := filepath.Join(cache, "xray-"+PinnedXrayVersion)
-	if core == "legacy" {
-		target = filepath.Join(cache, "xray-"+LegacyXrayVersion)
+	version := PinnedXrayVersion
+	switch core {
+	case "legacy":
+		version = LegacyXrayVersion
+	case "compat":
+		version = CompatXrayVersion
 	}
+	target := filepath.Join(cache, "xray-"+version)
 	if info, err := os.Stat(target); err == nil && !info.IsDir() && xrayRuns(target) {
 		return target, nil
 	}
@@ -100,12 +116,14 @@ func EnsureXray(core string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	releaseURL := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", PinnedXrayVersion, asset)
-	expectedSHA := xrayAssetSHA(asset)
-	if core == "legacy" {
-		releaseURL = fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", LegacyXrayVersion, asset)
-		expectedSHA = ""
+	expectedSHA := ""
+	switch core {
+	case "latest":
+		expectedSHA = xrayAssetSHA(asset)
+	case "compat":
+		expectedSHA = xrayCompatAssetSHA(asset)
 	}
+	releaseURL := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", version, asset)
 	fmt.Printf("Xray (%s) not found; downloading from GitHub (%s) ...\n", core, asset)
 	request, err := http.NewRequest(http.MethodGet, releaseURL, nil)
 	if err != nil {

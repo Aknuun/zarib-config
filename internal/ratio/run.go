@@ -808,7 +808,8 @@ func startConfigSession(ctx context.Context, opts Options, configText string) (*
 	}
 	coreNames := CoreCandidates(opts.Core)
 	if (opts.Core == "" || strings.EqualFold(opts.Core, "auto")) && proxyOutbound != nil && !outboundHasTLS(proxyOutbound) {
-		coreNames = []string{"legacy", "latest"}
+		// Plain VLESS is rejected by Xray 26.7.11+; compat 26.4.25 still runs it.
+		coreNames = []string{"legacy", "latest", "compat"}
 	}
 	var coreErrors []string
 	for coreIndex, coreName := range coreNames {

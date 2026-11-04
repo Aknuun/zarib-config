@@ -31,10 +31,11 @@ const (
 	DefaultProbeWait    = 10
 	PinnedXrayVersion   = "v26.10.21"
 	LegacyXrayVersion   = "v1.8.24"
+	CompatXrayVersion   = "v26.4.25"
 	MaxSubBytes         = 4 * 1024 * 1024
 )
 
-var CoreChoices = []string{"auto", "latest", "legacy", "system"}
+var CoreChoices = []string{"auto", "latest", "legacy", "compat", "system"}
 
 var FallbackTestURLs = []string{
 	"https://proof.ovh.net/files/1Gb.dat",

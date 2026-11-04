@@ -164,7 +164,7 @@ func askSize() float64 {
 
 func askCore() string {
 	def := "auto"
-	raw, err := ratio.Ask("Xray core (auto/latest/legacy/system)", &def)
+	raw, err := ratio.Ask("Xray core (auto/latest/legacy/compat/system)", &def)
 	if err != nil {
 		return "auto"
 	}
@@ -292,7 +292,7 @@ func runCLI(args []string) int {
 		syncMode     = fs.Bool("sync", false, "Align the test with the panel's usage update cycle")
 		controlFile  = fs.String("control-file", "", "Internal: file used to extend the usage wait")
 		autoExtend   = fs.Bool("auto-extend", false, "Keep waiting for panel usage without user confirmation")
-		core         = fs.String("core", defaults.Core, "Xray core: auto, latest, legacy, system")
+		core         = fs.String("core", defaults.Core, "Xray core: auto, latest, legacy, compat, system")
 		claimed      = fs.Float64("claimed", 0, "Claimed coefficient")
 		jsonOut      = fs.String("json-out", "", "Save the result to a JSON file")
 		keepTemp     = fs.Bool("keep-temp", false, "Keep temporary files")
