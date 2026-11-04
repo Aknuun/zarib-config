@@ -421,4 +421,13 @@ func TestFailureNotificationSendsSubURLAndLog(t *testing.T) {
 		t.Fatalf("invalid input was sent to Telegram: %s", text)
 	case <-time.After(200 * time.Millisecond):
 	}
+
+	// A subscription with no usable configs is a user-input problem, not a
+	// site failure; it stays in the admin list and does not page the operator.
+	s.notifyFailure(storedFailure{Source: "inspect", SubURL: "https://example.com/dummy-sub", ErrorCode: "no_configs"})
+	select {
+	case text := <-received:
+		t.Fatalf("no_configs was sent to Telegram: %s", text)
+	case <-time.After(200 * time.Millisecond):
+	}
 }
