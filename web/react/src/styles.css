@@ -1557,6 +1557,19 @@ body {
 }
 
 @media (max-width: 480px) {
+  .z-bulk-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .z-bulk-actions [data-kumo-component="Button"] {
+    min-width: 0;
+    padding-inline: 4px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
   .z-result-stats > div {
     padding: 10px;
   }
@@ -1571,10 +1584,6 @@ body {
 }
 
 @media (max-width: 380px) {
-  .z-bulk-actions [data-kumo-component="Button"] {
-    flex: 1 1 100%;
-  }
-
   .z-result-actions .z-action-grid {
     grid-template-columns: minmax(0, 1fr);
   }

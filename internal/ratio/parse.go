@@ -228,6 +228,9 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL, userAgent s
 		}
 		return nil, nil, &SubscriptionError{Code: code, Message: fmt.Sprintf("Subscription request failed with HTTP %d.", response.StatusCode)}
 	}
+	if isDownloadResponse(response.Request.URL.String(), response.Header) {
+		return nil, nil, &SubscriptionError{Code: "not_subscription", Message: "This link points to a file download, not a subscription link."}
+	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, MaxSubBytes+1))
 	if err != nil {
 		message := fmt.Sprintf("Could not read the subscription response: %v", err)
@@ -240,6 +243,50 @@ func fetchOnce(rawURL string, timeout time.Duration, proxy *url.URL, userAgent s
 		return nil, nil, ratioErrorf("Subscription response is too large.")
 	}
 	return body, response.Header, nil
+}
+
+var downloadExtensions = []string{
+	".apk", ".aab", ".ipa", ".exe", ".msi", ".dmg", ".pkg", ".deb", ".rpm",
+	".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img",
+	".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+	".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg",
+	".mp3", ".mp4", ".mkv", ".avi", ".mov", ".bin",
+}
+
+// isDownloadResponse detects file links such as APK releases before they are
+// treated as subscriptions. A browser URL or a short link can redirect to the
+// file, so the final request URL and headers are checked too.
+func isDownloadResponse(rawURL string, headers http.Header) bool {
+	check := func(value string) bool {
+		value = strings.ToLower(value)
+		for _, extension := range downloadExtensions {
+			if strings.HasSuffix(value, extension) {
+				return true
+			}
+		}
+		return false
+	}
+	if parsed, err := url.Parse(rawURL); err == nil && check(parsed.Path) {
+		return true
+	}
+	contentType := strings.ToLower(strings.Split(headers.Get("Content-Type"), ";")[0])
+	switch contentType {
+	case "application/vnd.android.package-archive", "application/zip",
+		"application/x-zip-compressed", "application/pdf", "application/x-msdownload",
+		"application/x-apple-diskimage", "application/x-rar-compressed",
+		"application/x-7z-compressed":
+		return true
+	}
+	if strings.HasPrefix(contentType, "image/") || strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {
+		return true
+	}
+	disposition := strings.ToLower(headers.Get("Content-Disposition"))
+	if strings.Contains(disposition, "attachment") {
+		if check(disposition) || contentType == "application/octet-stream" {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeHTML(body []byte) bool {
@@ -305,7 +352,7 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 	if proxy == nil {
 		return body, headers, false, err
 	}
-	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") {
+	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription") {
 		return nil, nil, false, err
 	}
 	if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, timeout, proxy); retryErr == nil {

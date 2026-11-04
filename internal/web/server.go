@@ -1200,6 +1200,8 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 		return "blocked_target"
 	case strings.Contains(text, "context deadline exceeded") || strings.Contains(text, "client.timeout") || strings.Contains(text, "subscription request timed out"):
 		return "subscription_timeout"
+	case strings.Contains(text, "not a subscription") || strings.Contains(text, "file download"):
+		return "not_subscription"
 	case strings.Contains(text, "could not read the subscription") || strings.Contains(text, "subscription request failed"):
 		return "fetch_failed"
 	case strings.Contains(text, "no supported configs") || strings.Contains(text, "no configs found"):

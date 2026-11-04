@@ -113,12 +113,13 @@ func TestClassifyError(t *testing.T) {
 		"The config is not valid for Xray:":             "xray_failed",
 		"unknown transport protocol: xhttp":             "xray_incompatible",
 		"vless without TLS or other encryption is prohibited unless the server address is a private IP or domain": "xray_incompatible",
-		"Could not read the subscription.":                                        "fetch_failed",
-		"Blocked: the config points to a non-public address.":                     "blocked_target",
-		"This config is IPv6-only, but the test server has no IPv6 connectivity.": "ipv6_unavailable",
-		"Could not read the subscription response: context deadline exceeded":     "subscription_timeout",
-		"No supported configs found":                                              "no_configs",
-		"Usage reported by the subscription did not change.":                      "usage_unchanged",
+		"This link points to a file download, not a subscription link.":                                           "not_subscription",
+		"Could not read the subscription.":                                                                        "fetch_failed",
+		"Blocked: the config points to a non-public address.":                                                     "blocked_target",
+		"This config is IPv6-only, but the test server has no IPv6 connectivity.":                                 "ipv6_unavailable",
+		"Could not read the subscription response: context deadline exceeded":                                     "subscription_timeout",
+		"No supported configs found":                                                                              "no_configs",
+		"Usage reported by the subscription did not change.":                                                      "usage_unchanged",
 	}
 	for input, expected := range cases {
 		if actual := classifyError([]string{input}, false, false); actual != expected {

@@ -828,6 +828,24 @@ func TestFetchMetaRetriesBrowserLandingPageAsClient(t *testing.T) {
 	}
 }
 
+func TestFetchRejectsFileDownloads(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	t.Setenv("RATIO_SAFE_FETCH", "")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.android.package-archive")
+		fmt.Fprint(w, "PK\x03\x04fake apk")
+	}))
+	defer server.Close()
+
+	for _, target := range []string{server.URL + "/Happ_beta.apk", server.URL + "/download"} {
+		_, _, err := Fetch(target, 5*time.Second)
+		subErr, ok := err.(*SubscriptionError)
+		if !ok || subErr.Code != "not_subscription" {
+			t.Fatalf("Fetch(%s) error = %v, want not_subscription", target, err)
+		}
+	}
+}
+
 func TestCoreCandidatesCompat(t *testing.T) {
 	got := CoreCandidates("compat")
 	if len(got) != 1 || got[0] != "compat" {

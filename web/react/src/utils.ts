@@ -124,6 +124,7 @@ export function errorKey(code: string | undefined) {
     "blocked_target",
     "ipv6_unavailable",
     "no_configs",
+    "not_subscription",
     "probe_failed",
     "resolve_failed",
     "xray_failed",
@@ -164,6 +165,7 @@ export function suggestionKey(code: string | undefined) {
     case "blocked_url":
     case "invalid_url":
     case "no_configs":
+    case "not_subscription":
       return "errorSuggestLink";
     case "blocked_target":
       return "errorSuggestDefault";

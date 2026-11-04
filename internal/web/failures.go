@@ -97,6 +97,11 @@ func (s *server) notifyFailure(record storedFailure) {
 	if record.ErrorCode == "xray_incompatible" {
 		return
 	}
+	// A file link is a user mistake, not a subscription failure; keep it in the
+	// admin log without paging the operator.
+	if record.ErrorCode == "not_subscription" {
+		return
+	}
 	key := record.IP + "\x00" + record.ErrorCode
 	now := time.Now()
 	s.notifyMu.Lock()
@@ -140,6 +145,7 @@ var persianFailureMessages = map[string]string{
 	"subscription_unauthorized": "دسترسی به این ساب رد شد.",
 	"subscription_rate_limited": "درخواست به ساب زیاد بوده؛ کمی بعد دوباره تلاش کن.",
 	"subscription_unavailable":  "سرور ساب در دسترس نیست.",
+	"not_subscription":          "این لینک یک فایل است، نه لینک ساب. لینک اشتراک را وارد کن.",
 	"subscription_timeout":      "درخواست ساب تایم‌اوت شد.",
 	"fetch_failed":              "خواندن ساب ناموفق بود.",
 	"no_configs":                "هیچ کانفیگ پشتیبانی‌شده‌ای در ساب پیدا نشد.",
