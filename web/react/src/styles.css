@@ -1630,3 +1630,9 @@ html[lang="en"] .z-hero-title {
 }
 
 .z-live-pill { height: 32px; padding-inline: 8px; gap: 5px; }
+
+.z-header [data-kumo-component="Button"] {
+  min-height: 32px;
+  min-width: 32px;
+  height: 32px;
+}
