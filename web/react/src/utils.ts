@@ -127,6 +127,7 @@ export function errorKey(code: string | undefined) {
     "probe_failed",
     "resolve_failed",
     "xray_failed",
+    "xray_incompatible",
     "usage_unchanged",
     "timeout",
     "rate_limited",
@@ -156,6 +157,7 @@ export function suggestionKey(code: string | undefined) {
     case "resolve_failed":
     case "timeout":
     case "xray_failed":
+    case "xray_incompatible":
       return "errorSuggestDefault";
     case "fetch_failed":
     case "subscription_timeout":

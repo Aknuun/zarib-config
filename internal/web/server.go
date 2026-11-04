@@ -1189,6 +1189,9 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 		return "probe_failed"
 	case strings.Contains(text, "cannot resolve host"):
 		return "resolve_failed"
+	case strings.Contains(text, "unknown transport protocol: xhttp") ||
+		strings.Contains(text, "vless without tls or other encryption is prohibited"):
+		return "xray_incompatible"
 	case strings.Contains(text, "not valid for xray") || strings.Contains(text, "failed to start") || strings.Contains(text, "no xray core"):
 		return "xray_failed"
 	case strings.Contains(text, "non-public address"):

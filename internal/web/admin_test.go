@@ -430,6 +430,54 @@ func TestSilentIPSkipsFailures(t *testing.T) {
 	}
 }
 
+func TestDuplicateTestAndXrayIncompatibleNotifications(t *testing.T) {
+	received := make(chan string, 2)
+	telegram := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			received <- body.Text
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer telegram.Close()
+
+	s := testServer(t)
+	s.telegramToken = "test-token"
+	s.telegramChatID = "12345"
+	s.telegramAPIBase = telegram.URL
+
+	s.recordFailure(storedFailure{
+		Source: "job", SubURL: "https://example.com/duplicate", ErrorCode: "duplicate_test", IP: "203.0.113.9",
+	})
+	failures, err := s.readFailures(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failures) != 0 {
+		t.Fatalf("duplicate test stored %d failures, want 0", len(failures))
+	}
+
+	s.recordFailure(storedFailure{
+		Source: "job", SubURL: "https://example.com/incompatible", ErrorCode: "xray_incompatible", IP: "203.0.113.9",
+	})
+	failures, err = s.readFailures(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failures) != 1 || failures[0].ErrorCode != "xray_incompatible" {
+		t.Fatalf("incompatible failure was not stored: %+v", failures)
+	}
+
+	select {
+	case text := <-received:
+		t.Fatalf("unexpected telegram notification: %s", text)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
 func TestAdminFailuresEndpointAndPage(t *testing.T) {
 	s := adminTestServer(t)
 	if err := s.storeFailure(storedFailure{

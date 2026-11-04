@@ -615,6 +615,7 @@ func TestParseBool(t *testing.T) {
 func TestWireGuardURI(t *testing.T) {
 	uri := "wireguard://WE6IwB47qYxuTlmmDEnlHbBD0oUHEqGiR8Snaap9u10%3D@wg.topingr.ir:33434/" +
 		"?publickey=B70FMSPDWT%2BO3EEsFJr7WtFMjnDuWfgcdfPyDYH3rVg%3D" +
+		"&presharedkey=JcMbCKKCiHZ2gBXepbXtpSPiuuNybvZsFE8BR%2F%2Fmvns%3D" +
 		"&address=10.66.19.74%2F32&mtu=1280&allowedips=0.0.0.0%2F0%2C%3A%3A%2F0" +
 		"&keepalive=25&dns=1.1.1.1%2C8.8.8.8#WG-IRAN"
 	outbound, err := OutboundFromURI(uri)
@@ -638,6 +639,9 @@ func TestWireGuardURI(t *testing.T) {
 	}
 	if peer["publicKey"] != "B70FMSPDWT+O3EEsFJr7WtFMjnDuWfgcdfPyDYH3rVg=" {
 		t.Fatalf("unexpected public key: %+v", peer)
+	}
+	if peer["preSharedKey"] != "JcMbCKKCiHZ2gBXepbXtpSPiuuNybvZsFE8BR//mvns=" {
+		t.Fatalf("unexpected preshared key: %+v", peer)
 	}
 	if toInt64(peer["keepAlive"]) != 25 {
 		t.Fatalf("unexpected keepalive: %+v", peer)

@@ -978,6 +978,9 @@ func outboundFromWireGuard(uri string) (map[string]any, error) {
 		"endpoint":   net.JoinHostPort(parsed.Hostname(), strconv.Itoa(port)),
 		"allowedIPs": allowedIPs,
 	}
+	if psk := firstQueryValue(query, "presharedkey", "pre-shared-key", "psk"); psk != "" {
+		peer["preSharedKey"] = psk
+	}
 	if keepAlive := toInt64(firstQueryValue(query, "keepalive", "keep-alive", "persistentkeepalive")); keepAlive > 0 {
 		peer["keepAlive"] = keepAlive
 	}

@@ -108,9 +108,11 @@ func TestInspectRejectsInvalidURL(t *testing.T) {
 
 func TestClassifyError(t *testing.T) {
 	cases := map[string]string{
-		"The config did not respond through the proxy.":                           "probe_failed",
-		"Cannot resolve host 'x'.":                                                "resolve_failed",
-		"The config is not valid for Xray:":                                       "xray_failed",
+		"The config did not respond through the proxy.": "probe_failed",
+		"Cannot resolve host 'x'.":                      "resolve_failed",
+		"The config is not valid for Xray:":             "xray_failed",
+		"unknown transport protocol: xhttp":             "xray_incompatible",
+		"vless without TLS or other encryption is prohibited unless the server address is a private IP or domain": "xray_incompatible",
 		"Could not read the subscription.":                                        "fetch_failed",
 		"Blocked: the config points to a non-public address.":                     "blocked_target",
 		"This config is IPv6-only, but the test server has no IPv6 connectivity.": "ipv6_unavailable",

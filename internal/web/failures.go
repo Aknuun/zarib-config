@@ -62,6 +62,10 @@ func (s *server) recordFailure(record storedFailure) {
 	if s.failuresFile == "" || s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) {
 		return
 	}
+	// A double-click is not a site failure and should not flood the admin log.
+	if record.ErrorCode == "duplicate_test" {
+		return
+	}
 	if record.Time == "" {
 		record.Time = time.Now().UTC().Format(time.RFC3339Nano)
 	}
@@ -84,6 +88,11 @@ func (s *server) recordFailure(record storedFailure) {
 // non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
 	if s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) || s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
+		return
+	}
+	// The config itself is incompatible with Xray; keep it in the admin log but
+	// do not repeat the same unfixable alert in Telegram.
+	if record.ErrorCode == "xray_incompatible" {
 		return
 	}
 	key := record.IP + "\x00" + record.ErrorCode
