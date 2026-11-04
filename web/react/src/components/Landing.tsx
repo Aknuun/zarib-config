@@ -111,7 +111,18 @@ export function Landing({
 
         <p className="z-privacy-tile">
           <LockSimple size={14} aria-hidden="true" />
-          {t("privacy")}
+          <span>
+            {t("privacy")} (
+            <a
+              href="https://github.com/Aknuun/zarib-config"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="z-privacy-link"
+            >
+              {t("privacyGithub")}
+            </a>
+            )
+          </span>
         </p>
 
       </main>

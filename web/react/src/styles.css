@@ -1653,3 +1653,11 @@ html[lang="en"] .z-hero-title {
 .z-header-icon:hover {
   border-color: color-mix(in oklab, var(--color-kumo-brand) 38%, var(--color-kumo-line));
 }
+
+.z-privacy-link {
+  color: var(--color-kumo-brand);
+  text-decoration: none;
+}
+.z-privacy-link:hover {
+  text-decoration: underline;
+}
