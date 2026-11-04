@@ -313,6 +313,26 @@ func TestInspectFailureIsStored(t *testing.T) {
 	}
 }
 
+func TestSilentIPSkipsFailures(t *testing.T) {
+	s := testServer(t)
+	s.silentIPs = map[string]bool{"162.217.248.77": true}
+	request := httptest.NewRequest(http.MethodPost, "/api/inspect", strings.NewReader(`{"sub_url":"not-a-url"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Real-IP", "162.217.248.77")
+	response := httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+	}
+	failures, err := s.readFailures(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failures) != 0 {
+		t.Fatalf("silent IP stored %d failures, want 0", len(failures))
+	}
+}
+
 func TestAdminFailuresEndpointAndPage(t *testing.T) {
 	s := adminTestServer(t)
 	if err := s.storeFailure(storedFailure{

@@ -77,6 +77,7 @@ type server struct {
 	telegramAPIBase string
 	adminUser       string
 	adminPassword   string
+	silentIPs       map[string]bool
 	mu              sync.Mutex
 	reportsMu       sync.Mutex
 	failuresMu      sync.Mutex
@@ -166,6 +167,7 @@ func Run(addr, staticDir string) error {
 		telegramAPIBase: "https://api.telegram.org",
 		adminUser:       strings.TrimSpace(os.Getenv("ADMIN_USER")),
 		adminPassword:   os.Getenv("ADMIN_PASSWORD"),
+		silentIPs:       silentIPSet(os.Getenv("ZARIB_SILENT_IPS")),
 		jobs:            map[string]*job{},
 		rates:           map[string]map[string][]time.Time{},
 		notified:        map[string]time.Time{},

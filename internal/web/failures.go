@@ -42,8 +42,24 @@ type storedFailure struct {
 	UserAgent    string   `json:"user_agent,omitempty"`
 }
 
+// silentIPSet parses ZARIB_SILENT_IPS: comma-separated client IPs whose
+// failures are not stored in the admin log or sent to Telegram.
+func silentIPSet(value string) map[string]bool {
+	set := map[string]bool{}
+	for _, part := range strings.Split(value, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			set[part] = true
+		}
+	}
+	return set
+}
+
+func (s *server) isSilentIP(ip string) bool {
+	return ip != "" && s.silentIPs[ip]
+}
+
 func (s *server) recordFailure(record storedFailure) {
-	if s.failuresFile == "" {
+	if s.failuresFile == "" || s.isSilentIP(record.IP) {
 		return
 	}
 	if record.Time == "" {
@@ -67,7 +83,7 @@ func (s *server) recordFailure(record storedFailure) {
 // a client that rotates subscription tokens must not flood the chat. Invalid or
 // non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
-	if s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
+	if s.isSilentIP(record.IP) || s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
 		return
 	}
 	key := record.IP + "\x00" + record.ErrorCode
