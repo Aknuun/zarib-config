@@ -34,34 +34,35 @@ const (
 )
 
 type job struct {
-	ID          string
-	Status      string
-	Stage       string
-	Progress    float64
-	Message     string
-	Created     float64
-	Started     *float64
-	Finished    *float64
-	Result      *ratio.Result
-	Error       string
-	ErrorCode   string
-	Log         []string
-	Cancel      bool
-	TimedOut    bool
-	Mode        string
-	Pick        int
-	Picks       []int
-	SizeMB      float64
-	Core        string
-	IP          string
-	SubKey      string
-	SubURL      string
-	UserAgent   string
-	Dir         string
-	SubFile     string
-	ResultFile  string
-	ControlFile string
-	Child       *ratio.Child
+	ID             string
+	Status         string
+	Stage          string
+	Progress       float64
+	Message        string
+	Created        float64
+	Started        *float64
+	Finished       *float64
+	Result         *ratio.Result
+	Error          string
+	ErrorCode      string
+	Log            []string
+	Cancel         bool
+	TimedOut       bool
+	Mode           string
+	Pick           int
+	Picks          []int
+	SizeMB         float64
+	Core           string
+	IP             string
+	SubKey         string
+	SubURL         string
+	UserAgent      string
+	AcceptLanguage string
+	Dir            string
+	SubFile        string
+	ResultFile     string
+	ControlFile    string
+	Child          *ratio.Child
 }
 
 var publicURLFn = ratio.IsPublicURL
@@ -353,7 +354,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 	fail := func(code, message string, status int) {
 		s.recordFailure(storedFailure{
 			Source: "inspect", SubURL: subURL, ErrorCode: code, ErrorMessage: message,
-			IP: ip, UserAgent: r.UserAgent(),
+			IP: ip, UserAgent: r.UserAgent(), AcceptLanguage: r.Header.Get("Accept-Language"),
 		})
 		apiError(w, code, message, status)
 	}
@@ -444,7 +445,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	fail := func(code, message string, status int) {
 		s.recordFailure(storedFailure{
 			Source: "job", SubURL: subURL, ErrorCode: code, ErrorMessage: message,
-			IP: ip, UserAgent: r.UserAgent(),
+			IP: ip, UserAgent: r.UserAgent(), AcceptLanguage: r.Header.Get("Accept-Language"),
 		})
 		apiError(w, code, message, status)
 	}
@@ -557,7 +558,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
 		Mode: mode, Pick: pick, Picks: picks, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
-		SubURL: subURL, UserAgent: r.UserAgent(),
+		SubURL: subURL, UserAgent: r.UserAgent(), AcceptLanguage: r.Header.Get("Accept-Language"),
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
@@ -793,6 +794,7 @@ func (s *server) finishError(jobID, code, message string) {
 		Picks: append([]int(nil), current.Picks...), SizeMB: current.SizeMB, Core: current.Core,
 		SubURL: current.SubURL, ErrorCode: code, ErrorMessage: message,
 		Log: append([]string(nil), current.Log...), IP: current.IP, UserAgent: current.UserAgent,
+		AcceptLanguage: current.AcceptLanguage,
 	}
 	s.mu.Unlock()
 	s.recordJobError(code)

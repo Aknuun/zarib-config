@@ -26,20 +26,21 @@ const (
 
 // storedFailure is a failed test or rejected subscription kept for later review.
 type storedFailure struct {
-	Time         string   `json:"time"`
-	Source       string   `json:"source"`
-	JobID        string   `json:"job_id,omitempty"`
-	Mode         string   `json:"mode,omitempty"`
-	Pick         int      `json:"pick,omitempty"`
-	Picks        []int    `json:"picks,omitempty"`
-	SizeMB       float64  `json:"size_mb,omitempty"`
-	Core         string   `json:"core,omitempty"`
-	SubURL       string   `json:"sub_url,omitempty"`
-	ErrorCode    string   `json:"error_code,omitempty"`
-	ErrorMessage string   `json:"error_message,omitempty"`
-	Log          []string `json:"log,omitempty"`
-	IP           string   `json:"ip,omitempty"`
-	UserAgent    string   `json:"user_agent,omitempty"`
+	Time           string   `json:"time"`
+	Source         string   `json:"source"`
+	JobID          string   `json:"job_id,omitempty"`
+	Mode           string   `json:"mode,omitempty"`
+	Pick           int      `json:"pick,omitempty"`
+	Picks          []int    `json:"picks,omitempty"`
+	SizeMB         float64  `json:"size_mb,omitempty"`
+	Core           string   `json:"core,omitempty"`
+	SubURL         string   `json:"sub_url,omitempty"`
+	ErrorCode      string   `json:"error_code,omitempty"`
+	ErrorMessage   string   `json:"error_message,omitempty"`
+	Log            []string `json:"log,omitempty"`
+	IP             string   `json:"ip,omitempty"`
+	UserAgent      string   `json:"user_agent,omitempty"`
+	AcceptLanguage string   `json:"accept_language,omitempty"`
 }
 
 // silentIPSet parses ZARIB_SILENT_IPS: comma-separated client IPs whose
@@ -73,6 +74,7 @@ func (s *server) recordFailure(record storedFailure) {
 	record.ErrorCode = truncateText(strings.TrimSpace(record.ErrorCode), 80)
 	record.ErrorMessage = truncateText(redactURLs(strings.TrimSpace(record.ErrorMessage)), maxFailureMessage)
 	record.UserAgent = truncateText(record.UserAgent, 500)
+	record.AcceptLanguage = truncateText(record.AcceptLanguage, 200)
 	record.Log = sanitizeFailureLog(record.Log)
 	if s.failuresFile != "" {
 		if err := s.storeFailure(record); err != nil {
@@ -128,6 +130,55 @@ func (s *server) notifyFailure(record storedFailure) {
 	}()
 }
 
+var persianFailureMessages = map[string]string{
+	"invalid_url":               "لینک ساب معتبر نیست.",
+	"blocked_url":               "این لینک ساب قابل بررسی نیست.",
+	"subscription_not_found":    "ساب پیدا نشد (HTTP 404)؛ لینک حذف شده یا اشتباه است.",
+	"subscription_expired":      "این ساب منقضی شده است.",
+	"subscription_limited":      "حجم این ساب تمام شده است.",
+	"subscription_broken":       "پاسخ ساب خراب است یا کانفیگ معتبری ندارد.",
+	"subscription_unauthorized": "دسترسی به این ساب رد شد.",
+	"subscription_rate_limited": "درخواست به ساب زیاد بوده؛ کمی بعد دوباره تلاش کن.",
+	"subscription_unavailable":  "سرور ساب در دسترس نیست.",
+	"subscription_timeout":      "درخواست ساب تایم‌اوت شد.",
+	"fetch_failed":              "خواندن ساب ناموفق بود.",
+	"no_configs":                "هیچ کانفیگ پشتیبانی‌شده‌ای در ساب پیدا نشد.",
+	"blocked_target":            "کانفیگ به یک آدرس غیرعمومی اشاره می‌کند.",
+	"ipv6_unavailable":          "کانفیگ فقط IPv6 است و سرور تست IPv6 ندارد.",
+	"probe_failed":              "کانفیگ از طریق پروکسی به سرور تست پاسخ نداد.",
+	"resolve_failed":            "آدرس کانفیگ قابل resolve نیست.",
+	"xray_failed":               "اجرای هسته Xray برای این کانفیگ ناموفق بود.",
+	"xray_incompatible":         "این کانفیگ با Xray سازگار نیست.",
+	"timeout":                   "تست به پایان نرسید (تایم‌اوت).",
+	"cancelled":                 "تست لغو شد.",
+	"usage_unchanged":           "مصرف ساب بعد از تست تغییر نکرد.",
+	"pick_out_of_range":         "شماره کانفیگ معتبر نیست.",
+	"invalid_input":             "ورودی تست معتبر نیست.",
+	"busy":                      "صف تست شلوغ است؛ کمی بعد دوباره تلاش کن.",
+	"unknown":                   "خطای ناشناخته در تست رخ داد.",
+}
+
+func prefersPersian(header string) bool {
+	for _, part := range strings.Split(header, ",") {
+		tag := strings.TrimSpace(strings.SplitN(part, ";", 2)[0])
+		if tag == "" {
+			continue
+		}
+		return strings.HasPrefix(strings.ToLower(tag), "fa")
+	}
+	return false
+}
+
+func failureMessageText(record storedFailure) string {
+	if !prefersPersian(record.AcceptLanguage) {
+		return record.ErrorMessage
+	}
+	if message, ok := persianFailureMessages[record.ErrorCode]; ok {
+		return message
+	}
+	return record.ErrorMessage
+}
+
 func buildFailureMessage(record storedFailure) string {
 	var b strings.Builder
 	b.WriteString("🚨 خطای تست — Zarib Config\n")
@@ -141,8 +192,8 @@ func buildFailureMessage(record storedFailure) string {
 	b.WriteString("لینک ساب:\n")
 	b.WriteString(record.SubURL)
 	b.WriteString("\n")
-	if record.ErrorMessage != "" {
-		fmt.Fprintf(&b, "پیام: %s\n", record.ErrorMessage)
+	if message := failureMessageText(record); message != "" {
+		fmt.Fprintf(&b, "پیام: %s\n", message)
 	}
 	if record.Mode != "" {
 		fmt.Fprintf(&b, "حالت: %s\n", record.Mode)
@@ -164,10 +215,10 @@ func buildFailureMessage(record storedFailure) string {
 		fmt.Fprintf(&b, "هسته: %s\n", record.Core)
 	}
 	if record.IP != "" {
-		fmt.Fprintf(&b, "IP: %s\n", record.IP)
+		fmt.Fprintf(&b, "آی‌پی: %s\n", record.IP)
 	}
 	if record.UserAgent != "" {
-		fmt.Fprintf(&b, "User-Agent: %s\n", record.UserAgent)
+		fmt.Fprintf(&b, "مرورگر: %s\n", record.UserAgent)
 	}
 	if len(record.Log) > 0 {
 		b.WriteString("\nلاگ:\n")

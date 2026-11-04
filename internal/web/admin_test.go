@@ -587,3 +587,26 @@ func TestFailureNotificationSendsSubURLAndLog(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 	}
 }
+
+func TestFailureMessagePersianLocalization(t *testing.T) {
+	failure := storedFailure{
+		Source:         "inspect",
+		SubURL:         "https://example.com/not-found",
+		ErrorCode:      "subscription_not_found",
+		ErrorMessage:   "Subscription request failed with HTTP 404.",
+		AcceptLanguage: "fa-IR,fa;q=0.9,en;q=0.8",
+	}
+	text := buildFailureMessage(failure)
+	if !strings.Contains(text, "ساب پیدا نشد") {
+		t.Fatalf("Persian notification missing Persian message: %s", text)
+	}
+	if strings.Contains(text, "Subscription request failed") {
+		t.Fatalf("Persian notification still contains English detail: %s", text)
+	}
+
+	english := failure
+	english.AcceptLanguage = "en-US,en;q=0.9"
+	if got := failureMessageText(english); got != failure.ErrorMessage {
+		t.Fatalf("English notification message = %q, want %q", got, failure.ErrorMessage)
+	}
+}
