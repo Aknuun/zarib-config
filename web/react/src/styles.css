@@ -1628,3 +1628,5 @@ html[lang="en"] .z-hero-title {
   max-width: 22ch;
   font-size: clamp(30px, 6.4vw, 48px);
 }
+
+.z-live-pill { height: 32px; padding-inline: 8px; gap: 5px; }

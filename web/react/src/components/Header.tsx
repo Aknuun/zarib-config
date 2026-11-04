@@ -67,7 +67,7 @@ export function Header({
           <Button
             variant="ghost"
             shape="square"
-            className="size-11"
+            className="size-8"
             icon={theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
             aria-label={theme === "dark" ? t("themeLight") : t("themeDark")}
             title={theme === "dark" ? t("themeLight") : t("themeDark")}
@@ -76,7 +76,7 @@ export function Header({
           <Button
             variant="ghost"
             shape="square"
-            className="size-11"
+            className="size-8"
             icon={<Translate size={19} />}
             aria-label={t("switchLang")}
             title={t("switchLang")}
@@ -86,7 +86,7 @@ export function Header({
             <Button
               variant="ghost"
               shape="square"
-              className="size-11"
+              className="size-8"
               icon={<House size={19} />}
               aria-label={t("back")}
               title={t("back")}
