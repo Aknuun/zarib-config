@@ -24,26 +24,6 @@ const (
 	maxFailureLogSend    = 20
 )
 
-// failureNotifyCodes are the failures worth pushing to Telegram. User-input
-// problems such as a URL with no configs stay in the admin list only.
-var failureNotifyCodes = map[string]bool{
-	"fetch_failed":              true,
-	"subscription_timeout":      true,
-	"subscription_unavailable":  true,
-	"subscription_rate_limited": true,
-	"subscription_unauthorized": true,
-	"subscription_not_found":    true,
-	"subscription_broken":       true,
-	"subscription_expired":      true,
-	"subscription_limited":      true,
-	"probe_failed":              true,
-	"resolve_failed":            true,
-	"xray_failed":               true,
-	"timeout":                   true,
-	"usage_unchanged":           true,
-	"unknown":                   true,
-}
-
 // storedFailure is a failed test or rejected subscription kept for later review.
 type storedFailure struct {
 	Time         string   `json:"time"`
@@ -88,9 +68,6 @@ func (s *server) recordFailure(record storedFailure) {
 // non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
 	if s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
-		return
-	}
-	if !failureNotifyCodes[record.ErrorCode] {
 		return
 	}
 	key := record.IP + "\x00" + record.ErrorCode
