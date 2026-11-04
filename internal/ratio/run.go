@@ -789,6 +789,9 @@ func startConfigSession(ctx context.Context, opts Options, configText string) (*
 		if err := EnsureResolvable(host); err != nil {
 			return nil, err
 		}
+		if IPv6OnlyHost(host) && !HasGlobalIPv6() {
+			return nil, ratioErrorf("This config is IPv6-only, but the test server has no IPv6 connectivity. Test it from a mobile or IPv6 network, or choose another config.")
+		}
 		if safeFetchEnabled() && !IsPublicHost(host) {
 			return nil, ratioErrorf("Blocked: the config points to a non-public address.")
 		}

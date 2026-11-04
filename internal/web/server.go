@@ -1164,6 +1164,8 @@ func classifyError(logs []string, timedOut, cancelled bool) string {
 	}
 	text := strings.ToLower(strings.Join(logs, "\n"))
 	switch {
+	case strings.Contains(text, "ipv6-only") || strings.Contains(text, "no ipv6 connectivity"):
+		return "ipv6_unavailable"
 	case strings.Contains(text, "did not respond through the proxy") || strings.Contains(text, "no data was downloaded"):
 		return "probe_failed"
 	case strings.Contains(text, "cannot resolve host"):

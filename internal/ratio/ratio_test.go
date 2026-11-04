@@ -704,3 +704,17 @@ func TestFetchBlocksPrivateAddress(t *testing.T) {
 		t.Fatalf("expected blocked error, got %v", err)
 	}
 }
+
+func TestIPv6OnlyHost(t *testing.T) {
+	cases := map[string]bool{
+		"2606:4700:3037::6815:4dbb":   true,
+		"[2606:4700:3037::6815:4dbb]": true,
+		"1.1.1.1":                     false,
+		"example.com":                 false,
+	}
+	for host, expected := range cases {
+		if actual := IPv6OnlyHost(host); actual != expected {
+			t.Fatalf("IPv6OnlyHost(%q) = %v, want %v", host, actual, expected)
+		}
+	}
+}

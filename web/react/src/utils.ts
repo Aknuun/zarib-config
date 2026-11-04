@@ -122,6 +122,7 @@ export function errorKey(code: string | undefined) {
     "fetch_failed",
     "subscription_timeout",
     "blocked_target",
+    "ipv6_unavailable",
     "no_configs",
     "probe_failed",
     "resolve_failed",
@@ -164,6 +165,8 @@ export function suggestionKey(code: string | undefined) {
       return "errorSuggestLink";
     case "blocked_target":
       return "errorSuggestDefault";
+    case "ipv6_unavailable":
+      return "errorSuggestIPv6";
     case "usage_unchanged":
       return "errorSuggestPanel";
     case "rate_limited":

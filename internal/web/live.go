@@ -165,7 +165,7 @@ func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
 func (b *statBucket) addFail(code string) {
 	b.Failed.Total++
 	switch code {
-	case "probe_failed", "resolve_failed", "blocked_target":
+	case "probe_failed", "resolve_failed", "blocked_target", "ipv6_unavailable":
 		b.Failed.Connect++
 	case "fetch_failed", "subscription_timeout", "no_configs", "pick_out_of_range":
 		b.Failed.Fetch++

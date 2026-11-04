@@ -106,14 +106,15 @@ func TestInspectRejectsInvalidURL(t *testing.T) {
 
 func TestClassifyError(t *testing.T) {
 	cases := map[string]string{
-		"The config did not respond through the proxy.":                       "probe_failed",
-		"Cannot resolve host 'x'.":                                            "resolve_failed",
-		"The config is not valid for Xray:":                                   "xray_failed",
-		"Could not read the subscription.":                                    "fetch_failed",
-		"Blocked: the config points to a non-public address.":                 "blocked_target",
-		"Could not read the subscription response: context deadline exceeded": "subscription_timeout",
-		"No supported configs found":                                          "no_configs",
-		"Usage reported by the subscription did not change.":                  "usage_unchanged",
+		"The config did not respond through the proxy.":                           "probe_failed",
+		"Cannot resolve host 'x'.":                                                "resolve_failed",
+		"The config is not valid for Xray:":                                       "xray_failed",
+		"Could not read the subscription.":                                        "fetch_failed",
+		"Blocked: the config points to a non-public address.":                     "blocked_target",
+		"This config is IPv6-only, but the test server has no IPv6 connectivity.": "ipv6_unavailable",
+		"Could not read the subscription response: context deadline exceeded":     "subscription_timeout",
+		"No supported configs found":                                              "no_configs",
+		"Usage reported by the subscription did not change.":                      "usage_unchanged",
 	}
 	for input, expected := range cases {
 		if actual := classifyError([]string{input}, false, false); actual != expected {

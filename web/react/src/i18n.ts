@@ -182,6 +182,7 @@ const fa = {
   errorSuggestSubscription: "ساب را از پنل تمدید یا حجم اضافه کن، بعد لینک جدید را دوباره بررسی کن.",
   errorSuggestDuplicate: "تا پایان تست فعال صبر کن؛ دو تب هم‌زمان باز نکن و دکمه شروع را پشت‌سرهم نزن. بعد از تمام شدن تست دوباره تلاش کن.",
   errorSuggestPanel: "پنل ممکن است مصرف را با تأخیر ثبت کند؛ دوباره تست کن.",
+  errorSuggestIPv6: "از شبکه موبایل یا IPv6 تست کن یا کانفیگ دیگری انتخاب کن.",
   errorDetails: "جزئیات فنی",
   chooseConfig: "انتخاب کانفیگ دیگر",
 
@@ -190,6 +191,7 @@ const fa = {
   err_fetch_failed: "خواندن ساب ممکن نشد. لینک را بررسی کن یا بعداً دوباره تلاش کن.",
   err_subscription_timeout: "خواندن ساب طول کشید و زمان تمام شد. لینک را بررسی کن یا کمی بعد دوباره تلاش کن.",
   err_blocked_target: "این کانفیگ به آدرس غیرعمومی (خصوصی یا داخلی) اشاره می‌کند و برای تست امن مسدود شد. کانفیگ دیگری را امتحان کن.",
+  err_ipv6_unavailable: "این کانفیگ فقط IPv6 است، اما سرور تست IPv6 ندارد. آن را از شبکه موبایل یا IPv6 تست کن یا کانفیگ دیگری انتخاب کن.",
   err_no_configs: "کانفیگ پشتیبانی‌شده‌ای در این ساب پیدا نشد.",
   err_probe_failed: "کانفیگ نتوانست به سرور تست وصل شود. ممکن است نود مقصد را مسدود کند یا کند باشد.",
   err_resolve_failed: "آدرس سرور کانفیگ پیدا نشد (DNS). کانفیگ دیگری را امتحان کن.",
@@ -452,6 +454,7 @@ const en: typeof fa = {
   errorSuggestSubscription: "Renew or top up the subscription in the panel, then check the new link again.",
   errorSuggestDuplicate: "Wait for the active test to finish. Do not open two tabs or press start repeatedly. Try again when it completes.",
   errorSuggestPanel: "The panel may record usage late; run the test again.",
+  errorSuggestIPv6: "Test from a mobile or IPv6 network, or choose another config.",
   errorDetails: "Technical details",
   chooseConfig: "Choose another config",
 
@@ -460,6 +463,7 @@ const en: typeof fa = {
   err_fetch_failed: "Could not read the subscription. Check the link or try again later.",
   err_subscription_timeout: "Reading the subscription timed out. Check the link or try again later.",
   err_blocked_target: "This config points to a non-public (private or internal) address and was blocked for safe testing. Try another config.",
+  err_ipv6_unavailable: "This config is IPv6-only, but the test server has no IPv6 connectivity. Test it from a mobile or IPv6 network, or choose another config.",
   err_no_configs: "No supported configs were found in this subscription.",
   err_probe_failed: "The config could not reach the test server. The node may block the destination or be too slow.",
   err_resolve_failed: "The config server hostname could not be resolved (DNS). Try another config.",

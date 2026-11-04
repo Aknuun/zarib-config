@@ -1259,3 +1259,45 @@ func EnsureResolvable(host string) error {
 	}
 	return nil
 }
+
+// IPv6OnlyHost reports whether the config target can only be reached over IPv6.
+func IPv6OnlyHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.To4() == nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil || len(ips) == 0 {
+		return false
+	}
+	for _, item := range ips {
+		if item.IP.To4() != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// HasGlobalIPv6 reports whether this host has a globally routable IPv6 address.
+func HasGlobalIPv6() bool {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false
+	}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip := ipNet.IP
+		if ip.To4() == nil && ip.IsGlobalUnicast() && !ip.IsPrivate() {
+			return true
+		}
+	}
+	return false
+}
