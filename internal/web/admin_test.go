@@ -64,6 +64,103 @@ func TestAdminEndpointsRequireBasicAuth(t *testing.T) {
 	}
 }
 
+func TestAdminRepeatedIPsAndBlock(t *testing.T) {
+	s := adminTestServer(t)
+	now := time.Now().UTC()
+	for i := 0; i < 2; i++ {
+		if err := s.storeFailure(storedFailure{
+			Time: now.Add(-time.Duration(i) * time.Minute).Format(time.RFC3339Nano),
+			IP:   "203.0.113.5", ErrorCode: "fetch_failed", SubURL: "https://example.com/sub",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.storeFailure(storedFailure{
+		Time: now.Format(time.RFC3339Nano), IP: "198.51.100.7", ErrorCode: "timeout",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	view := s.adminView()
+	var repeated *repeatIP
+	for index := range view.RepeatIPs {
+		if view.RepeatIPs[index].IP == "203.0.113.5" {
+			repeated = &view.RepeatIPs[index]
+		}
+		if view.RepeatIPs[index].IP == "198.51.100.7" {
+			t.Fatalf("a single failure should not be listed")
+		}
+	}
+	if repeated == nil || repeated.Count != 2 || repeated.Codes != "fetch_failed" {
+		t.Fatalf("unexpected repeated IP: %#v", repeated)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	request.SetBasicAuth("admin", "test-password")
+	response := httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "IPهای پرتکرار") {
+		t.Fatalf("admin page missing repeated IPs: status %d", response.Code)
+	}
+
+	block := func(action, origin string) *httptest.ResponseRecorder {
+		form := "ip=203.0.113.5&action=" + action
+		request := httptest.NewRequest(http.MethodPost, "/admin/api/block", strings.NewReader(form))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("Origin", origin)
+		request.SetBasicAuth("admin", "test-password")
+		response := httptest.NewRecorder()
+		s.route(response, request)
+		return response
+	}
+	if response := block("block", "http://evil.example"); response.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin block: status %d", response.Code)
+	}
+	if s.isBlockedIP("203.0.113.5") {
+		t.Fatal("cross-origin request blocked the IP")
+	}
+	if response := block("block", "http://example.com"); response.Code != http.StatusSeeOther {
+		t.Fatalf("block: status %d", response.Code)
+	}
+	if !s.isBlockedIP("203.0.113.5") {
+		t.Fatal("IP was not blocked")
+	}
+	data, err := os.ReadFile(s.blockedFile)
+	if err != nil || !strings.Contains(string(data), "203.0.113.5") {
+		t.Fatalf("blocked file: %q, %v", data, err)
+	}
+
+	before, _ := s.readFailures(0)
+	request = httptest.NewRequest(http.MethodPost, "/api/inspect", strings.NewReader(`{"sub_url":"https://example.com/sub"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Real-IP", "203.0.113.5")
+	response = httptest.NewRecorder()
+	s.route(response, request)
+	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), "ip_blocked") {
+		t.Fatalf("blocked inspect: status %d: %s", response.Code, response.Body.String())
+	}
+	after, _ := s.readFailures(0)
+	if len(after) != len(before) {
+		t.Fatalf("blocked request was logged: %d -> %d", len(before), len(after))
+	}
+
+	if response := block("unblock", "http://example.com"); response.Code != http.StatusSeeOther {
+		t.Fatalf("unblock: status %d", response.Code)
+	}
+	if s.isBlockedIP("203.0.113.5") {
+		t.Fatal("IP was not unblocked")
+	}
+
+	if err := s.setBlockedIP("203.0.113.5", true); err != nil {
+		t.Fatal(err)
+	}
+	reloaded := &server{blockedFile: s.blockedFile, blockedIPs: map[string]bool{}}
+	reloaded.loadBlockedIPs()
+	if !reloaded.isBlockedIP("203.0.113.5") {
+		t.Fatal("blocked IP did not persist")
+	}
+}
+
 func TestAdminDisabledWithoutCredentials(t *testing.T) {
 	s := testServer(t)
 	for _, path := range []string{"/admin", "/admin/api/stats", "/admin/api/reports", "/admin/api/failures"} {

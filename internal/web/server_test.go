@@ -20,6 +20,8 @@ func testServer(t *testing.T) *server {
 	return &server{
 		jobsDir:      t.TempDir(),
 		failuresFile: filepath.Join(t.TempDir(), "failures.jsonl"),
+		blockedFile:  filepath.Join(t.TempDir(), "blocked.txt"),
+		blockedIPs:   map[string]bool{},
 		jobs:         map[string]*job{},
 		rates:        map[string]map[string][]time.Time{},
 		presence:     map[string]float64{},

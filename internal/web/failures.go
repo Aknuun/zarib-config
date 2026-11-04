@@ -59,7 +59,7 @@ func (s *server) isSilentIP(ip string) bool {
 }
 
 func (s *server) recordFailure(record storedFailure) {
-	if s.failuresFile == "" || s.isSilentIP(record.IP) {
+	if s.failuresFile == "" || s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) {
 		return
 	}
 	if record.Time == "" {
@@ -83,7 +83,7 @@ func (s *server) recordFailure(record storedFailure) {
 // a client that rotates subscription tokens must not flood the chat. Invalid or
 // non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
-	if s.isSilentIP(record.IP) || s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
+	if s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) || s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
 		return
 	}
 	key := record.IP + "\x00" + record.ErrorCode

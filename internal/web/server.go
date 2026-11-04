@@ -72,15 +72,18 @@ type server struct {
 	statsFile       string
 	reportsFile     string
 	failuresFile    string
+	blockedFile     string
 	telegramToken   string
 	telegramChatID  string
 	telegramAPIBase string
 	adminUser       string
 	adminPassword   string
 	silentIPs       map[string]bool
+	blockedIPs      map[string]bool
 	mu              sync.Mutex
 	reportsMu       sync.Mutex
 	failuresMu      sync.Mutex
+	blockedMu       sync.Mutex
 	notifyMu        sync.Mutex
 	notified        map[string]time.Time
 	jobs            map[string]*job
@@ -162,12 +165,14 @@ func Run(addr, staticDir string) error {
 		statsFile:       filepath.Join(cacheRoot, "stats.json"),
 		reportsFile:     filepath.Join(cacheRoot, "reports.jsonl"),
 		failuresFile:    filepath.Join(cacheRoot, "failures.jsonl"),
+		blockedFile:     filepath.Join(cacheRoot, "blocked.txt"),
 		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
 		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
 		telegramAPIBase: "https://api.telegram.org",
 		adminUser:       strings.TrimSpace(os.Getenv("ADMIN_USER")),
 		adminPassword:   os.Getenv("ADMIN_PASSWORD"),
 		silentIPs:       silentIPSet(os.Getenv("ZARIB_SILENT_IPS")),
+		blockedIPs:      map[string]bool{},
 		jobs:            map[string]*job{},
 		rates:           map[string]map[string][]time.Time{},
 		notified:        map[string]time.Time{},
@@ -176,6 +181,7 @@ func Run(addr, staticDir string) error {
 		sem:             make(chan struct{}, maxActive),
 	}
 	s.loadStats()
+	s.loadBlockedIPs()
 	go s.pruneLoop()
 	fmt.Printf("zarib-config web listening on %s\n", addr)
 	httpServer := &http.Server{
@@ -268,6 +274,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.adminFailures(w, r)
+	case path == "/admin/api/block":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.adminBlockIP(w, r)
 	case strings.HasPrefix(path, "/admin/"):
 		http.NotFound(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
@@ -325,6 +336,9 @@ func (s *server) serveStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
+	if s.rejectBlockedIP(w, r) {
+		return
+	}
 	ip := clientIP(r)
 	if !s.rateLimit("inspect", ip, 30) {
 		apiError(w, "rate_limited", "Too many requests.", http.StatusTooManyRequests)
@@ -413,6 +427,9 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
+	if s.rejectBlockedIP(w, r) {
+		return
+	}
 	ip := clientIP(r)
 	if !s.rateLimit("jobs", ip, 60) {
 		apiError(w, "rate_limited", "Too many tests. Try again later.", http.StatusTooManyRequests)

@@ -5,7 +5,9 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"html/template"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Aknuun/zarib-config/internal/ratio"
@@ -39,6 +41,7 @@ type adminView struct {
 	Ranges      []adminRange
 	Reports     []storedReport
 	Failures    []storedFailure
+	RepeatIPs   []repeatIP
 }
 
 func (s *server) adminEnabled() bool {
@@ -115,6 +118,36 @@ func (s *server) adminReports(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) adminBlockIP(w http.ResponseWriter, r *http.Request) {
+	if !s.authorizeAdmin(w, r, false) {
+		return
+	}
+	if !sameOriginRequest(r) {
+		http.Error(w, "Cross-origin request blocked.", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form.", http.StatusBadRequest)
+		return
+	}
+	ip := strings.TrimSpace(r.FormValue("ip"))
+	if net.ParseIP(ip) == nil {
+		http.Error(w, "Invalid IP.", http.StatusBadRequest)
+		return
+	}
+	action := r.FormValue("action")
+	if action != "block" && action != "unblock" {
+		http.Error(w, "Invalid action.", http.StatusBadRequest)
+		return
+	}
+	if err := s.setBlockedIP(ip, action == "block"); err != nil {
+		fmt.Printf("admin: could not save blocked IP: %v\n", err)
+		http.Error(w, "Could not save.", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin#repeat-ips", http.StatusSeeOther)
+}
+
 func (s *server) adminView() adminView {
 	s.mu.Lock()
 	snapshot := s.liveSnapshotLocked()
@@ -123,9 +156,13 @@ func (s *server) adminView() adminView {
 	if err != nil {
 		fmt.Printf("admin: could not read reports: %v\n", err)
 	}
-	failures, err := s.readFailures(maxAdminFailures)
+	allFailures, err := s.readFailures(0)
 	if err != nil {
 		fmt.Printf("admin: could not read failures: %v\n", err)
+	}
+	failures := allFailures
+	if len(failures) > maxAdminFailures {
+		failures = failures[:maxAdminFailures]
 	}
 	online, _ := snapshot["online"].(int)
 	return adminView{
@@ -138,8 +175,9 @@ func (s *server) adminView() adminView {
 			adminRangeFrom(snapshot, "d30", "۳۰ روز اخیر"),
 			adminRangeFrom(snapshot, "overall", "کل"),
 		},
-		Reports:  reports,
-		Failures: failures,
+		Reports:   reports,
+		Failures:  failures,
+		RepeatIPs: s.repeatedIPs(allFailures, time.Now().Add(-24*time.Hour)),
 	}
 }
 
@@ -196,6 +234,7 @@ const adminPageHTML = `<!doctype html>
   --muted: #667085;
   --brand: #1d4ed8;
   --good: #067647;
+  --bad: #d92d20;
   --recessed: #f2f4f7;
   --shadow: 0 1px 2px rgba(16,24,40,.05), 0 16px 32px -28px rgba(16,24,40,.35);
 }
@@ -208,6 +247,7 @@ const adminPageHTML = `<!doctype html>
     --muted: #9ca3af;
     --brand: #60a5fa;
     --good: #75e0a7;
+    --bad: #f97066;
     --recessed: #0f172a;
     --shadow: 0 1px 2px rgba(0,0,0,.5), 0 16px 32px -28px rgba(0,0,0,.9);
   }
@@ -259,6 +299,11 @@ details summary::-webkit-details-marker { display: none; }
 .mini dd { margin: 0; overflow-wrap: anywhere; }
 pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .empty { padding: 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.btn:hover { border-color: var(--brand); color: var(--brand); }
+.btn.danger { border-color: color-mix(in oklab, var(--bad) 35%, var(--line)); color: var(--bad); }
+.btn.danger:hover { background: color-mix(in oklab, var(--bad) 8%, var(--tile)); }
+.inline-form { margin: 0; }
 @media (max-width: 640px) { .desc { min-width: 180px; } th, td { padding: 8px 10px; } }
 </style>
 </head>
@@ -300,6 +345,42 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
     </article>
     {{end}}
   </div>
+
+  <section id="repeat-ips">
+    <div class="section-head"><h2>IPهای پرتکرار</h2><p>IPهایی که در ۲۴ ساعت اخیر ۲ بار یا بیشتر خطا داده‌اند</p></div>
+  </section>
+  {{if .RepeatIPs}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>IP</th><th>خطا در ۲۴ ساعت</th><th>آخرین خطا</th><th>کدها</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+      <tbody>
+        {{range .RepeatIPs}}
+        <tr>
+          <td class="mono">{{.IP}}</td>
+          <td>{{.Count}}</td>
+          <td class="nowrap">{{if .Last}}{{shortTime .Last}}{{else}}—{{end}}</td>
+          <td>{{if .Codes}}<code>{{.Codes}}</code>{{else}}—{{end}}</td>
+          <td>{{if .Blocked}}<span class="badge">مسدود</span>{{else if .Silent}}<span class="badge">سایلنت</span>{{else}}—{{end}}</td>
+          <td>
+            <form method="post" action="/admin/api/block" class="inline-form">
+              <input type="hidden" name="ip" value="{{.IP}}">
+              {{if .Blocked}}
+              <input type="hidden" name="action" value="unblock">
+              <button class="btn" type="submit">آزاد کردن</button>
+              {{else}}
+              <input type="hidden" name="action" value="block">
+              <button class="btn danger" type="submit">مسدود کردن</button>
+              {{end}}
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="empty">IP پرتکراری در ۲۴ ساعت اخیر نیست.</p>
+  {{end}}
 
   <section>
     <div class="section-head"><h2>گزارش‌های خطا</h2><p>{{len .Reports}} گزارش</p></div>
