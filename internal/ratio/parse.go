@@ -1089,25 +1089,27 @@ func OutboundServerName(outbound map[string]any) string {
 	}
 	for _, key := range []string{"tlsSettings", "realitySettings"} {
 		if settings := asObject(stream[key]); settings != nil {
-			if name := strings.TrimSpace(toString(settings["serverName"])); name != "" {
+			if name := strings.TrimSpace(toString(settings["serverName"])); name != "" && !LooksLikeIP(name) {
 				return name
 			}
 		}
 	}
 	for _, key := range []string{"wsSettings", "xhttpSettings", "httpupgradeSettings"} {
 		if settings := asObject(stream[key]); settings != nil {
-			if name := firstCSVHost(toString(settings["host"])); name != "" {
+			if name := firstCSVHost(toString(settings["host"])); name != "" && !LooksLikeIP(name) {
 				return name
 			}
 			if headers := asObject(settings["headers"]); headers != nil {
-				if name := firstCSVHost(toString(headers["Host"])); name != "" {
+				if name := firstCSVHost(toString(headers["Host"])); name != "" && !LooksLikeIP(name) {
 					return name
 				}
 			}
 		}
 	}
 	if settings := asObject(stream["grpcSettings"]); settings != nil {
-		return strings.TrimSpace(toString(settings["authority"]))
+		if name := strings.TrimSpace(toString(settings["authority"])); name != "" && !LooksLikeIP(name) {
+			return name
+		}
 	}
 	return ""
 }

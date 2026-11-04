@@ -736,6 +736,14 @@ func TestIPv4FallbackHost(t *testing.T) {
 	if got := OutboundHost(outbound); got != "example.com" {
 		t.Fatalf("OutboundHost = %q", got)
 	}
+
+	ipSNI, err := OutboundFromURI("vless://11111111-2222-3333-4444-555555555555@[2606:4700:3037::6815:4dbb]:2053?encryption=none&security=tls&sni=2606:4700:3037::6815:4dbb&type=ws&host=example.com&path=%2F#test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := IPv4FallbackHost(ipSNI); got != "example.com" {
+		t.Fatalf("IPv4FallbackHost with IP SNI = %q", got)
+	}
 }
 
 func TestHasIPv4Host(t *testing.T) {
