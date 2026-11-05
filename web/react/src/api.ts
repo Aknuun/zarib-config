@@ -132,6 +132,14 @@ export function pingTarget(target: string) {
   );
 }
 
+export function delayTarget(config: string) {
+  return request<{ ok: boolean; latency_ms: number }>(
+    "/api/delay",
+    { method: "POST", body: JSON.stringify({ config }) },
+    { timeout: 15_000 },
+  );
+}
+
 export function geoTarget(target: string) {
   return request<{ country: string; tunnel: boolean }>(
     `/api/geo?target=${encodeURIComponent(target)}`,

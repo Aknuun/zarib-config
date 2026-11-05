@@ -347,6 +347,42 @@ func Probe(ctx context.Context, port int, urls []string, timeout int) (int64, er
 
 var probeFn = Probe
 
+// Delay measures the real round-trip through a config after Xray is running.
+// It is used for the automatic health check in the config picker.
+func Delay(ctx context.Context, configText string, timeout time.Duration) (int64, error) {
+	if timeout < time.Second {
+		timeout = time.Second
+	}
+	probeURL := "https://speed.cloudflare.com/__down?bytes=4096"
+	session, err := startConfigSession(ctx, Options{
+		Core:         "auto",
+		ProbeURL:     probeURL,
+		ProbeTimeout: int(timeout.Seconds()),
+	}, configText)
+	if err != nil {
+		return 0, err
+	}
+	defer session.Close(false)
+	targets := []string{probeURL, "https://zarib.app11.ir/healthz"}
+	start := time.Now()
+	deadline := start.Add(timeout)
+	for _, target := range targets {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		seconds := int(remaining.Seconds())
+		if seconds < 1 {
+			seconds = 1
+		}
+		code, _, _ := CurlProbe(ctx, session.port, target, seconds)
+		if code >= 200 && code < 400 {
+			return time.Since(start).Milliseconds(), nil
+		}
+	}
+	return 0, probeFailuref("The config did not return a real delay within %d seconds.", int(timeout.Seconds()))
+}
+
 func ProbeWithRetry(ctx context.Context, port int, urls []string, timeout, retries, waitSeconds int, interactive bool) error {
 	attempts := retries + 1
 	if attempts < 1 {

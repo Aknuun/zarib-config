@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, DropdownMenu, Slider, Switch } from "@cloudflare/kumo";
 import {
   CheckCircle,
@@ -15,7 +15,7 @@ import {
 import type { SubConfig, SubState } from "../types";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
-import { geoTarget, pingTarget } from "../api";
+import { delayTarget, geoTarget } from "../api";
 import { copyText } from "../utils";
 
 interface SetupViewProps {
@@ -55,13 +55,15 @@ export function SetupView({
     translate(lang, key, vars);
   const [busy, setBusy] = useState<Record<number, "ping" | "tunnel">>({});
   const [bulk, setBulk] = useState<"ping" | "tunnel" | null>(null);
+  const lastDelayKey = useRef("");
 
 
   async function runPing(config: SubConfig) {
     if (busy[config.index]) return;
     setBusy((current) => ({ ...current, [config.index]: "ping" }));
     try {
-      const data = await pingTarget(config.target);
+      if (!config.uri) throw new Error("missing uri");
+      const data = await delayTarget(config.uri);
       onPatchConfig(config.index, { pingMs: data.ok ? data.latency_ms : null });
       if (!data.ok) onToast(t("noResponse"));
     } catch {
@@ -105,23 +107,30 @@ export function SetupView({
     onToast((await copyText(text)) ? t("copyAllDone") : t("copyAllFailed"));
   }
 
-  async function runPingAll() {
+  async function runPingAll(silent = false) {
     if (bulk) return;
     setBulk("ping");
     let ok = 0;
-    await Promise.allSettled(
-      sub.configs.map(async (config) => {
-        try {
-          const data = await pingTarget(config.target);
-          onPatchConfig(config.index, { pingMs: data.ok ? data.latency_ms : null });
-          if (data.ok) ok += 1;
-        } catch {
-          onPatchConfig(config.index, { pingMs: null });
+    const queue = [...sub.configs];
+    const workers = Math.min(8, queue.length);
+    await Promise.all(
+      Array.from({ length: workers }, async () => {
+        while (queue.length > 0) {
+          const config = queue.shift();
+          if (!config) break;
+          try {
+            if (!config.uri) throw new Error("missing uri");
+            const data = await delayTarget(config.uri);
+            onPatchConfig(config.index, { pingMs: data.ok ? data.latency_ms : null });
+            if (data.ok) ok += 1;
+          } catch {
+            onPatchConfig(config.index, { pingMs: null });
+          }
         }
       }),
     );
     setBulk(null);
-    onToast(t("pingAllDone", { ok, n: sub.configs.length }));
+    if (!silent) onToast(t("pingAllDone", { ok, n: sub.configs.length }));
   }
 
   async function runTunnelAll() {
@@ -142,6 +151,19 @@ export function SetupView({
     setBulk(null);
     onToast(t("tunnelAllDone", { ok, n: sub.configs.length }));
   }
+
+  useEffect(() => {
+    const key = `${sub.host}:${sub.count}`;
+    if (!sub.count || lastDelayKey.current === key) return;
+    lastDelayKey.current = key;
+    void runPingAll(true);
+    // The key changes only when a new subscription list is loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub.host, sub.count]);
+
+  const badSelected = sub.configs.some(
+    (config) => selected.has(config.index) && config.pingMs === null,
+  );
 
   return (
     <main className="z-container z-page z-setup-page">
@@ -212,7 +234,7 @@ export function SetupView({
               icon={<Pulse size={16} />}
               loading={bulk === "ping"}
               disabled={bulk !== null || starting}
-              onClick={runPingAll}
+              onClick={() => runPingAll()}
             >
               {t("pingAll")}
             </Button>
@@ -392,7 +414,7 @@ export function SetupView({
                     className="h-12 w-full justify-center whitespace-nowrap px-3 text-[13px]"
                     icon={!starting ? <Play size={18} weight="fill" /> : undefined}
                     loading={starting}
-                    disabled={starting}
+                    disabled={starting || badSelected}
                     onClick={onStart}
                   >
                     {t("testSerial")}
@@ -401,7 +423,7 @@ export function SetupView({
                     variant="secondary"
                     size="lg"
                     className="h-12 w-full justify-center whitespace-nowrap px-3 text-[13px]"
-                    disabled={starting}
+                    disabled={starting || badSelected}
                     onClick={onStartAll}
                   >
                     {t("testParallel")}
@@ -414,13 +436,19 @@ export function SetupView({
                   className="h-12 justify-center self-center px-6 text-[14px]"
                   icon={!starting ? <Play size={18} weight="fill" /> : undefined}
                   loading={starting}
-                  disabled={selected.size === 0 || starting}
+                  disabled={selected.size === 0 || starting || badSelected}
                   onClick={onStart}
                 >
                   {selected.size > 0
                     ? t("startN", { n: selected.size })
                     : t("start")}
                 </Button>
+              )}
+              {badSelected && (
+                <p className="z-warning-line">
+                  <WarningCircle size={14} aria-hidden="true" />
+                  {t("unhealthySelected")}
+                </p>
               )}
               <p className="z-start-note">
                 <WarningCircle size={14} aria-hidden="true" />

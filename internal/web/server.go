@@ -250,6 +250,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.pingCheck(w, r)
+	case path == "/api/delay":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.delayCheck(w, r)
 	case path == "/api/report":
 		if !allowMethods(w, r, http.MethodPost) {
 			return

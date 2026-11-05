@@ -853,3 +853,9 @@ func TestCoreCandidatesCompat(t *testing.T) {
 		t.Fatalf("CoreCandidates(compat) = %v", got)
 	}
 }
+
+func TestDelayRejectsInvalidConfig(t *testing.T) {
+	if _, err := Delay(context.Background(), "not-a-config", time.Second); err == nil {
+		t.Fatal("expected an invalid config error")
+	}
+}

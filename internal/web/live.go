@@ -848,6 +848,33 @@ func queryIPWho(ip string) (geoInfo, error) {
 	return geoInfo{Country: payload.CountryCode, City: payload.City, Org: org}, nil
 }
 
+func (s *server) delayCheck(w http.ResponseWriter, r *http.Request) {
+	if !s.rateLimit("delay", clientIP(r), 600) {
+		apiError(w, "rate_limited", "Too many checks. Try again later.", http.StatusTooManyRequests)
+		return
+	}
+	var input struct {
+		Config string `json:"config"`
+	}
+	if err := decodeJSONLimit(w, r, &input, 64*1024); err != nil {
+		apiError(w, "invalid_input", "Invalid delay request.", http.StatusBadRequest)
+		return
+	}
+	config := strings.TrimSpace(input.Config)
+	if config == "" || len(config) > 64*1024 {
+		apiError(w, "invalid_input", "Config is required.", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	latency, err := ratio.Delay(ctx, config, 2*time.Second)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "latency_ms": 0})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "latency_ms": latency})
+}
+
 func (s *server) pingCheck(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if !s.rateLimit("ping", ip, 400) {
