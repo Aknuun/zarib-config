@@ -338,15 +338,133 @@ func looksLikeHTML(body []byte) bool {
 	return strings.HasPrefix(text, "<") || strings.Contains(text, "<html")
 }
 
+func looksLikePortal(body []byte) bool {
+	text := strings.ToLower(string(body))
+	return strings.Contains(text, "portal_api.php") &&
+		(strings.Contains(text, "__vipportaltoken") || strings.Contains(text, "initvipportal"))
+}
+
+var portalTokenPattern = regexp.MustCompile(`(?i)(?:__vipPortalToken|"token")\s*[:=]\s*["']([A-Za-z0-9_-]{3,64})["']`)
+var portalTokenValue = regexp.MustCompile(`^[A-Za-z0-9_-]{3,64}$`)
+
+func portalToken(rawURL string, body []byte) string {
+	if parsed, err := url.Parse(rawURL); err == nil {
+		for _, key := range []string{"t", "token"} {
+			if value := strings.TrimSpace(parsed.Query().Get(key)); portalTokenValue.MatchString(value) {
+				return value
+			}
+		}
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		for index := len(parts) - 1; index >= 0; index-- {
+			value := strings.TrimSpace(parts[index])
+			if value != "" && value != "vip" && portalTokenValue.MatchString(value) {
+				return value
+			}
+		}
+	}
+	if match := portalTokenPattern.FindSubmatch(body); len(match) == 2 {
+		return string(match[1])
+	}
+	return ""
+}
+
+type portalServers struct {
+	Servers []struct {
+		URI string `json:"uri"`
+	} `json:"servers"`
+}
+
+type portalPackage struct {
+	VolumeGB     float64       `json:"volume_gb"`
+	UsedVolumeGB float64       `json:"used_volume_gb"`
+	Days         int           `json:"days"`
+	Unlim        portalServers `json:"unlim"`
+	Fast         portalServers `json:"fast"`
+}
+
+// resolvePortalSubscription turns a VIP portal page into the config list its
+// JavaScript would normally load from portal_api.php.
+func resolvePortalSubscription(rawURL string, page []byte, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
+	token := portalToken(rawURL, page)
+	if token == "" {
+		return nil, nil, ratioErrorf("Could not find the VIP portal token.")
+	}
+	pageURL, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, nil, ratioErrorf("Invalid subscription URL: %v", err)
+	}
+	apiURL := pageURL.ResolveReference(&url.URL{Path: "hosi/portal_api.php"})
+	query := apiURL.Query()
+	query.Set("action", "package")
+	query.Set("t", token)
+	apiURL.RawQuery = query.Encode()
+	body, _, err := fetchOnce(apiURL.String(), timeout, proxy, UA)
+	if err != nil {
+		return nil, nil, err
+	}
+	var payload struct {
+		Package portalPackage `json:"package"`
+		Data    struct {
+			Package portalPackage `json:"package"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, nil, ratioErrorf("Could not read the VIP portal response: %v", err)
+	}
+	pkg := payload.Package
+	if pkg.VolumeGB == 0 && pkg.UsedVolumeGB == 0 && len(pkg.Unlim.Servers) == 0 {
+		pkg = payload.Data.Package
+	}
+	var uris []string
+	seen := map[string]bool{}
+	for _, group := range []portalServers{pkg.Unlim, pkg.Fast} {
+		for _, server := range group.Servers {
+			uri := strings.TrimSpace(server.URI)
+			if uri == "" || seen[uri] || !strings.Contains(uri, "://") {
+				continue
+			}
+			seen[uri] = true
+			uris = append(uris, uri)
+		}
+	}
+	if len(uris) == 0 {
+		return nil, nil, &SubscriptionError{Code: "no_configs", Message: "The VIP portal has no link configs to test."}
+	}
+	headers := http.Header{}
+	headers.Set("Content-Type", "text/plain; charset=utf-8")
+	if pkg.VolumeGB > 0 {
+		total := int64(pkg.VolumeGB * 1024 * 1024 * 1024)
+		used := int64(pkg.UsedVolumeGB * 1024 * 1024 * 1024)
+		days := pkg.Days
+		if days <= 0 {
+			days = 30
+		}
+		headers.Set("Subscription-Userinfo", fmt.Sprintf("upload=0; download=%d; total=%d; expire=%d", used, total, time.Now().AddDate(0, 0, days).Unix()))
+	}
+	return []byte(strings.Join(uris, "\n")), headers, nil
+}
+
 // fetchSubscription retries a browser landing page as a client so panels that
 // redirect browser User-Agents still return their config list.
 func fetchSubscription(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
 	body, headers, err := fetchOnce(rawURL, timeout, proxy, UA)
-	if err != nil || !looksLikeHTML(body) {
+	if err != nil {
 		return body, headers, err
 	}
+	if looksLikePortal(body) {
+		return resolvePortalSubscription(rawURL, body, timeout, proxy)
+	}
+	if !looksLikeHTML(body) {
+		return body, headers, nil
+	}
 	body, headers, err = fetchOnce(rawURL, timeout, proxy, clientUA)
-	return body, headers, err
+	if err != nil {
+		return body, headers, err
+	}
+	if looksLikePortal(body) {
+		return resolvePortalSubscription(rawURL, body, timeout, proxy)
+	}
+	return body, headers, nil
 }
 
 func publicDialContext(ctx context.Context, network, addr string) (net.Conn, error) {

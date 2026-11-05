@@ -829,6 +829,37 @@ func TestFetchMetaRetriesBrowserLandingPageAsClient(t *testing.T) {
 	}
 }
 
+func TestFetchResolvesPortalSubscription(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	t.Setenv("RATIO_SAFE_FETCH", "")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/vip/TOKEN123", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<!doctype html><html><script>window.__vipPortalToken = "TOKEN123"; const apiBase = "hosi/portal_api.php";</script></html>`)
+	})
+	mux.HandleFunc("/vip/hosi/portal_api.php", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("t") != "TOKEN123" {
+			http.Error(w, "bad token", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"ok":true,"package":{"volume_gb":20,"used_volume_gb":1.5,"days":30,"unlim":{"servers":[{"uri":"vless://user@example.com:443#one"},{"uri":"vless://user@example.net:443#two"}]},"fast":{"servers":[]}}}`)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	body, headers, err := Fetch(server.URL+"/vip/TOKEN123", 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(body), "vless://") != 2 {
+		t.Fatalf("expected two portal configs, got %q", body)
+	}
+	if got := headers.Get("Subscription-Userinfo"); !strings.Contains(got, "total=21474836480") {
+		t.Fatalf("unexpected usage header: %q", got)
+	}
+}
+
 func TestFetchRejectsFileDownloads(t *testing.T) {
 	t.Setenv("ZARIB_SUB_PROXY", "")
 	t.Setenv("RATIO_SAFE_FETCH", "")
