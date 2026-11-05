@@ -191,6 +191,7 @@ func TestAutoCoreNames(t *testing.T) {
 		{"vless://11111111-2222-3333-4444-555555555555@example.com:443?security=tls&type=xhttp#xhttp", "latest,compat"},
 		{"vless://11111111-2222-3333-4444-555555555555@example.com:2020?security=none&type=tcp#plain", "legacy,latest,compat"},
 		{"vless://11111111-2222-3333-4444-555555555555@example.com:443?security=tls&type=ws#ws", ""},
+		{"vless://11111111-2222-3333-4444-555555555555@example.com:6969?encryption=mlkem768x25519plus.native.0rtt.secret&security=none&type=ws#modern", "latest"},
 	}
 	for _, tc := range cases {
 		outbound, err := OutboundFromURI(tc.uri)

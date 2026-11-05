@@ -758,9 +758,29 @@ func outboundTransport(outbound map[string]any) string {
 	return strings.ToLower(toString(stream["network"]))
 }
 
+func outboundEncryption(outbound map[string]any) string {
+	settings := asObject(outbound["settings"])
+	if settings == nil {
+		return ""
+	}
+	vnext := asArray(settings["vnext"])
+	if len(vnext) == 0 {
+		return ""
+	}
+	users := asArray(asObject(vnext[0])["users"])
+	if len(users) == 0 {
+		return ""
+	}
+	return strings.ToLower(toString(asObject(users[0])["encryption"]))
+}
+
 func autoCoreNames(outbound map[string]any) []string {
 	if outbound == nil {
 		return nil
+	}
+	if enc := outboundEncryption(outbound); enc != "" && enc != "none" {
+		// Modern VLESS encryption (mlkem...) only exists in the latest core.
+		return []string{"latest"}
 	}
 	if outboundTransport(outbound) == "xhttp" {
 		// Legacy 1.8.24 does not know xhttp; latest rejects plain VLESS.
