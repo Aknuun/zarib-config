@@ -1,3 +1,5 @@
+export const PAGE_SIZE = 20;
+
 export function formatBytes(value: number | null | undefined) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   let number = Number(value);

@@ -19,6 +19,7 @@ import {
   formatRatio,
   isInvalidRatio,
   isNoRatio,
+  PAGE_SIZE,
   ratioNumber,
   ratioPercent,
   ratioTone,
@@ -86,6 +87,10 @@ export function ResultView({
   const t = (key: MessageKey, vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [visibleRows, setVisibleRows] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleRows(PAGE_SIZE);
+  }, [aggregate.testedAt, rows.length]);
   const displayRatio = useCountUp(aggregate.ratio, animateResult);
   const tone = ratioTone(aggregate.ratio);
   const invalid = isInvalidRatio(aggregate.ratio);
@@ -205,7 +210,7 @@ export function ResultView({
               </span>
             </div>
             <div className="z-result-list">
-              {rows.map((row) => {
+              {rows.slice(0, visibleRows).map((row) => {
                 const name = row.config.remark || `#${row.pick}`;
                 const ratio = row.result ? Number(row.result.ratio) || 0 : null;
                 const rowTone = ratio === null ? "danger" : ratioTone(ratio);
@@ -252,6 +257,20 @@ export function ResultView({
                 );
               })}
             </div>
+            {visibleRows < rows.length && (
+              <div className="mt-2 flex justify-center">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="min-h-11"
+                  onClick={() => setVisibleRows((count) => count + PAGE_SIZE)}
+                >
+                  {t("loadMoreN", {
+                    n: Math.min(PAGE_SIZE, rows.length - visibleRows),
+                  })}
+                </Button>
+              </div>
+            )}
           </section>
         )}
       </div>
