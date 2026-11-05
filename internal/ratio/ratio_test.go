@@ -94,6 +94,18 @@ func TestExtractBase64Body(t *testing.T) {
 	}
 }
 
+func TestExtractConfigsSkipsDateLikePlaceholderHost(t *testing.T) {
+	body := []byte("trojan://1@14.47--2026.11.05.time:1447?sni=fake_ip_for_sub_link&security=tls#fake\n" +
+		"vless://11111111-2222-3333-4444-555555555555@FILM1.video-fun-new.com.de:443?encryption=none&security=tls&type=ws#real\n")
+	configs := ExtractConfigs(body)
+	if len(configs) != 1 {
+		t.Fatalf("expected 1 real config, got %d: %+v", len(configs), configs)
+	}
+	if configs[0].Target != "FILM1.video-fun-new.com.de:443" {
+		t.Fatalf("unexpected target: %+v", configs[0])
+	}
+}
+
 func TestExtractPlainText(t *testing.T) {
 	body := []byte("# comment\nss://YWVzLTI1Ni1nY206cGFzcw==@example.com:8388#ss\n")
 	configs := ExtractConfigs(body)

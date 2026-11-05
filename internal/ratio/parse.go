@@ -65,6 +65,9 @@ var blockedHosts = map[string]bool{
 // that is not a usable node. Keep those out of the config picker.
 var placeholderRemarkPattern = regexp.MustCompile(`(?i)(expired|remaining|باقی[\s\x{200c}]*مانده|به[\s\x{200c}]*پایان[\s\x{200c}]*رسیده|پایان[\s\x{200c}]*رسیده|حجم[\s\x{200c}]*شما|زمان[\s\x{200c}]*شما)`)
 
+// Some panels fake a node with a date-like host such as 14.47--2026.11.05.time.
+var placeholderHostPattern = regexp.MustCompile(`(?i)^\d{1,2}\.\d{1,2}--\d{4}\.\d{2}\.\d{2}\.`)
+
 func safeFetchEnabled() bool {
 	return os.Getenv("RATIO_SAFE_FETCH") == "1"
 }
@@ -1520,6 +1523,9 @@ func isPlaceholderConfig(outbound map[string]any, remark string) bool {
 		return false
 	}
 	host := strings.Trim(OutboundHost(outbound), "[]")
+	if placeholderHostPattern.MatchString(host) {
+		return true
+	}
 	if ip := net.ParseIP(host); ip != nil && !isPublicIP(ip) {
 		return true
 	}
