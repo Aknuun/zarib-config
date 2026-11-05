@@ -133,3 +133,30 @@ func TestSubProxyURL(t *testing.T) {
 		t.Fatal("empty proxy should be ignored")
 	}
 }
+
+func TestSubProxyURLsKeepsOrderAndCredentials(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "http://user:pass@proxy.example:8888")
+	t.Setenv("ZARIB_SUB_PROXY_HOSTS", "204.10.192.166:8888, 178.156.209.135:8888")
+	proxies := subProxyURLs()
+	if len(proxies) != 3 {
+		t.Fatalf("expected 3 proxies, got %d", len(proxies))
+	}
+	wantHosts := []string{"204.10.192.166:8888", "178.156.209.135:8888", "proxy.example:8888"}
+	for i, proxy := range proxies {
+		if proxy.Host != wantHosts[i] {
+			t.Fatalf("proxy %d host = %s, want %s", i, proxy.Host, wantHosts[i])
+		}
+		if proxy.User == nil || proxy.User.Username() != "user" {
+			t.Fatalf("proxy %d lost credentials: %#v", i, proxy)
+		}
+	}
+}
+
+func TestSubProxyURLsWithoutBase(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	t.Setenv("ZARIB_SUB_PROXY_HOSTS", "http://user:pass@204.10.192.166:8888")
+	proxies := subProxyURLs()
+	if len(proxies) != 1 || proxies[0].Host != "204.10.192.166:8888" {
+		t.Fatalf("unexpected proxies: %#v", proxies)
+	}
+}

@@ -161,6 +161,50 @@ func subProxyURL() *url.URL {
 	return parsed
 }
 
+// subProxyURLs returns the configured proxies in order. ZARIB_SUB_PROXY_HOSTS
+// adds host:port entries that reuse the credentials from ZARIB_SUB_PROXY; the
+// original proxy is kept as the last fallback.
+func subProxyURLs() []*url.URL {
+	base := subProxyURL()
+	rawHosts := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_HOSTS"))
+	if rawHosts == "" {
+		if base == nil {
+			return nil
+		}
+		return []*url.URL{base}
+	}
+	var out []*url.URL
+	seen := map[string]bool{}
+	add := func(proxy *url.URL) {
+		if proxy == nil || proxy.Host == "" || seen[proxy.String()] {
+			return
+		}
+		seen[proxy.String()] = true
+		out = append(out, proxy)
+	}
+	for _, host := range strings.Split(rawHosts, ",") {
+		host = strings.TrimSpace(host)
+		if host == "" {
+			continue
+		}
+		if base != nil {
+			clone := *base
+			clone.Host = host
+			add(&clone)
+			continue
+		}
+		raw := host
+		if !strings.Contains(raw, "://") {
+			raw = "http://" + raw
+		}
+		if parsed, err := url.Parse(raw); err == nil {
+			add(parsed)
+		}
+	}
+	add(base)
+	return out
+}
+
 // clientUA is the fallback for panels that serve a browser landing page to a
 // browser User-Agent instead of the subscription body.
 const clientUA = "v2rayNG/1.9.16"
@@ -337,26 +381,37 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 	return body, headers, err
 }
 
-// FetchMeta reads a subscription directly and, when ZARIB_SUB_PROXY is set,
-// retries through that proxy if the direct attempt fails.
+// FetchMeta reads a subscription directly and, when proxies are configured,
+// retries through each proxy in order if the direct attempt fails.
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
-	proxy := subProxyURL()
+	proxies := subProxyURLs()
 	directTimeout := timeout
-	if proxy != nil && directTimeout > 6*time.Second {
+	if len(proxies) > 0 && directTimeout > 6*time.Second {
 		directTimeout = 6 * time.Second
 	}
 	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
 	if err == nil {
 		return body, headers, false, nil
 	}
-	if proxy == nil {
+	if len(proxies) == 0 {
 		return body, headers, false, err
 	}
 	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription") {
 		return nil, nil, false, err
 	}
-	if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, timeout, proxy); retryErr == nil {
-		return retryBody, retryHeaders, true, nil
+	deadline := time.Now().Add(timeout)
+	for _, proxy := range proxies {
+		remaining := time.Until(deadline)
+		if remaining < 2*time.Second {
+			break
+		}
+		attemptTimeout := remaining
+		if attemptTimeout > 8*time.Second {
+			attemptTimeout = 8 * time.Second
+		}
+		if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy); retryErr == nil {
+			return retryBody, retryHeaders, true, nil
+		}
 	}
 	return nil, nil, false, err
 }
