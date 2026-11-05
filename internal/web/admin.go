@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,14 +40,20 @@ type adminRange struct {
 }
 
 type adminView struct {
-	Online      int
-	Version     string
-	GeneratedAt string
-	Ranges      []adminRange
-	Reports     []storedReport
-	Failures    []storedFailure
-	RepeatIPs   []repeatIP
-	UI          uiSettings
+	Online       int
+	Version      string
+	GeneratedAt  string
+	Ranges       []adminRange
+	Reports      []storedReport
+	Failures     []storedFailure
+	RepeatIPs    []repeatIP
+	UI           uiSettings
+	FailureQuery string
+	FailurePage  int
+	FailurePages int
+	FailureTotal int
+	FailurePrev  int
+	FailureNext  int
 }
 
 func (s *server) adminEnabled() bool {
@@ -90,7 +97,7 @@ func (s *server) adminPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	if err := adminTemplate.Execute(w, s.adminView()); err != nil {
+	if err := adminTemplate.Execute(w, s.adminView(r)); err != nil {
 		fmt.Printf("admin: could not render page: %v\n", err)
 	}
 }
@@ -153,7 +160,7 @@ func (s *server) adminBlockIP(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin#repeat-ips", http.StatusSeeOther)
 }
 
-func (s *server) adminView() adminView {
+func (s *server) adminView(req ...*http.Request) adminView {
 	s.mu.Lock()
 	snapshot := s.liveSnapshotLocked()
 	s.mu.Unlock()
@@ -165,10 +172,41 @@ func (s *server) adminView() adminView {
 	if err != nil {
 		fmt.Printf("admin: could not read failures: %v\n", err)
 	}
-	failures := allFailures
-	if len(failures) > maxAdminFailures {
-		failures = failures[:maxAdminFailures]
+	query := ""
+	page := 1
+	if len(req) > 0 && req[0] != nil {
+		query = strings.TrimSpace(req[0].URL.Query().Get("q"))
+		page, _ = strconv.Atoi(req[0].URL.Query().Get("page"))
 	}
+	if page < 1 {
+		page = 1
+	}
+	filtered := allFailures
+	if query != "" {
+		filtered = nil
+		for _, failure := range allFailures {
+			if failureMatches(failure, query) {
+				filtered = append(filtered, failure)
+			}
+		}
+	}
+	total := len(filtered)
+	pages := (total + 19) / 20
+	if pages < 1 {
+		pages = 1
+	}
+	if page > pages {
+		page = pages
+	}
+	start := (page - 1) * 20
+	end := start + 20
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	failures := filtered[start:end]
 	online, _ := snapshot["online"].(int)
 	return adminView{
 		Online:      online,
@@ -180,11 +218,30 @@ func (s *server) adminView() adminView {
 			adminRangeFrom(snapshot, "d30", "۳۰ روز اخیر"),
 			adminRangeFrom(snapshot, "overall", "کل"),
 		},
-		Reports:   reports,
-		Failures:  failures,
-		RepeatIPs: s.repeatedIPs(allFailures, time.Now().Add(-24*time.Hour)),
-		UI:        s.uiSnapshot(),
+		Reports:      reports,
+		Failures:     failures,
+		RepeatIPs:    s.repeatedIPs(allFailures, time.Now().Add(-24*time.Hour)),
+		UI:           s.uiSnapshot(),
+		FailureQuery: query,
+		FailurePage:  page,
+		FailurePages: pages,
+		FailureTotal: total,
+		FailurePrev:  page - 1,
+		FailureNext:  page + 1,
 	}
+}
+
+func failureMatches(f storedFailure, query string) bool {
+	needle := strings.ToLower(strings.TrimSpace(query))
+	if needle == "" {
+		return true
+	}
+	parts := []string{
+		f.Time, f.Source, f.JobID, f.Mode, fmt.Sprint(f.Pick), fmt.Sprint(f.Picks),
+		fmt.Sprint(f.SizeMB), f.Core, f.SubURL, f.ErrorCode, f.ErrorMessage,
+		f.IP, f.UserAgent, f.AcceptLanguage, strings.Join(f.Log, "\n"),
+	}
+	return strings.Contains(strings.ToLower(strings.Join(parts, "\n")), needle)
 }
 
 func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
@@ -318,6 +375,9 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
 .z-ui-form .z-ui-checks { display: flex; flex-wrap: wrap; gap: 10px 14px; flex: 1 1 320px; }
 .z-ui-form input[type="checkbox"] { accent-color: var(--brand); }
 .empty { padding: 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
+.z-failure-search { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.z-failure-search input { flex: 1 1 260px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; }
+.z-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 12px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
 .btn:hover { border-color: var(--brand); color: var(--brand); }
 .btn.danger { border-color: color-mix(in oklab, var(--bad) 35%, var(--line)); color: var(--bad); }
@@ -480,8 +540,13 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   <p class="empty">هنوز گزارشی ثبت نشده است.</p>
   {{end}}
 
-  <section>
-    <div class="section-head"><h2>خطاهای تست</h2><p>{{len .Failures}} مورد</p></div>
+  <section id="failures">
+    <div class="section-head"><h2>خطاهای تست</h2><p>{{.FailureTotal}} مورد · صفحه {{.FailurePage}} از {{.FailurePages}}</p></div>
+    <form class="z-failure-search" method="get" action="/admin#failures">
+      <input name="q" value="{{.FailureQuery}}" placeholder="جستجو در همه خطاها: لینک، IP، کد خطا، لاگ…" aria-label="جستجو در خطاها">
+      <button class="btn" type="submit">جستجو</button>
+      {{if .FailureQuery}}<a class="btn" href="/admin#failures">پاک کردن</a>{{end}}
+    </form>
   </section>
   {{if .Failures}}
   <div class="table-wrap">
@@ -520,8 +585,15 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
       </tbody>
     </table>
   </div>
+  {{if gt .FailurePages 1}}
+  <div class="z-pager">
+    {{if gt .FailurePage 1}}<a class="btn" href="/admin?q={{urlquery .FailureQuery}}&page={{.FailurePrev}}#failures">قبلی</a>{{end}}
+    <span>صفحه {{.FailurePage}} از {{.FailurePages}}</span>
+    {{if lt .FailurePage .FailurePages}}<a class="btn" href="/admin?q={{urlquery .FailureQuery}}&page={{.FailureNext}}#failures">بعدی</a>{{end}}
+  </div>
+  {{end}}
   {{else}}
-  <p class="empty">هنوز خطایی ثبت نشده است.</p>
+  <p class="empty">{{if .FailureQuery}}خطایی با این جستجو پیدا نشد.{{else}}هنوز خطایی ثبت نشده است.{{end}}</p>
   {{end}}
 </main>
 </body>
