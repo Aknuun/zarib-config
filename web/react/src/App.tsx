@@ -1052,6 +1052,7 @@ export default function App() {
             onBrandName={setBrandName}
             onLogoFile={onLogoFile}
             onClearLogo={() => setBrandImage(null)}
+            animateResult={ui.animations !== "off" && ui.result}
           />
         )}
 

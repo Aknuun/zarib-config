@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Input } from "@cloudflare/kumo";
 import {
   ArrowClockwise,
@@ -25,6 +25,29 @@ import {
 } from "../utils";
 import { Ruler } from "./Ruler";
 
+function useCountUp(target: number, enabled: boolean) {
+  const [value, setValue] = useState(enabled ? 0 : target);
+  useEffect(() => {
+    if (!enabled || !Number.isFinite(target) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setValue(target);
+      return;
+    }
+    setValue(0);
+    let frame = 0;
+    const start = performance.now();
+    const duration = 700;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(target * eased);
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, enabled]);
+  return value;
+}
+
 interface ResultViewProps {
   lang: Lang;
   aggregate: Aggregate;
@@ -40,6 +63,7 @@ interface ResultViewProps {
   onBrandName: (value: string) => void;
   onLogoFile: (file: File) => void;
   onClearLogo: () => void;
+  animateResult: boolean;
 }
 
 export function ResultView({
@@ -57,10 +81,12 @@ export function ResultView({
   onBrandName,
   onLogoFile,
   onClearLogo,
+  animateResult,
 }: ResultViewProps) {
   const t = (key: MessageKey, vars?: Record<string, string | number>) =>
     translate(lang, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
+  const displayRatio = useCountUp(aggregate.ratio, animateResult);
   const tone = ratioTone(aggregate.ratio);
   const invalid = isInvalidRatio(aggregate.ratio);
   const noRatio = isNoRatio(aggregate.ratio);
@@ -112,7 +138,7 @@ export function ResultView({
           </div>
 
           <div className={`z-coef z-tone-${tone}`} dir="ltr">
-            <span>{ratioNumber(aggregate.ratio)}</span>
+            <span>{ratioNumber(displayRatio)}</span>
             <span className="z-coef-unit">×</span>
           </div>
 
