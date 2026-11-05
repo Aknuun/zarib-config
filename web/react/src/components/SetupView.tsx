@@ -161,7 +161,7 @@ export function SetupView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sub.host, sub.count]);
 
-  const badSelected = sub.configs.some(
+  const hasNoResponseSelected = sub.configs.some(
     (config) => selected.has(config.index) && config.pingMs === null,
   );
 
@@ -414,7 +414,7 @@ export function SetupView({
                     className="h-12 w-full justify-center whitespace-nowrap px-3 text-[13px]"
                     icon={!starting ? <Play size={18} weight="fill" /> : undefined}
                     loading={starting}
-                    disabled={starting || badSelected}
+                    disabled={starting}
                     onClick={onStart}
                   >
                     {t("testSerial")}
@@ -423,7 +423,7 @@ export function SetupView({
                     variant="secondary"
                     size="lg"
                     className="h-12 w-full justify-center whitespace-nowrap px-3 text-[13px]"
-                    disabled={starting || badSelected}
+                    disabled={starting}
                     onClick={onStartAll}
                   >
                     {t("testParallel")}
@@ -436,7 +436,7 @@ export function SetupView({
                   className="h-12 justify-center self-center px-6 text-[14px]"
                   icon={!starting ? <Play size={18} weight="fill" /> : undefined}
                   loading={starting}
-                  disabled={selected.size === 0 || starting || badSelected}
+                  disabled={selected.size === 0 || starting}
                   onClick={onStart}
                 >
                   {selected.size > 0
@@ -444,7 +444,7 @@ export function SetupView({
                     : t("start")}
                 </Button>
               )}
-              {badSelected && (
+              {hasNoResponseSelected && (
                 <p className="z-warning-line">
                   <WarningCircle size={14} aria-hidden="true" />
                   {t("unhealthySelected")}
