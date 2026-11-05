@@ -558,6 +558,9 @@ func statView(bucket statBucket, unique int) map[string]any {
 		view["claimed_avg"] = bucket.ClaimedSum / count
 		view["claimed_real_avg"] = bucket.ClaimedRealSum / count
 		view["claimed_diff_avg"] = bucket.ClaimedDiffSum / count
+		if bucket.ClaimedSum > 0 {
+			view["claimed_diff_pct"] = (bucket.ClaimedRealSum - bucket.ClaimedSum) / bucket.ClaimedSum * 100
+		}
 	}
 	return view
 }

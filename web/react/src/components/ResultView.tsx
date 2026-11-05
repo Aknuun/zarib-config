@@ -76,8 +76,8 @@ export function ResultView({
 
   const claimed = aggregate.claimed ?? 0;
   const hasClaim = aggregate.claimed !== null && claimed >= 0.1;
-  const claimedDelta = claimed - aggregate.ratio;
-  const claimedMatches = Math.abs(claimedDelta) < 0.05;
+  const claimedPct = claimed > 0 ? ((aggregate.ratio - claimed) / claimed) * 100 : 0;
+  const claimedMatches = Math.abs(claimedPct) < 5;
 
   const notes: string[] = [];
   if (aggregate.background > 0) {
@@ -129,7 +129,7 @@ export function ResultView({
           {hasClaim && (
             <div
               className={`z-claimed${
-                claimedMatches ? " is-match" : claimedDelta > 0 ? " is-worse" : " is-better"
+                claimedMatches ? " is-match" : claimedPct < 0 ? " is-worse" : " is-better"
               }`}
             >
               <span className="z-claimed-title">
@@ -138,14 +138,14 @@ export function ResultView({
               <span className="z-claimed-diff">
                 {claimedMatches
                   ? t("claimedRealMatch", { r: ratioNumber(aggregate.ratio) })
-                  : claimedDelta > 0
+                  : claimedPct < 0
                     ? t("claimedRealLower", {
                         r: ratioNumber(aggregate.ratio),
-                        d: ratioNumber(claimedDelta),
+                        p: Math.abs(claimedPct).toFixed(1),
                       })
                     : t("claimedRealHigher", {
                         r: ratioNumber(aggregate.ratio),
-                        d: ratioNumber(-claimedDelta),
+                        p: claimedPct.toFixed(1),
                       })}
               </span>
             </div>

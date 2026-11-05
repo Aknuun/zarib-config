@@ -35,7 +35,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
   const success = Math.max(0, tests - failedTotal);
   const successRate = tests > 0 ? `${success} (${Math.round((success / tests) * 100)}%)` : "0";
   const claimedTests = Number(bucket?.claimed_tests) || 0;
-  const signed = (value: number) => `${value >= 0 ? "+" : ""}${ratioNumber(value)}×`;
+  const signedPct = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 
   const row = (label: ReactNode, value: string) => (
     <div className="z-live-row" key={typeof label === "string" ? label : value}>
@@ -107,7 +107,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
                 <>
                   {row(t("statClaimed"), `${ratioNumber(bucket?.claimed_avg || 0)}×`)}
                   {row(t("statReal"), `${ratioNumber(bucket?.claimed_real_avg || 0)}×`)}
-                  {row(t("statClaimedDiff", { n: claimedTests }), signed(Number(bucket?.claimed_diff_avg) || 0))}
+                  {row(t("statClaimedDiff", { n: claimedTests }), signedPct(Number(bucket?.claimed_diff_pct) || 0))}
                 </>
               )}
             </dl>

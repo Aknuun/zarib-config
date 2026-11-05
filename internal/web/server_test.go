@@ -209,6 +209,9 @@ func TestStatBucketClaimedRatio(t *testing.T) {
 	if diff, _ := view["claimed_diff_avg"].(float64); diff < 0.19 || diff > 0.21 {
 		t.Fatalf("unexpected claimed_diff_avg: %v", view["claimed_diff_avg"])
 	}
+	if pct, _ := view["claimed_diff_pct"].(float64); pct < -16.7 || pct > -16.6 {
+		t.Fatalf("unexpected claimed_diff_pct: %v", view["claimed_diff_pct"])
+	}
 	var total statBucket
 	total.add(&bucket)
 	if total.ClaimedTests != 1 || total.ClaimedRealSum != 1.0 {

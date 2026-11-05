@@ -19,23 +19,23 @@ const (
 )
 
 type adminRange struct {
-	Label        string
-	Tests        int
-	WithRatio    int
-	Normal       int
-	Invalid      int
-	Tunnel       int
-	NonTunnel    int
-	Unknown      int
-	Downloaded   int64
-	Deducted     int64
-	Proxy        int
-	UniqueIPs    int
-	ClaimedTests int
-	ClaimedAvg   float64
-	RealAvg      float64
-	ClaimedDiff  float64
-	Failed       failStats
+	Label          string
+	Tests          int
+	WithRatio      int
+	Normal         int
+	Invalid        int
+	Tunnel         int
+	NonTunnel      int
+	Unknown        int
+	Downloaded     int64
+	Deducted       int64
+	Proxy          int
+	UniqueIPs      int
+	ClaimedTests   int
+	ClaimedAvg     float64
+	RealAvg        float64
+	ClaimedDiffPct float64
+	Failed         failStats
 }
 
 type adminView struct {
@@ -199,23 +199,23 @@ func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
 	}
 	failed, _ := values["failed"].(failStats)
 	return adminRange{
-		Label:        label,
-		Tests:        number("tests"),
-		WithRatio:    number("with_ratio"),
-		Normal:       number("normal"),
-		Invalid:      number("invalid"),
-		Tunnel:       number("tunnel"),
-		NonTunnel:    number("non_tunnel"),
-		Unknown:      number("unknown_tunnel"),
-		Downloaded:   downloaded,
-		Deducted:     deducted,
-		Proxy:        number("proxy"),
-		UniqueIPs:    number("unique_ips"),
-		ClaimedTests: number("claimed_tests"),
-		ClaimedAvg:   decimal("claimed_avg"),
-		RealAvg:      decimal("claimed_real_avg"),
-		ClaimedDiff:  decimal("claimed_diff_avg"),
-		Failed:       failed,
+		Label:          label,
+		Tests:          number("tests"),
+		WithRatio:      number("with_ratio"),
+		Normal:         number("normal"),
+		Invalid:        number("invalid"),
+		Tunnel:         number("tunnel"),
+		NonTunnel:      number("non_tunnel"),
+		Unknown:        number("unknown_tunnel"),
+		Downloaded:     downloaded,
+		Deducted:       deducted,
+		Proxy:          number("proxy"),
+		UniqueIPs:      number("unique_ips"),
+		ClaimedTests:   number("claimed_tests"),
+		ClaimedAvg:     decimal("claimed_avg"),
+		RealAvg:        decimal("claimed_real_avg"),
+		ClaimedDiffPct: decimal("claimed_diff_pct"),
+		Failed:         failed,
 	}
 }
 
@@ -353,7 +353,7 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
       <div class="lines">
         <p>تانل <b>{{.Tunnel}}</b> · غیرتانل <b>{{.NonTunnel}}</b> · نامشخص <b>{{.Unknown}}</b></p>
         <p>خطاها <b>{{.Failed.Total}}</b> · اتصال <b>{{.Failed.Connect}}</b> · ساب <b>{{.Failed.Fetch}}</b> · هسته <b>{{.Failed.Core}}</b> · تایم‌اوت <b>{{.Failed.Timeout}}</b> · بدون تغییر <b>{{.Failed.Usage}}</b> · سایر <b>{{.Failed.Other}}</b></p>
-        <p>ادعایی <b>{{if .ClaimedTests}}{{printf "%.2f" .ClaimedAvg}}×{{else}}—{{end}}</b> · واقعی <b>{{if .ClaimedTests}}{{printf "%.2f" .RealAvg}}×{{else}}—{{end}}</b> · اختلاف <b>{{if .ClaimedTests}}{{printf "%+.2f" .ClaimedDiff}}×{{else}}—{{end}}</b>{{if .ClaimedTests}} ({{.ClaimedTests}} تست){{end}}</p>
+        <p>ادعایی <b>{{if .ClaimedTests}}{{printf "%.2f" .ClaimedAvg}}×{{else}}—{{end}}</b> · واقعی <b>{{if .ClaimedTests}}{{printf "%.2f" .RealAvg}}×{{else}}—{{end}}</b> · اختلاف <b>{{if .ClaimedTests}}{{printf "%+.1f%%" .ClaimedDiffPct}}{{else}}—{{end}}</b>{{if .ClaimedTests}} ({{.ClaimedTests}} تست){{end}}</p>
       </div>
     </article>
     {{end}}
