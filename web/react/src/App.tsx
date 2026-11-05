@@ -1,13 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TooltipProvider } from "@cloudflare/kumo";
 import { Header } from "./components/Header";
 import { Landing } from "./components/Landing";
-import { SetupView } from "./components/SetupView";
-import { ProgressView } from "./components/ProgressView";
-import { ResultView } from "./components/ResultView";
-import { ErrorView } from "./components/ErrorView";
-import { LiveDialog } from "./components/LiveDialog";
-import { ReportDialog } from "./components/ReportDialog";
+import { ViewSkeleton } from "./components/ViewSkeleton";
 import {
   ApiError,
   cancelJob,
@@ -39,6 +34,25 @@ import {
   normalizeUrl,
 } from "./utils";
 import { shareResult } from "./share";
+
+const SetupView = lazy(() =>
+  import("./components/SetupView").then((module) => ({ default: module.SetupView })),
+);
+const ProgressView = lazy(() =>
+  import("./components/ProgressView").then((module) => ({ default: module.ProgressView })),
+);
+const ResultView = lazy(() =>
+  import("./components/ResultView").then((module) => ({ default: module.ResultView })),
+);
+const ErrorView = lazy(() =>
+  import("./components/ErrorView").then((module) => ({ default: module.ErrorView })),
+);
+const LiveDialog = lazy(() =>
+  import("./components/LiveDialog").then((module) => ({ default: module.LiveDialog })),
+);
+const ReportDialog = lazy(() =>
+  import("./components/ReportDialog").then((module) => ({ default: module.ReportDialog })),
+);
 
 const ACTIVE_JOB_KEY = "ratio-active-job-react";
 
@@ -943,6 +957,7 @@ export default function App() {
           onHome={resetToLanding}
         />
 
+        <Suspense fallback={<ViewSkeleton />}>
         {view === "landing" && (
           <Landing
             lang={lang}
@@ -1030,6 +1045,7 @@ export default function App() {
             onReport={() => setReportOpen(true)}
           />
         )}
+        </Suspense>
 
         {toast && (
           <div className="z-toast" role="status" aria-live="polite">
@@ -1037,17 +1053,25 @@ export default function App() {
           </div>
         )}
 
-        <LiveDialog open={liveOpen} onOpenChange={setLiveOpen} lang={lang} live={live} />
-        <ReportDialog
-          open={reportOpen}
-          onOpenChange={setReportOpen}
-          lang={lang}
-          subUrl={sub?.url || ""}
-          result={aggregate}
-          error={reportError}
-          view={view}
-          onSent={showToast}
-        />
+        {liveOpen && (
+          <Suspense fallback={null}>
+            <LiveDialog open={liveOpen} onOpenChange={setLiveOpen} lang={lang} live={live} />
+          </Suspense>
+        )}
+        {reportOpen && (
+          <Suspense fallback={null}>
+            <ReportDialog
+              open={reportOpen}
+              onOpenChange={setReportOpen}
+              lang={lang}
+              subUrl={sub?.url || ""}
+              result={aggregate}
+              error={reportError}
+              view={view}
+              onSent={showToast}
+            />
+          </Suspense>
+        )}
       </div>
     </TooltipProvider>
   );

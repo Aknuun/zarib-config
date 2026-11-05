@@ -1740,3 +1740,49 @@ html[lang="en"] .z-hero-title {
     font-size: 11px;
   }
 }
+
+.z-skeleton-page {
+  max-width: 760px;
+}
+
+.z-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+}
+
+.z-skeleton-line {
+  display: block;
+  max-width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--color-kumo-recessed) 25%,
+    var(--color-kumo-line) 37%,
+    var(--color-kumo-recessed) 63%
+  );
+  background-size: 400% 100%;
+  animation: z-shimmer 1.4s ease infinite;
+}
+
+.z-ping-skeleton {
+  display: inline-block;
+  width: 52px;
+  height: 20px;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    var(--color-kumo-recessed) 25%,
+    var(--color-kumo-line) 37%,
+    var(--color-kumo-recessed) 63%
+  );
+  background-size: 400% 100%;
+  animation: z-shimmer 1.4s ease infinite;
+}
+
+@keyframes z-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

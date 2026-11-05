@@ -337,7 +337,11 @@ func (s *server) serveStatic(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	cacheControl := "public, max-age=3600"
+	if strings.Contains(r.URL.Path, "/assets/") {
+		cacheControl = "public, max-age=31536000, immutable"
+	}
+	w.Header().Set("Cache-Control", cacheControl)
 	http.ServeFile(w, r, target)
 }
 

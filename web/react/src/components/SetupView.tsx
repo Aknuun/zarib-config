@@ -281,7 +281,9 @@ export function SetupView({
                       <span className="block truncate text-[14px] font-medium" dir="auto">{name}</span>
                     </span>
                     <span className="z-config-meta">
-                      {config.pingMs !== undefined && (
+                      {config.pingMs === undefined ? (
+                        <span className="z-ping-skeleton" aria-hidden="true" />
+                      ) : (
                         <span
                           className={`z-ping-chip shrink-0${
                             config.pingMs === null ? " is-bad" : ""
