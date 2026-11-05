@@ -1120,6 +1120,40 @@ body {
   color: var(--text-color-kumo-subtle);
 }
 
+.z-claimed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 12px auto 0;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-brand) 24%, var(--color-kumo-line));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--color-kumo-brand) 7%, transparent);
+  text-align: center;
+}
+
+.z-claimed-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.z-claimed-diff {
+  font-size: 12px;
+  color: var(--text-color-kumo-subtle);
+}
+
+.z-claimed.is-worse .z-claimed-diff {
+  color: var(--text-color-kumo-danger);
+}
+
+.z-claimed.is-better .z-claimed-diff,
+.z-claimed.is-match .z-claimed-diff {
+  color: var(--text-color-kumo-success);
+}
+
 .z-notes {
   display: flex;
   flex-direction: column;

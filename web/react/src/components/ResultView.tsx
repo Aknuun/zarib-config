@@ -74,6 +74,11 @@ export function ResultView({
         : t("verdictClose")
       : t("verdictRatio", { n: ratioNumber(aggregate.ratio) });
 
+  const claimed = aggregate.claimed ?? 0;
+  const hasClaim = aggregate.claimed !== null && claimed >= 0.1;
+  const claimedDelta = claimed - aggregate.ratio;
+  const claimedMatches = Math.abs(claimedDelta) < 0.05;
+
   const notes: string[] = [];
   if (aggregate.background > 0) {
     notes.push(t("backgroundNote", { n: formatBytes(aggregate.background) }));
@@ -82,18 +87,6 @@ export function ResultView({
     notes.push(t("excludedNote", { n: aggregate.excluded }));
   }
   if (aggregate.nonRound) notes.push(t("nonRoundNote"));
-  if (aggregate.claimed !== null && aggregate.claimed >= 0.1) {
-    const claimed = ratioNumber(aggregate.claimed);
-    const real = ratioNumber(aggregate.ratio);
-    const diff = aggregate.claimed - aggregate.ratio;
-    if (Math.abs(diff) < 0.05) {
-      notes.push(t("claimedMatchNote", { c: claimed, r: real }));
-    } else if (diff > 0) {
-      notes.push(t("claimedHigherNote", { c: claimed, r: real, d: ratioNumber(diff) }));
-    } else {
-      notes.push(t("claimedLowerNote", { c: claimed, r: real, d: ratioNumber(-diff) }));
-    }
-  }
 
   return (
     <main className="z-container z-page z-result-page">
@@ -132,6 +125,31 @@ export function ResultView({
           />
 
           <p className="z-verdict">{verdict}</p>
+
+          {hasClaim && (
+            <div
+              className={`z-claimed${
+                claimedMatches ? " is-match" : claimedDelta > 0 ? " is-worse" : " is-better"
+              }`}
+            >
+              <span className="z-claimed-title">
+                {t("claimedTitle", { c: ratioNumber(claimed) })}
+              </span>
+              <span className="z-claimed-diff">
+                {claimedMatches
+                  ? t("claimedRealMatch", { r: ratioNumber(aggregate.ratio) })
+                  : claimedDelta > 0
+                    ? t("claimedRealLower", {
+                        r: ratioNumber(aggregate.ratio),
+                        d: ratioNumber(claimedDelta),
+                      })
+                    : t("claimedRealHigher", {
+                        r: ratioNumber(aggregate.ratio),
+                        d: ratioNumber(-claimedDelta),
+                      })}
+              </span>
+            </div>
+          )}
 
           {batch && <p className="z-hint">{t("batchNote")}</p>}
 
