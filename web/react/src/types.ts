@@ -167,3 +167,13 @@ export interface Aggregate {
   claimed: number | null;
   nonRound: boolean;
 }
+
+export interface UISettings {
+  animations: "full" | "light" | "off";
+  page: boolean;
+  rows: boolean;
+  chips: boolean;
+  result: boolean;
+  buttons: boolean;
+  tiles: boolean;
+}

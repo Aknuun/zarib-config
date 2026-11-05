@@ -46,6 +46,7 @@ type adminView struct {
 	Reports     []storedReport
 	Failures    []storedFailure
 	RepeatIPs   []repeatIP
+	UI          uiSettings
 }
 
 func (s *server) adminEnabled() bool {
@@ -182,6 +183,7 @@ func (s *server) adminView() adminView {
 		Reports:   reports,
 		Failures:  failures,
 		RepeatIPs: s.repeatedIPs(allFailures, time.Now().Add(-24*time.Hour)),
+		UI:        s.uiSnapshot(),
 	}
 }
 
@@ -310,6 +312,11 @@ details summary::-webkit-details-marker { display: none; }
 .mini dt { color: var(--muted); }
 .mini dd { margin: 0; overflow-wrap: anywhere; }
 pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.z-ui-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.z-ui-form label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.z-ui-form select { min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); color: var(--text); font: inherit; }
+.z-ui-form .z-ui-checks { display: flex; flex-wrap: wrap; gap: 10px 14px; flex: 1 1 320px; }
+.z-ui-form input[type="checkbox"] { accent-color: var(--brand); }
 .empty { padding: 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
 .btn:hover { border-color: var(--brand); color: var(--brand); }
@@ -358,6 +365,28 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
     </article>
     {{end}}
   </div>
+
+  <section id="animations">
+    <div class="section-head"><h2>انیمیشن‌ها</h2><p>شدت و نوع حرکت‌ها؛ برای قطع اینترنت بین‌الملل «خاموش» را انتخاب کن.</p></div>
+    <form method="post" action="/admin/api/ui" class="tile z-ui-form">
+      <label>شدت
+        <select name="animations">
+          <option value="full" {{if eq .UI.Animations "full"}}selected{{end}}>کامل</option>
+          <option value="light" {{if eq .UI.Animations "light"}}selected{{end}}>سبک</option>
+          <option value="off" {{if eq .UI.Animations "off"}}selected{{end}}>خاموش</option>
+        </select>
+      </label>
+      <div class="z-ui-checks">
+        <label><input type="checkbox" name="page" {{if .UI.Page}}checked{{end}}> ورود صفحه‌ها</label>
+        <label><input type="checkbox" name="rows" {{if .UI.Rows}}checked{{end}}> ردیف کانفیگ‌ها</label>
+        <label><input type="checkbox" name="chips" {{if .UI.Chips}}checked{{end}}> چیپ‌های پینگ</label>
+        <label><input type="checkbox" name="result" {{if .UI.Result}}checked{{end}}> نتیجه و ضریب</label>
+        <label><input type="checkbox" name="buttons" {{if .UI.Buttons}}checked{{end}}> دکمه‌ها</label>
+        <label><input type="checkbox" name="tiles" {{if .UI.Tiles}}checked{{end}}> کارت‌ها</label>
+      </div>
+      <button class="btn" type="submit">ذخیره</button>
+    </form>
+  </section>
 
   <section id="repeat-ips">
     <div class="section-head"><h2>IPهای پرتکرار</h2><p>IPهایی که در ۲۴ ساعت اخیر ۲ بار یا بیشتر خطا داده‌اند</p></div>

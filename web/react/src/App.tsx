@@ -10,6 +10,7 @@ import {
   createJob,
   getHealth,
   getJob,
+  getUI,
   inspectSubscription,
   sendPresence,
 } from "./api";
@@ -18,6 +19,7 @@ import type {
   Job,
   JobRecord,
   LiveStats,
+  UISettings,
   RatioResult,
   SubConfig,
   SubState,
@@ -220,6 +222,15 @@ export default function App() {
   const [results, setResults] = useState<TestRow[]>([]);
   const [reconnecting, setReconnecting] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [ui, setUi] = useState<UISettings>({
+    animations: "full",
+    page: true,
+    rows: true,
+    chips: true,
+    result: true,
+    buttons: true,
+    tiles: true,
+  });
   const [error, setError] = useState<{
     code: string;
     message: string;
@@ -233,6 +244,12 @@ export default function App() {
   const [live, setLive] = useState<LiveStats | null>(null);
   const [version, setVersion] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    getUI()
+      .then(setUi)
+      .catch(() => {});
+  }, []);
 
   const activeRef = useRef<{ cancelled: boolean; jobId: string | null }>({
     cancelled: false,
@@ -945,7 +962,16 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <div className="z-app">
+      <div
+      className="z-app"
+      data-anim={ui.animations}
+      data-anim-page={ui.page ? "1" : "0"}
+      data-anim-rows={ui.rows ? "1" : "0"}
+      data-anim-chips={ui.chips ? "1" : "0"}
+      data-anim-result={ui.result ? "1" : "0"}
+      data-anim-buttons={ui.buttons ? "1" : "0"}
+      data-anim-tiles={ui.tiles ? "1" : "0"}
+    >
         <Header
           lang={lang}
           theme={theme}

@@ -1,4 +1,4 @@
-import type { InspectResponse, Job, LiveStats } from "./types";
+import type { InspectResponse, Job, LiveStats, UISettings } from "./types";
 
 export class ApiError extends Error {
   code: string;
@@ -171,4 +171,8 @@ export function sendReport(input: {
 
 export function getHealth() {
   return request<{ ok: boolean; version: string }>("/healthz");
+}
+
+export function getUI() {
+  return request<UISettings>("/api/ui", {}, { timeout: 5_000 });
 }

@@ -74,6 +74,7 @@ type server struct {
 	reportsFile     string
 	failuresFile    string
 	blockedFile     string
+	uiFile          string
 	telegramToken   string
 	telegramChatID  string
 	telegramAPIBase string
@@ -85,6 +86,8 @@ type server struct {
 	reportsMu       sync.Mutex
 	failuresMu      sync.Mutex
 	blockedMu       sync.Mutex
+	uiMu            sync.Mutex
+	ui              uiSettings
 	notifyMu        sync.Mutex
 	notified        map[string]time.Time
 	jobs            map[string]*job
@@ -167,6 +170,7 @@ func Run(addr, staticDir string) error {
 		reportsFile:     filepath.Join(cacheRoot, "reports.jsonl"),
 		failuresFile:    filepath.Join(cacheRoot, "failures.jsonl"),
 		blockedFile:     filepath.Join(cacheRoot, "blocked.txt"),
+		uiFile:          filepath.Join(cacheRoot, "ui.json"),
 		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
 		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
 		telegramAPIBase: "https://api.telegram.org",
@@ -183,6 +187,7 @@ func Run(addr, staticDir string) error {
 	}
 	s.loadStats()
 	s.loadBlockedIPs()
+	s.loadUISettings()
 	go s.pruneLoop()
 	fmt.Printf("zarib-config web listening on %s\n", addr)
 	httpServer := &http.Server{
@@ -255,6 +260,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.delayCheck(w, r)
+	case path == "/api/ui":
+		if !allowMethods(w, r, http.MethodGet) {
+			return
+		}
+		s.uiConfig(w, r)
 	case path == "/api/report":
 		if !allowMethods(w, r, http.MethodPost) {
 			return
@@ -285,6 +295,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.adminBlockIP(w, r)
+	case path == "/admin/api/ui":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.adminUI(w, r)
 	case strings.HasPrefix(path, "/admin/"):
 		http.NotFound(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):

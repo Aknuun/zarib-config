@@ -1787,61 +1787,102 @@ html[lang="en"] .z-hero-title {
   100% { background-position: 0 50%; }
 }
 
-/* Light, CSS-only motion: transform/opacity only, no layout shift. */
-.z-setup-page,
-.z-progress-page,
-.z-result-page,
-.z-error-page {
-  animation: z-view-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+/* Admin-controlled, CSS-only motion: transform/opacity only, no layout shift. */
+.z-app[data-anim="off"] *,
+.z-app[data-anim="off"] *::before,
+.z-app[data-anim="off"] *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
-.z-config-row {
-  animation: z-row-in 120ms ease-out both;
+.z-app[data-anim="full"] {
+  --z-view-dur: 220ms;
+  --z-view-lift: 8px;
+  --z-row-dur: 160ms;
+  --z-chip-dur: 180ms;
+  --z-result-dur: 320ms;
+  --z-stagger: 22ms;
+}
+.z-app[data-anim="light"] {
+  --z-view-dur: 150ms;
+  --z-view-lift: 4px;
+  --z-row-dur: 120ms;
+  --z-chip-dur: 120ms;
+  --z-result-dur: 180ms;
+  --z-stagger: 0ms;
 }
 
-.z-ping-chip {
-  animation: z-chip-in 120ms ease-out both;
+.z-app[data-anim-page="1"] .z-setup-page,
+.z-app[data-anim-page="1"] .z-progress-page,
+.z-app[data-anim-page="1"] .z-result-page,
+.z-app[data-anim-page="1"] .z-error-page {
+  animation: z-view-in var(--z-view-dur, 160ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.z-coef {
-  animation: z-coef-in 180ms ease-out both;
+.z-app[data-anim-rows="1"] .z-config-row {
+  animation: z-row-in var(--z-row-dur, 120ms) ease-out both;
+}
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(2) { animation-delay: calc(var(--z-stagger, 0ms) * 1); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(3) { animation-delay: calc(var(--z-stagger, 0ms) * 2); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(4) { animation-delay: calc(var(--z-stagger, 0ms) * 3); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(5) { animation-delay: calc(var(--z-stagger, 0ms) * 4); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(6) { animation-delay: calc(var(--z-stagger, 0ms) * 5); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(7) { animation-delay: calc(var(--z-stagger, 0ms) * 6); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(8) { animation-delay: calc(var(--z-stagger, 0ms) * 7); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(9) { animation-delay: calc(var(--z-stagger, 0ms) * 8); }
+.z-app[data-anim-rows="1"] .z-config-row:nth-child(10) { animation-delay: calc(var(--z-stagger, 0ms) * 9); }
+
+.z-app[data-anim-chips="1"] .z-ping-chip {
+  animation: z-chip-in var(--z-chip-dur, 120ms) ease-out both;
 }
 
-.z-app button:active:not(:disabled) {
-  transform: scale(0.98);
+.z-app[data-anim-result="1"] .z-coef {
+  animation: z-coef-in var(--z-result-dur, 180ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.z-app[data-anim-buttons="1"] button {
+  transition: transform 120ms ease;
+}
+.z-app[data-anim-buttons="1"] button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.z-app[data-anim-buttons="1"] button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .z-app[data-anim-tiles="1"] .z-tile {
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+  .z-app[data-anim-tiles="1"] .z-tile:hover {
+    transform: translateY(-2px);
+  }
 }
 
 @keyframes z-view-in {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(var(--z-view-lift, 4px)); }
   to { opacity: 1; transform: none; }
 }
-
 @keyframes z-row-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
 }
-
 @keyframes z-chip-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: none; }
+  0% { opacity: 0; transform: scale(0.9); }
+  70% { transform: scale(1.04); }
+  100% { opacity: 1; transform: none; }
 }
-
 @keyframes z-coef-in {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: none; }
+  0% { opacity: 0; transform: scale(0.92); }
+  70% { transform: scale(1.02); }
+  100% { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .z-setup-page,
-  .z-progress-page,
-  .z-result-page,
-  .z-error-page,
-  .z-config-row,
-  .z-ping-chip,
-  .z-coef {
-    animation: none;
-  }
-  .z-app button:active:not(:disabled) {
-    transform: none;
+  .z-app *,
+  .z-app *::before,
+  .z-app *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
