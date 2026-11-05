@@ -1252,18 +1252,15 @@ body {
 
 @media (max-width: 640px) {
   .z-result-actions .z-action-grid {
-    gap: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .z-result-actions .z-action-grid [data-kumo-component="Button"] {
     min-width: 0;
-    padding-inline: 4px;
-    font-size: 11px;
-    gap: 4px;
-  }
-
-  .z-result-actions .z-action-grid [data-kumo-component="Button"] svg {
-    display: none;
+    padding-inline: 8px;
+    font-size: 12px;
+    gap: 6px;
   }
 }
 
@@ -1642,8 +1639,8 @@ body {
 
 @media (max-width: 380px) {
   .z-result-actions .z-action-grid [data-kumo-component="Button"] {
-    padding-inline: 2px;
-    font-size: 10px;
+    padding-inline: 6px;
+    font-size: 11px;
   }
 
   .z-result-stats > div {
