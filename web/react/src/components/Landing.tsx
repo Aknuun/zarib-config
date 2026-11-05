@@ -99,6 +99,7 @@ export function Landing({
           {error && (
             <div id="sub-error" className="z-inline-error" role="alert">
               <p>{error.message}</p>
+              <p className="z-error-note">{t("errorAutoReported")}</p>
               {error.detail && (
                 <details className="z-details z-details-tight">
                   <summary>{t("details")}</summary>
