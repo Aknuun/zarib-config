@@ -182,9 +182,16 @@ export function SetupView({
 
       <section className="z-tile z-sub-tile">
         <div className="z-sub-id">
-          <span className="z-sub-icon" aria-hidden="true">
-            <GlobeHemisphereWest size={20} />
-          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="z-sub-remove shrink-0"
+            icon={<Trash size={18} />}
+            aria-label={t("removeSub")}
+            title={t("removeSub")}
+            onClick={onRemove}
+            disabled={starting}
+          />
           <div className="z-sub-summary">
             <strong className="z-sub-host z-num truncate" dir="ltr">
               {sub.host}
@@ -192,17 +199,6 @@ export function SetupView({
             <Badge variant="secondary">{t("configCount", { n: sub.count })}</Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="min-h-11 min-w-11 shrink-0 px-3 text-[12px] text-kumo-danger"
-          icon={<Trash size={16} />}
-          aria-label={t("removeSub")}
-          onClick={onRemove}
-          disabled={starting}
-        >
-          <span className="max-sm:hidden">{t("removeSub")}</span>
-        </Button>
         {sub.insecure && (
           <p className="z-warning-line">
             <WarningCircle size={16} aria-hidden="true" />

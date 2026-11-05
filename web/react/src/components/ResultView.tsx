@@ -253,7 +253,7 @@ export function ResultView({
             <Button
               variant="secondary"
               size="lg"
-              className="col-span-2 h-12 w-full justify-center text-[14px] sm:col-span-1"
+              className="h-12 w-full justify-center text-[12px] sm:text-[14px]"
               icon={<ArrowClockwise size={18} />}
               onClick={onRetest}
             >
@@ -262,7 +262,7 @@ export function ResultView({
             <Button
               variant="secondary"
               size="lg"
-              className="h-12 w-full justify-center text-[14px]"
+              className="h-12 w-full justify-center text-[12px] sm:text-[14px]"
               icon={<ShareNetwork size={18} />}
               loading={sharing}
               onClick={onShare}
@@ -272,7 +272,7 @@ export function ResultView({
             <Button
               variant="secondary"
               size="lg"
-              className="h-12 w-full justify-center text-[14px]"
+              className="h-12 w-full justify-center text-[12px] sm:text-[14px]"
               icon={<Plus size={18} />}
               onClick={onNewSub}
             >
@@ -281,7 +281,7 @@ export function ResultView({
             <Button
               variant="ghost"
               size="lg"
-              className="col-span-2 h-12 w-full justify-center text-[14px] text-kumo-subtle sm:col-span-1"
+              className="h-12 w-full justify-center text-[12px] text-kumo-subtle sm:text-[14px]"
               icon={<WarningCircle size={18} />}
               onClick={onReport}
             >

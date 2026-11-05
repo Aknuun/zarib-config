@@ -690,17 +690,23 @@ body {
   min-width: 0;
 }
 
-.z-sub-icon {
+.z-sub-id .z-sub-remove {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 40px;
+  min-width: 40px;
   height: 40px;
-  border: 1px solid color-mix(in oklab, var(--color-kumo-brand) 18%, var(--color-kumo-line));
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--color-kumo-danger) 22%, var(--color-kumo-line));
   border-radius: var(--z-radius-sm);
-  background: color-mix(in oklab, var(--color-kumo-brand) 7%, var(--color-kumo-base));
-  color: var(--color-kumo-brand);
+  background: color-mix(in oklab, var(--color-kumo-danger) 7%, var(--color-kumo-base));
+  color: var(--color-kumo-danger);
+}
+.z-sub-id .z-sub-remove:hover {
+  border-color: color-mix(in oklab, var(--color-kumo-danger) 45%, var(--color-kumo-line));
+  background: color-mix(in oklab, var(--color-kumo-danger) 12%, var(--color-kumo-base));
 }
 
 .z-sub-host {
@@ -1240,8 +1246,25 @@ body {
 .z-result-actions .z-action-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .z-result-actions .z-action-grid {
+    gap: 6px;
+  }
+
+  .z-result-actions .z-action-grid [data-kumo-component="Button"] {
+    min-width: 0;
+    padding-inline: 4px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .z-result-actions .z-action-grid [data-kumo-component="Button"] svg {
+    display: none;
+  }
 }
 
 .z-brand-details {
@@ -1618,12 +1641,9 @@ body {
 }
 
 @media (max-width: 380px) {
-  .z-result-actions .z-action-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .z-result-actions .z-action-grid > * {
-    grid-column: 1 / -1;
+  .z-result-actions .z-action-grid [data-kumo-component="Button"] {
+    padding-inline: 2px;
+    font-size: 10px;
   }
 
   .z-result-stats > div {
