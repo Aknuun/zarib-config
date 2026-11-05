@@ -1569,7 +1569,9 @@ body {
 
   .z-config-meta {
     grid-area: meta;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-height: 26px;
+    min-width: 0;
     padding-inline-start: 29px;
   }
 
