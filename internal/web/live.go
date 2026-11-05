@@ -867,7 +867,7 @@ func (s *server) delayCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
-	latency, err := ratio.Delay(ctx, config, 2*time.Second)
+	latency, err := ratio.Delay(ctx, config, 4*time.Second)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "latency_ms": 0})
 		return

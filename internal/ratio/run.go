@@ -353,28 +353,32 @@ func Delay(ctx context.Context, configText string, timeout time.Duration) (int64
 	if timeout < time.Second {
 		timeout = time.Second
 	}
-	probeURL := "https://speed.cloudflare.com/__down?bytes=4096"
+	// Some nodes block Cloudflare or our health endpoint but allow Google;
+	// V2RayNG uses the same Google-style probe. Try the common targets in order.
+	targets := []string{
+		"https://www.gstatic.com/generate_204",
+		"https://www.google.com/generate_204",
+		"http://cp.cloudflare.com/generate_204",
+		"https://zarib.app11.ir/healthz",
+	}
 	session, err := startConfigSession(ctx, Options{
 		Core:         "auto",
-		ProbeURL:     probeURL,
+		ProbeURL:     targets[0],
 		ProbeTimeout: int(timeout.Seconds()),
 	}, configText)
 	if err != nil {
 		return 0, err
 	}
 	defer session.Close(false)
-	targets := []string{probeURL, "https://zarib.app11.ir/healthz"}
-	start := time.Now()
-	deadline := start.Add(timeout)
-	for _, target := range targets {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
+	for index, target := range targets {
+		if ctx.Err() != nil {
 			break
 		}
-		seconds := int(remaining.Seconds())
-		if seconds < 1 {
-			seconds = 1
+		seconds := 2
+		if index == 0 {
+			seconds = int(timeout.Seconds())
 		}
+		start := time.Now()
 		code, _, _ := CurlProbe(ctx, session.port, target, seconds)
 		if code >= 200 && code < 400 {
 			return time.Since(start).Milliseconds(), nil
