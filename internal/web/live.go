@@ -34,18 +34,22 @@ type failStats struct {
 }
 
 type statBucket struct {
-	Tests      int             `json:"tests,omitempty"`
-	WithRatio  int             `json:"with_ratio,omitempty"`
-	Normal     int             `json:"normal,omitempty"`
-	Invalid    int             `json:"invalid,omitempty"`
-	Tunnel     int             `json:"tunnel,omitempty"`
-	NonTunnel  int             `json:"non_tunnel,omitempty"`
-	Unknown    int             `json:"unknown_tunnel,omitempty"`
-	Downloaded int64           `json:"downloaded,omitempty"`
-	Deducted   int64           `json:"deducted,omitempty"`
-	Proxy      int             `json:"proxy,omitempty"`
-	Failed     failStats       `json:"failed,omitempty"`
-	IPs        map[string]bool `json:"ips,omitempty"`
+	Tests          int             `json:"tests,omitempty"`
+	WithRatio      int             `json:"with_ratio,omitempty"`
+	Normal         int             `json:"normal,omitempty"`
+	Invalid        int             `json:"invalid,omitempty"`
+	Tunnel         int             `json:"tunnel,omitempty"`
+	NonTunnel      int             `json:"non_tunnel,omitempty"`
+	Unknown        int             `json:"unknown_tunnel,omitempty"`
+	Downloaded     int64           `json:"downloaded,omitempty"`
+	Deducted       int64           `json:"deducted,omitempty"`
+	Proxy          int             `json:"proxy,omitempty"`
+	ClaimedTests   int             `json:"claimed_tests,omitempty"`
+	ClaimedSum     float64         `json:"claimed_sum,omitempty"`
+	ClaimedRealSum float64         `json:"claimed_real_sum,omitempty"`
+	ClaimedDiffSum float64         `json:"claimed_diff_sum,omitempty"`
+	Failed         failStats       `json:"failed,omitempty"`
+	IPs            map[string]bool `json:"ips,omitempty"`
 }
 
 // maxUniqueIPs bounds the all-time set so stats.json cannot grow forever.
@@ -125,6 +129,10 @@ func (b *statBucket) add(other *statBucket) {
 	b.Downloaded += other.Downloaded
 	b.Deducted += other.Deducted
 	b.Proxy += other.Proxy
+	b.ClaimedTests += other.ClaimedTests
+	b.ClaimedSum += other.ClaimedSum
+	b.ClaimedRealSum += other.ClaimedRealSum
+	b.ClaimedDiffSum += other.ClaimedDiffSum
 	b.Failed.Total += other.Failed.Total
 	b.Failed.Connect += other.Failed.Connect
 	b.Failed.Fetch += other.Failed.Fetch
@@ -159,6 +167,12 @@ func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
 	}
 	if result.DeltaTotal > 0 {
 		b.Deducted += result.DeltaTotal
+	}
+	if result.ClaimedRatio != nil {
+		b.ClaimedTests++
+		b.ClaimedSum += *result.ClaimedRatio
+		b.ClaimedRealSum += result.Ratio
+		b.ClaimedDiffSum += *result.ClaimedRatio - result.Ratio
 	}
 }
 
@@ -524,7 +538,7 @@ func (s *server) rangeStatsLocked(hourly bool, from time.Time) statBucket {
 }
 
 func statView(bucket statBucket, unique int) map[string]any {
-	return map[string]any{
+	view := map[string]any{
 		"tests":          bucket.Tests,
 		"with_ratio":     bucket.WithRatio,
 		"normal":         bucket.Normal,
@@ -538,6 +552,14 @@ func statView(bucket statBucket, unique int) map[string]any {
 		"proxy":          bucket.Proxy,
 		"unique_ips":     unique,
 	}
+	if bucket.ClaimedTests > 0 {
+		count := float64(bucket.ClaimedTests)
+		view["claimed_tests"] = bucket.ClaimedTests
+		view["claimed_avg"] = bucket.ClaimedSum / count
+		view["claimed_real_avg"] = bucket.ClaimedRealSum / count
+		view["claimed_diff_avg"] = bucket.ClaimedDiffSum / count
+	}
+	return view
 }
 
 func (s *server) liveSnapshotLocked() map[string]any {

@@ -192,6 +192,30 @@ func TestRecordResultClassifiesRatios(t *testing.T) {
 	}
 }
 
+func TestStatBucketClaimedRatio(t *testing.T) {
+	var bucket statBucket
+	claimed := 1.2
+	bucket.addResult(&ratio.Result{Ratio: 1.0, ClaimedRatio: &claimed}, nil)
+	if bucket.ClaimedTests != 1 || bucket.ClaimedSum != 1.2 || bucket.ClaimedRealSum != 1.0 {
+		t.Fatalf("unexpected claimed totals: %+v", bucket)
+	}
+	if diff := bucket.ClaimedDiffSum; diff < 0.19 || diff > 0.21 {
+		t.Fatalf("unexpected claimed diff: %v", diff)
+	}
+	view := statView(bucket, 1)
+	if view["claimed_tests"] != 1 {
+		t.Fatalf("unexpected claimed_tests: %v", view["claimed_tests"])
+	}
+	if diff, _ := view["claimed_diff_avg"].(float64); diff < 0.19 || diff > 0.21 {
+		t.Fatalf("unexpected claimed_diff_avg: %v", view["claimed_diff_avg"])
+	}
+	var total statBucket
+	total.add(&bucket)
+	if total.ClaimedTests != 1 || total.ClaimedRealSum != 1.0 {
+		t.Fatalf("unexpected summed claimed totals: %+v", total)
+	}
+}
+
 func TestRecordJobErrorClassifiesFailures(t *testing.T) {
 	s := testServer(t)
 	for _, code := range []string{"probe_failed", "resolve_failed", "fetch_failed", "xray_failed", "timeout", "usage_unchanged", "surprise", "cancelled"} {

@@ -103,6 +103,10 @@ export interface LiveBucket {
   deducted: number;
   unique_ips?: number;
   proxy: number;
+  claimed_tests?: number;
+  claimed_avg?: number;
+  claimed_real_avg?: number;
+  claimed_diff_avg?: number;
   failed: FailStats;
 }
 

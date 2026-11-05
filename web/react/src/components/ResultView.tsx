@@ -83,7 +83,16 @@ export function ResultView({
   }
   if (aggregate.nonRound) notes.push(t("nonRoundNote"));
   if (aggregate.claimed !== null && aggregate.claimed >= 0.1) {
-    notes.push(t("claimedNote", { r: ratioNumber(aggregate.claimed) }));
+    const claimed = ratioNumber(aggregate.claimed);
+    const real = ratioNumber(aggregate.ratio);
+    const diff = aggregate.claimed - aggregate.ratio;
+    if (Math.abs(diff) < 0.05) {
+      notes.push(t("claimedMatchNote", { c: claimed, r: real }));
+    } else if (diff > 0) {
+      notes.push(t("claimedHigherNote", { c: claimed, r: real, d: ratioNumber(diff) }));
+    } else {
+      notes.push(t("claimedLowerNote", { c: claimed, r: real, d: ratioNumber(-diff) }));
+    }
   }
 
   return (

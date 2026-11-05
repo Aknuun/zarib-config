@@ -4,7 +4,7 @@ import { Info, X } from "@phosphor-icons/react";
 import type { LiveStats } from "../types";
 import type { Lang } from "../i18n";
 import { translate, type MessageKey } from "../i18n";
-import { formatBytes } from "../utils";
+import { formatBytes, ratioNumber } from "../utils";
 
 interface LiveDialogProps {
   open: boolean;
@@ -34,6 +34,8 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
   const tests = Number(bucket?.tests) || 0;
   const success = Math.max(0, tests - failedTotal);
   const successRate = tests > 0 ? `${success} (${Math.round((success / tests) * 100)}%)` : "0";
+  const claimedTests = Number(bucket?.claimed_tests) || 0;
+  const signed = (value: number) => `${value >= 0 ? "+" : ""}${ratioNumber(value)}×`;
 
   const row = (label: ReactNode, value: string) => (
     <div className="z-live-row" key={typeof label === "string" ? label : value}>
@@ -101,6 +103,13 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
               {row(t("statWithRatio"), live ? String(bucket?.with_ratio || 0) : "—")}
               {row(t("statNormal"), live ? String(bucket?.normal || 0) : "—")}
               {row(t("statInvalid"), live ? String(bucket?.invalid || 0) : "—")}
+              {claimedTests > 0 && (
+                <>
+                  {row(t("statClaimed"), `${ratioNumber(bucket?.claimed_avg || 0)}×`)}
+                  {row(t("statReal"), `${ratioNumber(bucket?.claimed_real_avg || 0)}×`)}
+                  {row(t("statClaimedDiff", { n: claimedTests }), signed(Number(bucket?.claimed_diff_avg) || 0))}
+                </>
+              )}
             </dl>
           </section>
 
