@@ -161,9 +161,9 @@ func subProxyURL() *url.URL {
 	return parsed
 }
 
-// subProxyURLs returns the configured proxies in order. ZARIB_SUB_PROXY_HOSTS
-// adds host:port entries that reuse the credentials from ZARIB_SUB_PROXY; the
-// original proxy is kept as the last fallback.
+// subProxyURLs returns the configured proxies in order. The original
+// ZARIB_SUB_PROXY is tried first; ZARIB_SUB_PROXY_HOSTS adds host:port
+// fallbacks that reuse its credentials.
 func subProxyURLs() []*url.URL {
 	base := subProxyURL()
 	rawHosts := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_HOSTS"))
@@ -182,6 +182,7 @@ func subProxyURLs() []*url.URL {
 		seen[proxy.String()] = true
 		out = append(out, proxy)
 	}
+	add(base)
 	for _, host := range strings.Split(rawHosts, ",") {
 		host = strings.TrimSpace(host)
 		if host == "" {
@@ -201,7 +202,6 @@ func subProxyURLs() []*url.URL {
 			add(parsed)
 		}
 	}
-	add(base)
 	return out
 }
 
@@ -386,8 +386,8 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
 	proxies := subProxyURLs()
 	directTimeout := timeout
-	if len(proxies) > 0 && directTimeout > 6*time.Second {
-		directTimeout = 6 * time.Second
+	if len(proxies) > 0 && directTimeout > 4*time.Second {
+		directTimeout = 4 * time.Second
 	}
 	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
 	if err == nil {
@@ -400,14 +400,20 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 		return nil, nil, false, err
 	}
 	deadline := time.Now().Add(timeout)
-	for _, proxy := range proxies {
+	for index, proxy := range proxies {
 		remaining := time.Until(deadline)
 		if remaining < 2*time.Second {
 			break
 		}
 		attemptTimeout := remaining
-		if attemptTimeout > 8*time.Second {
-			attemptTimeout = 8 * time.Second
+		cap := 4 * time.Second
+		// The primary proxy gets a short try; slow fallbacks (the 204 relay
+		// needs ~3s) get enough room to finish.
+		if index == 0 {
+			cap = 2 * time.Second
+		}
+		if attemptTimeout > cap {
+			attemptTimeout = cap
 		}
 		if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy); retryErr == nil {
 			return retryBody, retryHeaders, true, nil

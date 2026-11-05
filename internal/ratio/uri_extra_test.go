@@ -141,7 +141,7 @@ func TestSubProxyURLsKeepsOrderAndCredentials(t *testing.T) {
 	if len(proxies) != 3 {
 		t.Fatalf("expected 3 proxies, got %d", len(proxies))
 	}
-	wantHosts := []string{"204.10.192.166:8888", "178.156.209.135:8888", "proxy.example:8888"}
+	wantHosts := []string{"proxy.example:8888", "204.10.192.166:8888", "178.156.209.135:8888"}
 	for i, proxy := range proxies {
 		if proxy.Host != wantHosts[i] {
 			t.Fatalf("proxy %d host = %s, want %s", i, proxy.Host, wantHosts[i])
