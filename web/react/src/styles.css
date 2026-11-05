@@ -1346,6 +1346,14 @@ body {
   line-height: 1.7;
 }
 
+.z-error-note {
+  margin-top: 10px;
+  color: var(--text-color-kumo-subtle);
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+}
+
 .z-error-card .z-details {
   text-align: start;
 }

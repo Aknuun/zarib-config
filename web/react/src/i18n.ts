@@ -184,6 +184,7 @@ const fa = {
   testedAt: "زمان تست",
 
   errorTitle: "تست انجام نشد",
+  errorAutoReported: "این خطا خودکار برای سازنده ثبت و ارسال شد؛ احتمالاً حل می‌شود. لطفاً بعداً دوباره بررسی کنید.",
   errorSuggestDefault: "دوباره تلاش کن؛ اگر ادامه داشت کانفیگ دیگری را امتحان کن.",
   errorSuggestLink: "لینک ساب را بررسی کن و مطمئن شو در دسترس است.",
   errorSuggestWait: "کمی بعد دوباره تلاش کن.",
@@ -466,6 +467,7 @@ const en: typeof fa = {
   testedAt: "Tested at",
 
   errorTitle: "Test failed",
+  errorAutoReported: "This error was automatically sent to the developer and will likely be fixed. Please check again later.",
   errorSuggestDefault: "Try again; if it keeps failing, try another config.",
   errorSuggestLink: "Check the subscription link and make sure it is reachable.",
   errorSuggestWait: "Wait a moment and try again.",

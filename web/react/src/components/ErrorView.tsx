@@ -42,6 +42,7 @@ export function ErrorView({
         <h1 className="z-page-title">{t("errorTitle")}</h1>
         <p className="z-error-text">{t(errorKey(code) as MessageKey)}</p>
         <p className="z-page-sub">{t(suggestionKey(code) as MessageKey)}</p>
+        <p className="z-error-note">{t("errorAutoReported")}</p>
         <details className="z-details">
           <summary>{t("errorDetails")}</summary>
           <pre dir="ltr">{detail || "—"}</pre>
