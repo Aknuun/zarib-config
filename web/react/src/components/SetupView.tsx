@@ -109,9 +109,13 @@ export function SetupView({
 
   async function runPingAll(silent = false) {
     if (bulk) return;
+    const targets = silent
+      ? sub.configs.filter((config) => config.pingMs === undefined)
+      : sub.configs;
+    if (targets.length === 0) return;
     setBulk("ping");
     let ok = 0;
-    const queue = [...sub.configs];
+    const queue = [...targets];
     const workers = Math.min(8, queue.length);
     await Promise.all(
       Array.from({ length: workers }, async () => {
@@ -154,7 +158,8 @@ export function SetupView({
 
   useEffect(() => {
     const key = `${sub.host}:${sub.count}`;
-    if (!sub.count || lastDelayKey.current === key) return;
+    const needsDelay = sub.configs.some((config) => config.pingMs === undefined);
+    if (!sub.count || !needsDelay || lastDelayKey.current === key) return;
     lastDelayKey.current = key;
     void runPingAll(true);
     // The key changes only when a new subscription list is loaded.
