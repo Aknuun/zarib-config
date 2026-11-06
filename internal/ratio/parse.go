@@ -452,6 +452,10 @@ func resolvePortalSubscription(rawURL string, page []byte, timeout time.Duration
 func fetchSubscription(rawURL string, timeout time.Duration, proxy *url.URL) ([]byte, http.Header, error) {
 	body, headers, err := fetchOnce(rawURL, timeout, proxy, UA)
 	if err != nil {
+		var subErr *SubscriptionError
+		if errors.As(err, &subErr) && subErr.Code == "subscription_broken" && strings.Contains(subErr.Message, "HTTP 406") {
+			return fetchOnce(rawURL, timeout, proxy, clientUA)
+		}
 		return body, headers, err
 	}
 	if looksLikePortal(body) {

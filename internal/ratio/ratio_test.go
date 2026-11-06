@@ -902,3 +902,32 @@ func TestDelayRejectsInvalidConfig(t *testing.T) {
 		t.Fatal("expected an invalid config error")
 	}
 }
+
+func TestFetchMetaRetries406AsClient(t *testing.T) {
+	t.Setenv("ZARIB_SUB_PROXY", "")
+	var browserHits, clientHits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.UserAgent() == UA {
+			atomic.AddInt32(&browserHits, 1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotAcceptable)
+			_, _ = w.Write([]byte(`{"detail":"Client not supported"}`))
+			return
+		}
+		atomic.AddInt32(&clientHits, 1)
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("vless://11111111-2222-3333-4444-555555555555@example.com:443#node"))
+	}))
+	defer server.Close()
+
+	body, _, _, err := FetchMeta(server.URL, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if browserHits != 1 || clientHits != 1 {
+		t.Fatalf("browserHits=%d clientHits=%d", browserHits, clientHits)
+	}
+	if !strings.Contains(string(body), "vless://") {
+		t.Fatalf("unexpected body: %q", string(body))
+	}
+}
