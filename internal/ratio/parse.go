@@ -511,9 +511,10 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
 	proxies := subProxyURLs()
 	directTimeout := timeout
-	if len(proxies) > 0 && directTimeout > 4*time.Second {
+	if len(proxies) > 0 && !slowDirectHost(rawURL) && directTimeout > 4*time.Second {
 		directTimeout = 4 * time.Second
 	}
+	deadline := time.Now().Add(timeout)
 	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
 	if err == nil {
 		return body, headers, false, nil
@@ -524,7 +525,6 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription") {
 		return nil, nil, false, err
 	}
-	deadline := time.Now().Add(timeout)
 	for index, proxy := range proxies {
 		remaining := time.Until(deadline)
 		if remaining < 2*time.Second {
@@ -545,6 +545,36 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 		}
 	}
 	return nil, nil, false, err
+}
+
+// slowDirectHost lets a host that tunnels through Iran wait for the full
+// direct timeout instead of the short 4s cap used while proxies are configured.
+func slowDirectHost(rawURL string) bool {
+	raw := strings.TrimSpace(os.Getenv("ZARIB_SLOW_DIRECT_HOSTS"))
+	if raw == "" {
+		return false
+	}
+	target, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(target.Hostname())
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.ToLower(strings.TrimSpace(entry))
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, ":") {
+			if entry == strings.ToLower(target.Host) {
+				return true
+			}
+			continue
+		}
+		if entry == host {
+			return true
+		}
+	}
+	return false
 }
 
 var integerPattern = regexp.MustCompile(`^\d+$`)

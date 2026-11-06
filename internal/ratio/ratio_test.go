@@ -931,3 +931,16 @@ func TestFetchMetaRetries406AsClient(t *testing.T) {
 		t.Fatalf("unexpected body: %q", string(body))
 	}
 }
+
+func TestSlowDirectHost(t *testing.T) {
+	t.Setenv("ZARIB_SLOW_DIRECT_HOSTS", "sub.sefrtasad.com,example.com:8443")
+	if !slowDirectHost("https://sub.sefrtasad.com/sub/x") {
+		t.Fatal("expected slow direct host match")
+	}
+	if !slowDirectHost("https://example.com:8443/sub/x") {
+		t.Fatal("expected slow direct host:port match")
+	}
+	if slowDirectHost("https://example.net/sub/x") {
+		t.Fatal("unexpected slow direct host match")
+	}
+}
