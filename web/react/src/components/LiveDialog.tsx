@@ -105,11 +105,11 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
               {row(t("statWithRatio"), live ? String(bucket?.with_ratio || 0) : "—")}
               {row(t("statNormal"), live ? String(bucket?.normal || 0) : "—")}
               {row(t("statInvalid"), live ? String(bucket?.invalid || 0) : "—")}
-              {claimedTests > 0 && (
+              {claimedTests > 0 && row(t("statClaimed"), `${ratioNumber(bucket?.claimed_avg || 0)}×`)}
+              {claimedTests > 0 && typeof bucket?.claimed_diff_pct === "number" && (
                 <>
-                  {row(t("statClaimed"), `${ratioNumber(bucket?.claimed_avg || 0)}×`)}
                   {row(t("statReal"), `${ratioNumber(bucket?.claimed_real_avg || 0)}×`)}
-                  {row(t("statClaimedDiff", { n: claimedTests }), signedPct(Number(bucket?.claimed_diff_pct) || 0))}
+                  {row(t("statClaimedDiff", { n: claimedTests }), signedPct(bucket.claimed_diff_pct))}
                 </>
               )}
             </dl>

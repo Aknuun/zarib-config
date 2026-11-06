@@ -49,6 +49,8 @@ type statBucket struct {
 	ClaimedSum     float64         `json:"claimed_sum,omitempty"`
 	ClaimedRealSum float64         `json:"claimed_real_sum,omitempty"`
 	ClaimedDiffSum float64         `json:"claimed_diff_sum,omitempty"`
+	RatioSum       float64         `json:"ratio_sum,omitempty"`
+	RatioTests     int             `json:"ratio_tests,omitempty"`
 	Failed         failStats       `json:"failed,omitempty"`
 	IPs            map[string]bool `json:"ips,omitempty"`
 }
@@ -134,6 +136,8 @@ func (b *statBucket) add(other *statBucket) {
 	b.ClaimedSum += other.ClaimedSum
 	b.ClaimedRealSum += other.ClaimedRealSum
 	b.ClaimedDiffSum += other.ClaimedDiffSum
+	b.RatioSum += other.RatioSum
+	b.RatioTests += other.RatioTests
 	b.Failed.Total += other.Failed.Total
 	b.Failed.Connect += other.Failed.Connect
 	b.Failed.Fetch += other.Failed.Fetch
@@ -170,12 +174,16 @@ func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
 	if result.DeltaTotal > 0 {
 		b.Deducted += result.DeltaTotal
 	}
+	claimed := 1.0
 	if result.ClaimedRatio != nil {
-		b.ClaimedTests++
-		b.ClaimedSum += *result.ClaimedRatio
-		b.ClaimedRealSum += result.Ratio
-		b.ClaimedDiffSum += *result.ClaimedRatio - result.Ratio
+		claimed = *result.ClaimedRatio
 	}
+	b.ClaimedTests++
+	b.ClaimedSum += claimed
+	b.ClaimedRealSum += result.Ratio
+	b.ClaimedDiffSum += claimed - result.Ratio
+	b.RatioSum += result.Ratio
+	b.RatioTests++
 }
 
 func (b *statBucket) addFail(code string) {
@@ -564,14 +572,15 @@ func statView(bucket statBucket, unique int) map[string]any {
 		"proxy":          bucket.Proxy,
 		"unique_ips":     unique,
 	}
-	if bucket.ClaimedTests > 0 {
-		count := float64(bucket.ClaimedTests)
-		view["claimed_tests"] = bucket.ClaimedTests
-		view["claimed_avg"] = bucket.ClaimedSum / count
-		view["claimed_real_avg"] = bucket.ClaimedRealSum / count
-		view["claimed_diff_avg"] = bucket.ClaimedDiffSum / count
-		if bucket.ClaimedSum > 0 {
-			view["claimed_diff_pct"] = (bucket.ClaimedRealSum - bucket.ClaimedSum) / bucket.ClaimedSum * 100
+	if bucket.Tests > 0 {
+		explicit := bucket.ClaimedSum
+		claimedSumAll := explicit + float64(bucket.Tests-bucket.ClaimedTests)
+		view["claimed_tests"] = bucket.Tests
+		view["claimed_avg"] = claimedSumAll / float64(bucket.Tests)
+		if bucket.RatioTests == bucket.Tests {
+			view["claimed_real_avg"] = bucket.RatioSum / float64(bucket.Tests)
+			view["claimed_diff_avg"] = (claimedSumAll - bucket.RatioSum) / float64(bucket.Tests)
+			view["claimed_diff_pct"] = (bucket.RatioSum - claimedSumAll) / claimedSumAll * 100
 		}
 	}
 	return view
