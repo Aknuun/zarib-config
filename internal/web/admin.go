@@ -55,6 +55,7 @@ type adminView struct {
 	Online       int
 	Version      string
 	GeneratedAt  string
+	Mobile       bool
 	Ranges       []adminRange
 	Reports      []storedReport
 	Failures     []storedFailure
@@ -321,8 +322,14 @@ func (s *server) adminView(req ...*http.Request) adminView {
 	failures := filtered[start:end]
 	online, _ := snapshot["online"].(int)
 	settings := s.settingsSnapshot()
+	mobile := false
+	if len(req) > 0 && req[0] != nil {
+		ua := strings.ToLower(req[0].UserAgent())
+		mobile = strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone")
+	}
 	return adminView{
 		Online:      online,
+		Mobile:      mobile,
 		Version:     ratio.Version,
 		GeneratedAt: time.Now().Format("2006-01-02 15:04:05"),
 		Settings: adminSettingsView{
@@ -548,6 +555,19 @@ th { font-size: 12px; }
 .admin-nav summary { font-size: 15px; }
 .admin-nav nav a { font-size: 14px; padding: 10px 12px; }
 @media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } }
+
+@media (max-width: 900px) {
+  .admin-layout { grid-template-columns: 1fr; gap: 16px; }
+  .admin-side { position: static; }
+  .admin-content { gap: 18px; }
+  .section-head { padding: 10px 12px; }
+  .section-head h2 { font-size: 20px; }
+  table { font-size: 12px; }
+  th, td { padding: 8px 10px; }
+  .z-ui-form { gap: 10px; }
+  .z-ui-form label { font-size: 12px; }
+  .z-ui-form select, .z-ui-form input[type="number"] { min-height: 36px; }
+}
 </style>
 </head>
 <body>
@@ -566,7 +586,7 @@ th { font-size: 12px; }
 <main>
 <div class="admin-layout">
 <aside class="admin-side">
-  <details class="admin-nav" open>
+  <details class="admin-nav"{{if not .Mobile}} open{{end}}>
     <summary>منوی مدیریت</summary>
     <nav>
       <a href="#stats">آمار</a>
