@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -51,6 +52,8 @@ type statBucket struct {
 	ClaimedDiffSum float64         `json:"claimed_diff_sum,omitempty"`
 	RatioSum       float64         `json:"ratio_sum,omitempty"`
 	RatioTests     int             `json:"ratio_tests,omitempty"`
+	ClaimedChecked int             `json:"claimed_checked,omitempty"`
+	ClaimedMatched int             `json:"claimed_matched,omitempty"`
 	Failed         failStats       `json:"failed,omitempty"`
 	IPs            map[string]bool `json:"ips,omitempty"`
 }
@@ -138,6 +141,8 @@ func (b *statBucket) add(other *statBucket) {
 	b.ClaimedDiffSum += other.ClaimedDiffSum
 	b.RatioSum += other.RatioSum
 	b.RatioTests += other.RatioTests
+	b.ClaimedChecked += other.ClaimedChecked
+	b.ClaimedMatched += other.ClaimedMatched
 	b.Failed.Total += other.Failed.Total
 	b.Failed.Connect += other.Failed.Connect
 	b.Failed.Fetch += other.Failed.Fetch
@@ -184,6 +189,10 @@ func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
 	b.ClaimedDiffSum += claimed - result.Ratio
 	b.RatioSum += result.Ratio
 	b.RatioTests++
+	b.ClaimedChecked++
+	if math.Abs(result.Ratio-claimed) <= math.Max(0.05, claimed*0.05) {
+		b.ClaimedMatched++
+	}
 }
 
 func (b *statBucket) addFail(code string) {
@@ -582,6 +591,11 @@ func statView(bucket statBucket, unique int) map[string]any {
 			view["claimed_diff_avg"] = (claimedSumAll - bucket.RatioSum) / float64(bucket.Tests)
 			view["claimed_diff_pct"] = (bucket.RatioSum - claimedSumAll) / claimedSumAll * 100
 		}
+	}
+	if bucket.ClaimedChecked > 0 {
+		view["claimed_checked"] = bucket.ClaimedChecked
+		view["claimed_matched"] = bucket.ClaimedMatched
+		view["claimed_accuracy_pct"] = float64(bucket.ClaimedMatched) / float64(bucket.ClaimedChecked) * 100
 	}
 	return view
 }

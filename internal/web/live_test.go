@@ -47,3 +47,26 @@ func TestStatClaimedAverageTreatsMissingClaimAsOne(t *testing.T) {
 		t.Fatalf("claimed_diff_pct = %v, want 13.636", got)
 	}
 }
+
+func TestStatClaimAccuracy(t *testing.T) {
+	var bucket statBucket
+	bucket.addResult(&ratio.Result{Ratio: 1.0}, nil)
+
+	first := 1.5
+	bucket.addResult(&ratio.Result{Ratio: 1.5, ClaimedRatio: &first}, nil)
+
+	second := 2.0
+	bucket.addResult(&ratio.Result{Ratio: 1.5, ClaimedRatio: &second}, nil)
+
+	view := statView(bucket, 0)
+	if view["claimed_checked"] != 3 {
+		t.Fatalf("checked = %v, want 3", view["claimed_checked"])
+	}
+	if view["claimed_matched"] != 2 {
+		t.Fatalf("matched = %v, want 2", view["claimed_matched"])
+	}
+	accuracy, _ := view["claimed_accuracy_pct"].(float64)
+	if accuracy < 66.66 || accuracy > 66.67 {
+		t.Fatalf("accuracy = %v, want ~66.67", accuracy)
+	}
+}

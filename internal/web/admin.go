@@ -35,9 +35,13 @@ type adminRange struct {
 	ClaimedTests   int
 	ClaimedAvg     float64
 	RealAvg        float64
-	ClaimedDiffPct float64
-	ClaimedHasDiff bool
-	Failed         failStats
+	ClaimedDiffPct    float64
+	ClaimedHasDiff    bool
+	ClaimedChecked    int
+	ClaimedMatched    int
+	ClaimedAccuracyPct float64
+	ClaimedHasAccuracy bool
+	Failed            failStats
 }
 
 type adminView struct {
@@ -259,6 +263,7 @@ func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
 	}
 	failed, _ := values["failed"].(failStats)
 	_, hasDiff := values["claimed_diff_pct"]
+	_, hasAccuracy := values["claimed_accuracy_pct"]
 	return adminRange{
 		Label:          label,
 		Tests:          number("tests"),
@@ -275,9 +280,13 @@ func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
 		ClaimedTests:   number("claimed_tests"),
 		ClaimedAvg:     decimal("claimed_avg"),
 		RealAvg:        decimal("claimed_real_avg"),
-		ClaimedDiffPct: decimal("claimed_diff_pct"),
-		ClaimedHasDiff: hasDiff,
-		Failed:         failed,
+		ClaimedDiffPct:    decimal("claimed_diff_pct"),
+		ClaimedHasDiff:    hasDiff,
+		ClaimedChecked:    number("claimed_checked"),
+		ClaimedMatched:    number("claimed_matched"),
+		ClaimedAccuracyPct: decimal("claimed_accuracy_pct"),
+		ClaimedHasAccuracy: hasAccuracy,
+		Failed:            failed,
 	}
 }
 
@@ -423,7 +432,7 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
       <div class="lines">
         <p>تانل <b>{{.Tunnel}}</b> · غیرتانل <b>{{.NonTunnel}}</b> · نامشخص <b>{{.Unknown}}</b></p>
         <p>خطاها <b>{{.Failed.Total}}</b> · اتصال <b>{{.Failed.Connect}}</b> · ساب <b>{{.Failed.Fetch}}</b> · هسته <b>{{.Failed.Core}}</b> · تایم‌اوت <b>{{.Failed.Timeout}}</b> · بدون تغییر <b>{{.Failed.Usage}}</b> · سایر <b>{{.Failed.Other}}</b> · خارج از محاسبه <b>{{.Failed.Ignored}}</b></p>
-        <p>ادعایی <b>{{if .ClaimedTests}}{{printf "%.2f" .ClaimedAvg}}×{{else}}—{{end}}</b> · واقعی <b>{{if .ClaimedHasDiff}}{{printf "%.2f" .RealAvg}}×{{else}}—{{end}}</b> · نسبت واقعی/ادعایی <b>{{if .ClaimedHasDiff}}{{printf "%+.1f%%" .ClaimedDiffPct}}{{else}}—{{end}}</b>{{if .ClaimedTests}} ({{.ClaimedTests}} تست){{end}}</p>
+        <p>دقت ادعا <b>{{if .ClaimedHasAccuracy}}{{printf "%.0f%%" .ClaimedAccuracyPct}}{{else}}—{{end}}</b>{{if .ClaimedHasAccuracy}} ({{.ClaimedMatched}} از {{.ClaimedChecked}} تست){{end}}</p>
       </div>
     </article>
     {{end}}

@@ -4,7 +4,7 @@ import { Info, X } from "@phosphor-icons/react";
 import type { LiveStats } from "../types";
 import type { Lang } from "../i18n";
 import { translate, type MessageKey } from "../i18n";
-import { formatBytes, ratioNumber } from "../utils";
+import { formatBytes } from "../utils";
 
 interface LiveDialogProps {
   open: boolean;
@@ -35,8 +35,9 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
   const tests = Number(bucket?.tests) || 0;
   const realAttempts = tests + failedTotal;
   const successRate = realAttempts > 0 ? `${tests} (${Math.round((tests / realAttempts) * 100)}%)` : "0";
-  const claimedTests = Number(bucket?.claimed_tests) || 0;
-  const signedPct = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+  const claimedChecked = Number(bucket?.claimed_checked) || 0;
+  const claimedMatched = Number(bucket?.claimed_matched) || 0;
+  const claimedAccuracy = Number(bucket?.claimed_accuracy_pct) || 0;
 
   const row = (label: ReactNode, value: string) => (
     <div className="z-live-row" key={typeof label === "string" ? label : value}>
@@ -105,12 +106,11 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
               {row(t("statWithRatio"), live ? String(bucket?.with_ratio || 0) : "—")}
               {row(t("statNormal"), live ? String(bucket?.normal || 0) : "—")}
               {row(t("statInvalid"), live ? String(bucket?.invalid || 0) : "—")}
-              {claimedTests > 0 && row(t("statClaimed"), `${ratioNumber(bucket?.claimed_avg || 0)}×`)}
-              {claimedTests > 0 && typeof bucket?.claimed_diff_pct === "number" && (
-                <>
-                  {row(t("statReal"), `${ratioNumber(bucket?.claimed_real_avg || 0)}×`)}
-                  {row(t("statClaimedDiff", { n: claimedTests }), signedPct(bucket.claimed_diff_pct))}
-                </>
+              {claimedChecked > 0 && typeof bucket?.claimed_accuracy_pct === "number" && (
+                row(
+                  t("statClaimedAccuracy", { n: claimedChecked }),
+                  `${Math.round(claimedAccuracy)}% (${claimedMatched}/${claimedChecked})`,
+                )
               )}
             </dl>
           </section>

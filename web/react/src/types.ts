@@ -109,6 +109,9 @@ export interface LiveBucket {
   claimed_real_avg?: number;
   claimed_diff_avg?: number;
   claimed_diff_pct?: number;
+  claimed_checked?: number;
+  claimed_matched?: number;
+  claimed_accuracy_pct?: number;
   failed: FailStats;
 }
 
