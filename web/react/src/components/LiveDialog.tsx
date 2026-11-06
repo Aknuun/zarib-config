@@ -31,9 +31,10 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
     : null;
   const failed = bucket?.failed || {};
   const failedTotal = Number(failed.total) || 0;
+  const ignored = Number(failed.ignored) || 0;
   const tests = Number(bucket?.tests) || 0;
-  const success = Math.max(0, tests - failedTotal);
-  const successRate = tests > 0 ? `${success} (${Math.round((success / tests) * 100)}%)` : "0";
+  const realAttempts = tests + failedTotal;
+  const successRate = realAttempts > 0 ? `${tests} (${Math.round((tests / realAttempts) * 100)}%)` : "0";
   const claimedTests = Number(bucket?.claimed_tests) || 0;
   const signedPct = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 
@@ -100,6 +101,7 @@ export function LiveDialog({ open, onOpenChange, lang, live }: LiveDialogProps) 
               {row(t("statTests"), live ? String(tests) : "—")}
               {row(t("statSuccess"), live ? successRate : "—")}
               {row(t("statFailed"), live ? String(failedTotal) : "—")}
+              {row(t("statIgnored"), live ? String(ignored) : "—")}
               {row(t("statWithRatio"), live ? String(bucket?.with_ratio || 0) : "—")}
               {row(t("statNormal"), live ? String(bucket?.normal || 0) : "—")}
               {row(t("statInvalid"), live ? String(bucket?.invalid || 0) : "—")}

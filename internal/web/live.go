@@ -31,6 +31,7 @@ type failStats struct {
 	Timeout int `json:"timeout,omitempty"`
 	Usage   int `json:"usage,omitempty"`
 	Other   int `json:"other,omitempty"`
+	Ignored int `json:"ignored,omitempty"`
 }
 
 type statBucket struct {
@@ -140,6 +141,7 @@ func (b *statBucket) add(other *statBucket) {
 	b.Failed.Timeout += other.Failed.Timeout
 	b.Failed.Usage += other.Failed.Usage
 	b.Failed.Other += other.Failed.Other
+	b.Failed.Ignored += other.Failed.Ignored
 	for key := range other.IPs {
 		b.addIP(key)
 	}
@@ -177,11 +179,21 @@ func (b *statBucket) addResult(result *ratio.Result, tunnel *bool) {
 }
 
 func (b *statBucket) addFail(code string) {
+	switch code {
+	case "invalid_url", "blocked_url", "not_subscription",
+		"subscription_expired", "subscription_limited", "subscription_not_found",
+		"subscription_unauthorized", "subscription_rate_limited", "subscription_broken",
+		"no_configs", "pick_out_of_range", "duplicate_test", "xray_incompatible",
+		"ipv6_unavailable", "blocked_target", "resolve_failed", "cancelled",
+		"invalid_input", "busy":
+		b.Failed.Ignored++
+		return
+	}
 	b.Failed.Total++
 	switch code {
-	case "probe_failed", "resolve_failed", "blocked_target", "ipv6_unavailable":
+	case "probe_failed":
 		b.Failed.Connect++
-	case "fetch_failed", "subscription_timeout", "no_configs", "pick_out_of_range":
+	case "fetch_failed", "subscription_timeout", "subscription_unavailable":
 		b.Failed.Fetch++
 	case "xray_failed":
 		b.Failed.Core++

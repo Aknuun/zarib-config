@@ -231,7 +231,7 @@ func TestRecordJobErrorClassifiesFailures(t *testing.T) {
 	s.mu.Unlock()
 	for name, stats := range map[string]statBucket{"hour": hour, "day": day, "total": total} {
 		failed := stats.Failed
-		if failed.Total != 7 || failed.Connect != 2 || failed.Fetch != 1 || failed.Core != 1 || failed.Timeout != 1 || failed.Usage != 1 || failed.Other != 1 {
+		if failed.Total != 6 || failed.Connect != 1 || failed.Fetch != 1 || failed.Core != 1 || failed.Timeout != 1 || failed.Usage != 1 || failed.Other != 1 || failed.Ignored != 1 {
 			t.Fatalf("unexpected %s failure stats: %+v", name, failed)
 		}
 	}

@@ -87,6 +87,7 @@ export interface FailStats {
   timeout?: number;
   usage?: number;
   other?: number;
+  ignored?: number;
 }
 
 export interface LiveBucket {
