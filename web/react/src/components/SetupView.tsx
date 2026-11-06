@@ -16,7 +16,7 @@ import type { SubConfig, SubState } from "../types";
 import type { Lang } from "../i18n";
 import { translate } from "../i18n";
 import { delayTarget, geoTarget } from "../api";
-import { copyText, PAGE_SIZE } from "../utils";
+import { copyText } from "../utils";
 
 interface SetupViewProps {
   lang: Lang;
@@ -55,12 +55,7 @@ export function SetupView({
     translate(lang, key, vars);
   const [busy, setBusy] = useState<Record<number, "ping" | "tunnel">>({});
   const [bulk, setBulk] = useState<"ping" | "tunnel" | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const lastDelayKey = useRef("");
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [sub.url]);
 
 
   async function runPing(config: SubConfig) {
@@ -258,7 +253,7 @@ export function SetupView({
           </div>
 
           <div className="z-config-list" role="group" aria-label={t("configs")}>
-            {sub.configs.slice(0, visibleCount).map((config) => {
+            {sub.configs.map((config) => {
               const isSelected = selected.has(config.index);
               const isBusy = busy[config.index];
               const name = config.remark || config.target || `#${config.index}`;
@@ -374,20 +369,6 @@ export function SetupView({
               );
             })}
           </div>
-          {visibleCount < sub.configs.length && (
-            <div className="mt-2 flex justify-center">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="min-h-11"
-                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-              >
-                {t("loadMoreN", {
-                  n: Math.min(PAGE_SIZE, sub.configs.length - visibleCount),
-                })}
-              </Button>
-            </div>
-          )}
         </section>
 
         <aside className="z-setup-side">
