@@ -170,13 +170,8 @@ func subProxyURL() *url.URL {
 // fallbacks that reuse its credentials.
 func subProxyURLs() []*url.URL {
 	base := subProxyURL()
+	rawFirst := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_FIRST"))
 	rawHosts := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_HOSTS"))
-	if rawHosts == "" {
-		if base == nil {
-			return nil
-		}
-		return []*url.URL{base}
-	}
 	var out []*url.URL
 	seen := map[string]bool{}
 	add := func(proxy *url.URL) {
@@ -185,6 +180,19 @@ func subProxyURLs() []*url.URL {
 		}
 		seen[proxy.String()] = true
 		out = append(out, proxy)
+	}
+	for _, raw := range strings.Split(rawFirst, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		if !strings.Contains(raw, "://") {
+			raw = "http://" + raw
+		}
+		proxy, err := url.Parse(raw)
+		if err == nil {
+			add(proxy)
+		}
 	}
 	add(base)
 	for _, host := range strings.Split(rawHosts, ",") {
@@ -198,12 +206,12 @@ func subProxyURLs() []*url.URL {
 			add(&clone)
 			continue
 		}
-		raw := host
-		if !strings.Contains(raw, "://") {
-			raw = "http://" + raw
+		if !strings.Contains(host, "://") {
+			host = "http://" + host
 		}
-		if parsed, err := url.Parse(raw); err == nil {
-			add(parsed)
+		proxy, err := url.Parse(host)
+		if err == nil {
+			add(proxy)
 		}
 	}
 	return out
@@ -545,7 +553,9 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 			markProxy(proxy, true)
 			return retryBody, retryHeaders, true, nil
 		}
-		markProxy(proxy, false)
+		if !proxyTargetError(retryErr) {
+			markProxy(proxy, false)
+		}
 	}
 	finalTimeout := 30 * time.Second
 	if timeout > finalTimeout {
@@ -569,7 +579,7 @@ var (
 )
 
 const (
-	proxyFailureLimit = 3
+	proxyFailureLimit = 1
 	proxyCooldown     = 5 * time.Minute
 )
 
@@ -581,6 +591,19 @@ func proxyAllowed(proxy *url.URL) bool {
 	defer proxyHealthMu.Unlock()
 	state := proxyHealth[proxy.Host]
 	return state.until.IsZero() || time.Now().After(state.until)
+}
+
+func proxyTargetError(err error) bool {
+	var subErr *SubscriptionError
+	if errors.As(err, &subErr) {
+		switch subErr.Code {
+		case "subscription_not_found", "subscription_broken", "subscription_unauthorized",
+			"subscription_expired", "subscription_limited", "subscription_rate_limited",
+			"no_configs", "not_subscription":
+			return true
+		}
+	}
+	return false
 }
 
 func markProxy(proxy *url.URL, ok bool) {
