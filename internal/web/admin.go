@@ -528,6 +528,26 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
 .btn.danger:hover { background: color-mix(in oklab, var(--bad) 8%, var(--tile)); }
 .inline-form { margin: 0; }
 @media (max-width: 640px) { .desc { min-width: 180px; } th, td { padding: 8px 10px; } }
+
+/* Spacious, sectioned admin layout. */
+body { font-size: 15px; }
+main { gap: 28px; max-width: 1500px; }
+.section-head { align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--recessed); }
+.section-head h2 { font-size: 23px; }
+.section-head p { font-size: 13px; }
+.tile { padding: 22px; }
+.stats dt { font-size: 12px; }
+.stats dd { font-size: 17px; }
+table { font-size: 14px; }
+th, td { padding: 12px 14px; }
+th { font-size: 12px; }
+.z-ui-form label { font-size: 13px; }
+.z-ui-form select, .z-ui-form input[type="number"], .z-ui-form input[type="text"], .z-ui-form input[type="password"], .z-ui-form textarea { min-height: 38px; font-size: 14px; }
+.admin-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 28px; }
+.admin-content { display: flex; flex-direction: column; gap: 26px; }
+.admin-nav summary { font-size: 15px; }
+.admin-nav nav a { font-size: 14px; padding: 10px 12px; }
+@media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
