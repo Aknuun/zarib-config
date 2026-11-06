@@ -185,6 +185,7 @@ func Run(addr, staticDir string) error {
 		geoCache:        map[string]geoEntry{},
 		sem:             make(chan struct{}, maxActive),
 	}
+	s.validateEnv()
 	s.loadStats()
 	s.loadBlockedIPs()
 	s.loadUISettings()
@@ -1320,4 +1321,24 @@ func minFloat(a, b float64) float64 {
 		return a
 	}
 	return b
+}
+
+func (s *server) validateEnv() {
+	if (s.adminUser == "") != (s.adminPassword == "") {
+		fmt.Println("config: ADMIN_USER and ADMIN_PASSWORD must both be set; admin is disabled")
+	}
+	if (s.telegramToken == "") != (s.telegramChatID == "") {
+		fmt.Println("config: ZARIB_TELEGRAM_TOKEN and ZARIB_TELEGRAM_CHAT_ID must both be set")
+	}
+	if raw := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY")); raw != "" && !strings.Contains(raw, "://") {
+		fmt.Println("config: ZARIB_SUB_PROXY must be an http(s) URL")
+	}
+	for _, entry := range strings.Split(os.Getenv("ZARIB_SUB_PROXY_HOSTS"), ",") {
+		if strings.TrimSpace(entry) == "" {
+			continue
+		}
+		if !strings.Contains(entry, ":") {
+			fmt.Printf("config: proxy host %q should be host:port\n", entry)
+		}
+	}
 }

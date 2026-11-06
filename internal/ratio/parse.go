@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -509,6 +510,16 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 // FetchMeta reads a subscription directly and, when proxies are configured,
 // retries through each proxy in order if the direct attempt fails.
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
+	started := time.Now()
+	host := ""
+	if u, err := url.Parse(rawURL); err == nil {
+		host = u.Hostname()
+	}
+	defer func() {
+		if os.Getenv("ZARIB_FETCH_LOG") == "1" {
+			fmt.Printf("fetch: host=%s duration=%s\n", host, time.Since(started).Round(time.Millisecond))
+		}
+	}()
 	proxies := subProxyURLs()
 	directTimeout := 4 * time.Second
 	if timeout > 0 && timeout < directTimeout {
@@ -522,13 +533,19 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 		return nil, nil, false, err
 	}
 	for index, proxy := range proxies {
+		if !proxyAllowed(proxy) {
+			continue
+		}
 		attemptTimeout := 3 * time.Second
 		if index == 0 {
 			attemptTimeout = 2 * time.Second
 		}
-		if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy); retryErr == nil {
+		retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy)
+		if retryErr == nil {
+			markProxy(proxy, true)
 			return retryBody, retryHeaders, true, nil
 		}
+		markProxy(proxy, false)
 	}
 	finalTimeout := 30 * time.Second
 	if timeout > finalTimeout {
@@ -539,6 +556,50 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 		return body, headers, false, nil
 	}
 	return nil, nil, false, err
+}
+
+type proxyState struct {
+	failures int
+	until    time.Time
+}
+
+var (
+	proxyHealthMu sync.Mutex
+	proxyHealth   = map[string]proxyState{}
+)
+
+const (
+	proxyFailureLimit = 3
+	proxyCooldown     = 5 * time.Minute
+)
+
+func proxyAllowed(proxy *url.URL) bool {
+	if proxy == nil {
+		return false
+	}
+	proxyHealthMu.Lock()
+	defer proxyHealthMu.Unlock()
+	state := proxyHealth[proxy.Host]
+	return state.until.IsZero() || time.Now().After(state.until)
+}
+
+func markProxy(proxy *url.URL, ok bool) {
+	if proxy == nil {
+		return
+	}
+	proxyHealthMu.Lock()
+	defer proxyHealthMu.Unlock()
+	if ok {
+		delete(proxyHealth, proxy.Host)
+		return
+	}
+	state := proxyHealth[proxy.Host]
+	state.failures++
+	if state.failures >= proxyFailureLimit {
+		state.until = time.Now().Add(proxyCooldown)
+		state.failures = 0
+	}
+	proxyHealth[proxy.Host] = state
 }
 
 var integerPattern = regexp.MustCompile(`^\d+$`)

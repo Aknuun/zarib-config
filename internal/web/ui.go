@@ -12,6 +12,7 @@ import (
 // uiSettings is site-wide presentation state. It is public (the browser needs
 // it) and contains no secrets.
 type uiSettings struct {
+	Version    int    `json:"version,omitempty"`
 	Animations string `json:"animations"`
 	Page       bool   `json:"page"`
 	Rows       bool   `json:"rows"`
@@ -23,6 +24,7 @@ type uiSettings struct {
 
 func defaultUISettings() uiSettings {
 	return uiSettings{
+		Version:    1,
 		Animations: "full",
 		Page:       true,
 		Rows:       true,
@@ -34,6 +36,7 @@ func defaultUISettings() uiSettings {
 }
 
 func normalizeUISettings(value uiSettings) uiSettings {
+	value.Version = 1
 	switch value.Animations {
 	case "full", "light", "off":
 	default:

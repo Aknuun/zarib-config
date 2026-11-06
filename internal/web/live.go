@@ -62,6 +62,7 @@ type statBucket struct {
 const maxUniqueIPs = 20000
 
 type liveStats struct {
+	Version     int                    `json:"version,omitempty"`
 	Hours       map[string]*statBucket `json:"hours,omitempty"`
 	Days        map[string]*statBucket `json:"days,omitempty"`
 	Total       statBucket             `json:"total"`
@@ -480,6 +481,7 @@ func (s *server) saveStatsLocked() {
 		return
 	}
 	s.pruneStatsLocked(time.Now())
+	s.live.Version = 1
 	content, err := json.Marshal(s.live)
 	if err != nil {
 		return
