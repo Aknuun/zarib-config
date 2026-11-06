@@ -423,7 +423,7 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
       <div class="lines">
         <p>تانل <b>{{.Tunnel}}</b> · غیرتانل <b>{{.NonTunnel}}</b> · نامشخص <b>{{.Unknown}}</b></p>
         <p>خطاها <b>{{.Failed.Total}}</b> · اتصال <b>{{.Failed.Connect}}</b> · ساب <b>{{.Failed.Fetch}}</b> · هسته <b>{{.Failed.Core}}</b> · تایم‌اوت <b>{{.Failed.Timeout}}</b> · بدون تغییر <b>{{.Failed.Usage}}</b> · سایر <b>{{.Failed.Other}}</b> · خارج از محاسبه <b>{{.Failed.Ignored}}</b></p>
-        <p>ادعایی <b>{{if .ClaimedTests}}{{printf "%.2f" .ClaimedAvg}}×{{else}}—{{end}}</b> · واقعی <b>{{if .ClaimedHasDiff}}{{printf "%.2f" .RealAvg}}×{{else}}—{{end}}</b> · اختلاف <b>{{if .ClaimedHasDiff}}{{printf "%+.1f%%" .ClaimedDiffPct}}{{else}}—{{end}}</b>{{if .ClaimedTests}} ({{.ClaimedTests}} تست){{end}}</p>
+        <p>ادعایی <b>{{if .ClaimedTests}}{{printf "%.2f" .ClaimedAvg}}×{{else}}—{{end}}</b> · واقعی <b>{{if .ClaimedHasDiff}}{{printf "%.2f" .RealAvg}}×{{else}}—{{end}}</b> · نسبت واقعی/ادعایی <b>{{if .ClaimedHasDiff}}{{printf "%+.1f%%" .ClaimedDiffPct}}{{else}}—{{end}}</b>{{if .ClaimedTests}} ({{.ClaimedTests}} تست){{end}}</p>
       </div>
     </article>
     {{end}}
