@@ -509,6 +509,15 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
 .z-settings-form .z-settings-row > label { flex: 1 1 220px; }
 .z-settings-form .z-settings-check { flex-direction: row; align-items: center; gap: 6px; }
 .z-settings-form .z-settings-note { margin: 0; color: var(--muted); font-size: 11px; }
+.admin-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; }
+.admin-side { position: sticky; top: 80px; align-self: start; }
+.admin-nav { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--tile); box-shadow: var(--shadow); }
+.admin-nav summary { padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 700; cursor: pointer; list-style: none; }
+.admin-nav summary::-webkit-details-marker { display: none; }
+.admin-nav nav { display: flex; flex-direction: column; gap: 2px; padding: 6px; }
+.admin-nav a { padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 13px; }
+.admin-nav a:hover { background: var(--recessed); color: var(--brand); }
+@media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } .admin-side { position: static; } }
 .empty { padding: 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
 .z-failure-search { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .z-failure-search input { flex: 1 1 260px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; }
@@ -535,7 +544,24 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   </div>
 </header>
 <main>
-  <section>
+<div class="admin-layout">
+<aside class="admin-side">
+  <details class="admin-nav" open>
+    <summary>منوی مدیریت</summary>
+    <nav>
+      <a href="#stats">آمار</a>
+      <a href="#animations">انیمیشن‌ها</a>
+      <a href="#proxies">پروکسی‌ها</a>
+      <a href="#telegram">تلگرام</a>
+      <a href="#credentials">رمز ادمین</a>
+      <a href="#repeat-ips">IPهای پرتکرار</a>
+      <a href="#reports">گزارش‌های خطا</a>
+      <a href="#failures">خطاهای تست</a>
+    </nav>
+  </details>
+</aside>
+<div class="admin-content">
+  <section id="stats">
     <div class="section-head"><h2>آمار</h2><p>۲۴ ساعت، ۷ روز، ۳۰ روز و کل</p></div>
   </section>
   <div class="grid">
@@ -675,7 +701,7 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   <p class="empty">IP پرتکراری در ۲۴ ساعت اخیر نیست.</p>
   {{end}}
 
-  <section>
+  <section id="reports">
     <div class="section-head"><h2>گزارش‌های خطا</h2><p>{{len .Reports}} گزارش</p></div>
   </section>
   {{if .Reports}}
@@ -786,6 +812,6 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
   {{else}}
   <p class="empty">{{if .FailureQuery}}خطایی با این جستجو پیدا نشد.{{else}}هنوز خطایی ثبت نشده است.{{end}}</p>
   {{end}}
-</main>
+</div></div></main>
 </body>
 </html>`
