@@ -509,89 +509,36 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 // FetchMeta reads a subscription directly and, when proxies are configured,
 // retries through each proxy in order if the direct attempt fails.
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
-	if slowDirectHost(rawURL) {
-		if slow := slowDirectTimeout(); slow > timeout {
-			timeout = slow
-		}
-	}
 	proxies := subProxyURLs()
-	directTimeout := timeout
-	if len(proxies) > 0 && !slowDirectHost(rawURL) && directTimeout > 4*time.Second {
-		directTimeout = 4 * time.Second
+	directTimeout := 4 * time.Second
+	if timeout > 0 && timeout < directTimeout {
+		directTimeout = timeout
 	}
-	deadline := time.Now().Add(timeout)
 	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
 	if err == nil {
 		return body, headers, false, nil
-	}
-	if len(proxies) == 0 {
-		return body, headers, false, err
 	}
 	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription") {
 		return nil, nil, false, err
 	}
 	for index, proxy := range proxies {
-		remaining := time.Until(deadline)
-		if remaining < 2*time.Second {
-			break
-		}
-		attemptTimeout := remaining
-		cap := 4 * time.Second
-		// The primary proxy gets a short try; slow fallbacks (the 204 relay
-		// needs ~3s) get enough room to finish.
+		attemptTimeout := 3 * time.Second
 		if index == 0 {
-			cap = 2 * time.Second
-		}
-		if attemptTimeout > cap {
-			attemptTimeout = cap
+			attemptTimeout = 2 * time.Second
 		}
 		if retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy); retryErr == nil {
 			return retryBody, retryHeaders, true, nil
 		}
 	}
+	finalTimeout := 30 * time.Second
+	if timeout > finalTimeout {
+		finalTimeout = timeout
+	}
+	body, headers, err = fetchSubscription(rawURL, finalTimeout, nil)
+	if err == nil {
+		return body, headers, false, nil
+	}
 	return nil, nil, false, err
-}
-
-// slowDirectHost lets a host that tunnels through Iran wait for the full
-// direct timeout instead of the short 4s cap used while proxies are configured.
-func slowDirectHost(rawURL string) bool {
-	raw := strings.TrimSpace(os.Getenv("ZARIB_SLOW_DIRECT_HOSTS"))
-	if raw == "" {
-		return false
-	}
-	target, err := url.Parse(rawURL)
-	if err != nil {
-		return false
-	}
-	host := strings.ToLower(target.Hostname())
-	for _, entry := range strings.Split(raw, ",") {
-		entry = strings.ToLower(strings.TrimSpace(entry))
-		if entry == "" {
-			continue
-		}
-		if strings.Contains(entry, ":") {
-			if entry == strings.ToLower(target.Host) {
-				return true
-			}
-			continue
-		}
-		if entry == host {
-			return true
-		}
-	}
-	return false
-}
-
-func slowDirectTimeout() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("ZARIB_SLOW_DIRECT_TIMEOUT"))
-	if raw == "" {
-		return 45 * time.Second
-	}
-	value, err := time.ParseDuration(raw)
-	if err != nil || value <= 0 {
-		return 45 * time.Second
-	}
-	return value
 }
 
 var integerPattern = regexp.MustCompile(`^\d+$`)
