@@ -53,6 +53,10 @@ type job struct {
 	Picks          []int
 	SizeMB         float64
 	Core           string
+	Wait           int
+	Drift          int
+	Claimed        *float64
+	Sync           bool
 	IP             string
 	SubKey         string
 	SubURL         string
@@ -70,6 +74,7 @@ var publicURLFn = ratio.IsPublicURL
 type server struct {
 	staticDir       string
 	jobsDir         string
+	jobsFile        string
 	statsFile       string
 	reportsFile     string
 	failuresFile    string
@@ -155,17 +160,10 @@ func Run(addr, staticDir string) error {
 	if err := os.MkdirAll(jobsDir, 0o700); err != nil {
 		return err
 	}
-	if entries, err := os.ReadDir(jobsDir); err == nil {
-		cutoff := time.Now().Add(-time.Hour)
-		for _, entry := range entries {
-			if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
-				_ = os.RemoveAll(filepath.Join(jobsDir, entry.Name()))
-			}
-		}
-	}
 	s := &server{
 		staticDir:       absoluteStatic,
 		jobsDir:         jobsDir,
+		jobsFile:        filepath.Join(cacheRoot, "jobs.json"),
 		statsFile:       filepath.Join(cacheRoot, "stats.json"),
 		reportsFile:     filepath.Join(cacheRoot, "reports.jsonl"),
 		failuresFile:    filepath.Join(cacheRoot, "failures.jsonl"),
@@ -189,6 +187,8 @@ func Run(addr, staticDir string) error {
 	s.loadStats()
 	s.loadBlockedIPs()
 	s.loadUISettings()
+	s.loadJobs()
+	s.cleanupJobDirs()
 	go s.pruneLoop()
 	fmt.Printf("zarib-config web listening on %s\n", addr)
 	httpServer := &http.Server{
@@ -582,8 +582,10 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	item := &job{
 		ID: jobID, Status: "queued", Stage: "queued", Progress: 0, Created: now,
-		Mode: mode, Pick: pick, Picks: picks, SizeMB: sizeMB, Core: core, IP: ip, SubKey: subKey,
-		SubURL: subURL, UserAgent: r.UserAgent(), AcceptLanguage: r.Header.Get("Accept-Language"),
+		Mode: mode, Pick: pick, Picks: picks, SizeMB: sizeMB, Core: core,
+		Wait: wait, Drift: drift, Claimed: payload.Claimed, Sync: syncMode,
+		IP: ip, SubKey: subKey, SubURL: subURL,
+		UserAgent: r.UserAgent(), AcceptLanguage: r.Header.Get("Accept-Language"),
 		Dir: jobDir, SubFile: subFile, ResultFile: filepath.Join(jobDir, "result.json"),
 		ControlFile: controlFile,
 	}
@@ -610,12 +612,13 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.jobs[jobID] = item
+	s.saveJobsLocked()
 	s.mu.Unlock()
-	go s.runJob(jobID, wait, drift, payload.Claimed, syncMode, batch)
+	go s.runJob(jobID)
 	writeJSON(w, http.StatusOK, map[string]any{"id": jobID, "status": "queued"})
 }
 
-func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMode bool, batch bool) {
+func (s *server) runJob(jobID string) {
 	s.sem <- struct{}{}
 	defer func() { <-s.sem }()
 	s.mu.Lock()
@@ -630,6 +633,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 		finished := nowSeconds()
 		item.Finished = &finished
 		jobDir := item.Dir
+		s.saveJobsLocked()
 		s.mu.Unlock()
 		os.RemoveAll(jobDir)
 		return
@@ -642,6 +646,9 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 	subFile, resultFile, jobDir, controlFile := item.SubFile, item.ResultFile, item.Dir, item.ControlFile
 	pick, sizeMB, core := item.Pick, item.SizeMB, item.Core
 	picks := item.Picks
+	wait, drift, claimed, syncMode := item.Wait, item.Drift, item.Claimed, item.Sync
+	batch := item.Mode == "batch"
+	s.saveJobsLocked()
 	s.mu.Unlock()
 	executable, err := os.Executable()
 	if err != nil {
@@ -713,6 +720,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 			current.ErrorCode = "cancelled"
 			current.Child = nil
 		}
+		s.saveJobsLocked()
 		s.mu.Unlock()
 		os.RemoveAll(jobDir)
 		return
@@ -767,6 +775,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 			current.ErrorCode = "cancelled"
 			current.Child = nil
 		}
+		s.saveJobsLocked()
 		s.mu.Unlock()
 	} else if exitCode == 0 {
 		content, readErr := os.ReadFile(resultFile)
@@ -790,6 +799,7 @@ func (s *server) runJob(jobID string, wait, drift int, claimed *float64, syncMod
 					current.Child = nil
 					doneTunnel = nil
 				}
+				s.saveJobsLocked()
 				s.mu.Unlock()
 				s.recordResult(&result, doneTunnel)
 			}
@@ -814,6 +824,7 @@ func (s *server) finishError(jobID, code, message string) {
 	current.Error = redactURLs(message)
 	current.ErrorCode = code
 	current.Child = nil
+	s.saveJobsLocked()
 	failure := storedFailure{
 		Source: "job", JobID: current.ID, Mode: current.Mode, Pick: current.Pick,
 		Picks: append([]int(nil), current.Picks...), SizeMB: current.SizeMB, Core: current.Core,
@@ -975,6 +986,7 @@ func (s *server) cancelJob(w http.ResponseWriter, jobID string) {
 		current.Error = "Cancelled."
 		current.ErrorCode = "cancelled"
 		queuedDir = current.Dir
+		s.saveJobsLocked()
 	}
 	s.mu.Unlock()
 	if child != nil {
