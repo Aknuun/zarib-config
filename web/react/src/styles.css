@@ -1886,3 +1886,6 @@ html[lang="en"] .z-hero-title {
     transition: none !important;
   }
 }
+
+.z-inline-slow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.z-inline-slow .z-page-sub { margin: 0; }

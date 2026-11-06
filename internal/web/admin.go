@@ -383,6 +383,7 @@ details summary::-webkit-details-marker { display: none; }
 pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .z-ui-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .z-ui-form label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.z-ui-form input[type="number"] { width: 92px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); color: var(--text); font: inherit; }
 .z-ui-form select { min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); color: var(--text); font: inherit; }
 .z-ui-form .z-ui-checks { display: flex; flex-wrap: wrap; gap: 10px 14px; flex: 1 1 320px; }
 .z-ui-form input[type="checkbox"] { accent-color: var(--brand); }
@@ -447,6 +448,9 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
           <option value="light" {{if eq .UI.Animations "light"}}selected{{end}}>سبک</option>
           <option value="off" {{if eq .UI.Animations "off"}}selected{{end}}>خاموش</option>
         </select>
+      </label>
+      <label>حد آنلاین پینگ خودکار
+        <input name="auto_delay_max_online" type="number" min="0" max="10000" value="{{.UI.AutoDelayMaxOnline}}">
       </label>
       <div class="z-ui-checks">
         <label><input type="checkbox" name="page" {{if .UI.Page}}checked{{end}}> ورود صفحه‌ها</label>

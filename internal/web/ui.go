@@ -6,37 +6,43 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 // uiSettings is site-wide presentation state. It is public (the browser needs
 // it) and contains no secrets.
 type uiSettings struct {
-	Version    int    `json:"version,omitempty"`
-	Animations string `json:"animations"`
-	Page       bool   `json:"page"`
-	Rows       bool   `json:"rows"`
-	Chips      bool   `json:"chips"`
-	Result     bool   `json:"result"`
-	Buttons    bool   `json:"buttons"`
-	Tiles      bool   `json:"tiles"`
+	Version            int    `json:"version,omitempty"`
+	Animations         string `json:"animations"`
+	Page               bool   `json:"page"`
+	Rows               bool   `json:"rows"`
+	Chips              bool   `json:"chips"`
+	Result             bool   `json:"result"`
+	Buttons            bool   `json:"buttons"`
+	Tiles              bool   `json:"tiles"`
+	AutoDelayMaxOnline int    `json:"auto_delay_max_online"`
 }
 
 func defaultUISettings() uiSettings {
 	return uiSettings{
-		Version:    1,
-		Animations: "full",
-		Page:       true,
-		Rows:       true,
-		Chips:      true,
-		Result:     true,
-		Buttons:    true,
-		Tiles:      true,
+		Version:            1,
+		Animations:         "full",
+		Page:               true,
+		Rows:               true,
+		Chips:              true,
+		Result:             true,
+		Buttons:            true,
+		Tiles:              true,
+		AutoDelayMaxOnline: 20,
 	}
 }
 
 func normalizeUISettings(value uiSettings) uiSettings {
 	value.Version = 1
+	if value.AutoDelayMaxOnline < 0 {
+		value.AutoDelayMaxOnline = 20
+	}
 	switch value.Animations {
 	case "full", "light", "off":
 	default:
@@ -57,7 +63,7 @@ func (s *server) loadUISettings() {
 		}
 		return
 	}
-	var value uiSettings
+	value := defaultUISettings()
 	if err := json.Unmarshal(data, &value); err != nil {
 		fmt.Printf("ui: could not parse settings: %v\n", err)
 		return
@@ -123,6 +129,15 @@ func (s *server) adminUI(w http.ResponseWriter, r *http.Request) {
 		Result:     r.FormValue("result") == "on",
 		Buttons:    r.FormValue("buttons") == "on",
 		Tiles:      r.FormValue("tiles") == "on",
+	}
+	if value, err := strconv.Atoi(strings.TrimSpace(r.FormValue("auto_delay_max_online"))); err == nil {
+		if value < 0 {
+			value = 0
+		}
+		if value > 10000 {
+			value = 10000
+		}
+		next.AutoDelayMaxOnline = value
 	}
 	next = normalizeUISettings(next)
 	s.uiMu.Lock()

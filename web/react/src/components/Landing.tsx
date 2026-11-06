@@ -100,6 +100,14 @@ export function Landing({
             <div id="sub-error" className="z-inline-error" role="alert">
               <p>{error.message}</p>
               <p className="z-error-note">{t("errorAutoReported")}</p>
+              {error.message.toLowerCase().includes("timed out") && (
+                <div className="z-inline-slow">
+                  <p className="z-page-sub">{t("slowSubNote")}</p>
+                  <Button variant="secondary" onClick={() => onInspect()}>
+                    {t("slowSubRetry")}
+                  </Button>
+                </div>
+              )}
               {error.detail && (
                 <details className="z-details z-details-tight">
                   <summary>{t("details")}</summary>

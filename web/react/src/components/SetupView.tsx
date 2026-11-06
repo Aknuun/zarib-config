@@ -24,6 +24,7 @@ interface SetupViewProps {
   selected: Set<number>;
   size: number;
   bg: boolean;
+  autoDelay: boolean;
   starting: boolean;
   onToggle: (index: number) => void;
   onRemove: () => void;
@@ -41,6 +42,7 @@ export function SetupView({
   selected,
   size,
   bg,
+  autoDelay,
   starting,
   onToggle,
   onRemove,
@@ -157,6 +159,10 @@ export function SetupView({
   }
 
   useEffect(() => {
+    if (!autoDelay) {
+      lastDelayKey.current = "";
+      return;
+    }
     const key = `${sub.host}:${sub.count}`;
     const needsDelay = sub.configs.some((config) => config.pingMs === undefined);
     if (!sub.count || !needsDelay || lastDelayKey.current === key) return;
@@ -164,7 +170,7 @@ export function SetupView({
     void runPingAll(true);
     // The key changes only when a new subscription list is loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sub.host, sub.count]);
+  }, [sub.host, sub.count, autoDelay]);
 
   const hasNoResponseSelected = sub.configs.some(
     (config) => selected.has(config.index) && config.pingMs === null,

@@ -517,29 +517,12 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 
 // FetchMeta reads a subscription directly and, when proxies are configured,
 // retries through each proxy in order if the direct attempt fails.
+func fatalSubscriptionError(err error) bool {
+	return strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription")
+}
+
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
-	started := time.Now()
-	host := ""
-	if u, err := url.Parse(rawURL); err == nil {
-		host = u.Hostname()
-	}
-	defer func() {
-		if os.Getenv("ZARIB_FETCH_LOG") == "1" {
-			fmt.Printf("fetch: host=%s duration=%s\n", host, time.Since(started).Round(time.Millisecond))
-		}
-	}()
 	proxies := subProxyURLs()
-	directTimeout := 4 * time.Second
-	if timeout > 0 && timeout < directTimeout {
-		directTimeout = timeout
-	}
-	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
-	if err == nil {
-		return body, headers, false, nil
-	}
-	if strings.Contains(err.Error(), "Invalid subscription URL") || strings.Contains(err.Error(), "Blocked") || strings.Contains(err.Error(), "not a subscription") {
-		return nil, nil, false, err
-	}
 	for index, proxy := range proxies {
 		if !proxyAllowed(proxy) {
 			continue
@@ -548,15 +531,31 @@ func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool,
 		if index == 0 {
 			attemptTimeout = 2 * time.Second
 		}
-		retryBody, retryHeaders, retryErr := fetchSubscription(rawURL, attemptTimeout, proxy)
-		if retryErr == nil {
+		body, headers, err := fetchSubscription(rawURL, attemptTimeout, proxy)
+		if err == nil {
 			markProxy(proxy, true)
-			return retryBody, retryHeaders, true, nil
+			return body, headers, true, nil
 		}
-		if !proxyTargetError(retryErr) {
+		if fatalSubscriptionError(err) {
+			return nil, nil, false, err
+		}
+		if !proxyTargetError(err) {
 			markProxy(proxy, false)
 		}
 	}
+
+	directTimeout := 4 * time.Second
+	if timeout > 0 && timeout < directTimeout {
+		directTimeout = timeout
+	}
+	body, headers, err := fetchSubscription(rawURL, directTimeout, nil)
+	if err == nil {
+		return body, headers, false, nil
+	}
+	if fatalSubscriptionError(err) {
+		return nil, nil, false, err
+	}
+
 	finalTimeout := 30 * time.Second
 	if timeout > finalTimeout {
 		finalTimeout = timeout
@@ -584,45 +583,49 @@ const (
 )
 
 func proxyAllowed(proxy *url.URL) bool {
-	if proxy == nil {
-		return false
-	}
+	key := proxy.Host
 	proxyHealthMu.Lock()
 	defer proxyHealthMu.Unlock()
-	state := proxyHealth[proxy.Host]
-	return state.until.IsZero() || time.Now().After(state.until)
-}
-
-func proxyTargetError(err error) bool {
-	var subErr *SubscriptionError
-	if errors.As(err, &subErr) {
-		switch subErr.Code {
-		case "subscription_not_found", "subscription_broken", "subscription_unauthorized",
-			"subscription_expired", "subscription_limited", "subscription_rate_limited",
-			"no_configs", "not_subscription":
-			return true
-		}
+	state, ok := proxyHealth[key]
+	if !ok {
+		return true
+	}
+	if time.Now().After(state.until) {
+		delete(proxyHealth, key)
+		return true
 	}
 	return false
 }
 
 func markProxy(proxy *url.URL, ok bool) {
-	if proxy == nil {
-		return
-	}
+	key := proxy.Host
 	proxyHealthMu.Lock()
 	defer proxyHealthMu.Unlock()
 	if ok {
-		delete(proxyHealth, proxy.Host)
+		delete(proxyHealth, key)
 		return
 	}
-	state := proxyHealth[proxy.Host]
+	state := proxyHealth[key]
 	state.failures++
 	if state.failures >= proxyFailureLimit {
 		state.until = time.Now().Add(proxyCooldown)
 		state.failures = 0
 	}
-	proxyHealth[proxy.Host] = state
+	proxyHealth[key] = state
+}
+
+func proxyTargetError(err error) bool {
+	var subErr *SubscriptionError
+	if !errors.As(err, &subErr) {
+		return false
+	}
+	switch subErr.Code {
+	case "subscription_not_found", "subscription_broken", "subscription_unauthorized",
+		"subscription_expired", "subscription_limited", "subscription_rate_limited",
+		"no_configs", "not_subscription":
+		return true
+	}
+	return false
 }
 
 var integerPattern = regexp.MustCompile(`^\d+$`)

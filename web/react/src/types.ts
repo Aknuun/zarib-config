@@ -180,4 +180,5 @@ export interface UISettings {
   result: boolean;
   buttons: boolean;
   tiles: boolean;
+  auto_delay_max_online: number;
 }

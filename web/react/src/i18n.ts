@@ -185,6 +185,8 @@ const fa = {
   testedAt: "زمان تست",
 
   errorTitle: "تست انجام نشد",
+  slowSubNote: "این ساب دیر جواب می‌دهد؛ مشکل از سایت نیست.",
+  slowSubRetry: "صبر می‌کنم تا ساب جواب دهد",
   errorAutoReported: "این خطا خودکار برای سازنده ثبت و ارسال شد؛ احتمالاً حل می‌شود. لطفاً بعداً دوباره بررسی کنید.",
   errorSuggestDefault: "دوباره تلاش کن؛ اگر ادامه داشت کانفیگ دیگری را امتحان کن.",
   errorSuggestLink: "لینک ساب را بررسی کن و مطمئن شو در دسترس است.",
@@ -470,6 +472,8 @@ const en: typeof fa = {
   testedAt: "Tested at",
 
   errorTitle: "Test failed",
+  slowSubNote: "This subscription is slow to respond; this is not a site problem.",
+  slowSubRetry: "Wait for the subscription",
   errorAutoReported: "This error was automatically sent to the developer and will likely be fixed. Please check again later.",
   errorSuggestDefault: "Try again; if it keeps failing, try another config.",
   errorSuggestLink: "Check the subscription link and make sure it is reachable.",

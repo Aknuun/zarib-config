@@ -230,6 +230,7 @@ export default function App() {
     result: true,
     buttons: true,
     tiles: true,
+    auto_delay_max_online: 20,
   });
   const [error, setError] = useState<{
     code: string;
@@ -1008,6 +1009,7 @@ export default function App() {
             selected={selected}
             size={size}
             bg={bg}
+            autoDelay={ui.auto_delay_max_online > 0 && (live?.online ?? 0) < ui.auto_delay_max_online}
             starting={starting}
             onToggle={toggleConfig}
             onRemove={resetToLanding}
