@@ -944,3 +944,14 @@ func TestSlowDirectHost(t *testing.T) {
 		t.Fatal("unexpected slow direct host match")
 	}
 }
+
+func TestSlowDirectTimeout(t *testing.T) {
+	t.Setenv("ZARIB_SLOW_DIRECT_TIMEOUT", "45s")
+	if got := slowDirectTimeout(); got != 45*time.Second {
+		t.Fatalf("timeout = %s, want 45s", got)
+	}
+	t.Setenv("ZARIB_SLOW_DIRECT_TIMEOUT", "not-a-duration")
+	if got := slowDirectTimeout(); got != 45*time.Second {
+		t.Fatalf("invalid timeout fallback = %s, want 45s", got)
+	}
+}

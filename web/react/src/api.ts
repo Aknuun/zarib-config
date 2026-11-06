@@ -73,7 +73,7 @@ export function inspectSubscription(subUrl: string) {
   return request<InspectResponse>(
     "/api/inspect",
     { method: "POST", body: JSON.stringify({ sub_url: subUrl }) },
-    { retries: 1, timeout: 30_000 },
+    { retries: 1, timeout: 60_000 },
   );
 }
 

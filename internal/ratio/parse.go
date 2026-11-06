@@ -509,6 +509,11 @@ func Fetch(rawURL string, timeout time.Duration) ([]byte, http.Header, error) {
 // FetchMeta reads a subscription directly and, when proxies are configured,
 // retries through each proxy in order if the direct attempt fails.
 func FetchMeta(rawURL string, timeout time.Duration) ([]byte, http.Header, bool, error) {
+	if slowDirectHost(rawURL) {
+		if slow := slowDirectTimeout(); slow > timeout {
+			timeout = slow
+		}
+	}
 	proxies := subProxyURLs()
 	directTimeout := timeout
 	if len(proxies) > 0 && !slowDirectHost(rawURL) && directTimeout > 4*time.Second {
@@ -575,6 +580,18 @@ func slowDirectHost(rawURL string) bool {
 		}
 	}
 	return false
+}
+
+func slowDirectTimeout() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("ZARIB_SLOW_DIRECT_TIMEOUT"))
+	if raw == "" {
+		return 45 * time.Second
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil || value <= 0 {
+		return 45 * time.Second
+	}
+	return value
 }
 
 var integerPattern = regexp.MustCompile(`^\d+$`)
