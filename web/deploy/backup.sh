@@ -44,6 +44,7 @@ PROXY="${ZARIB_SUB_PROXY:-}"
 mkdir -p "$BACKUP_DIR"
 chmod 0700 "$BACKUP_DIR"
 
+# settings.json is intentionally excluded: it holds admin, Telegram, and proxy credentials.
 files=()
 for path in "$CACHE_DIR/stats.json" "$CACHE_DIR/reports.jsonl" "$CACHE_DIR/failures.jsonl" "$CACHE_DIR/blocked.txt" "$ETC_DIR/admin.env"; do
   [ -f "$path" ] && files+=("$path")

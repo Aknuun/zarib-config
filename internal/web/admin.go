@@ -20,28 +20,35 @@ const (
 )
 
 type adminRange struct {
-	Label          string
-	Tests          int
-	WithRatio      int
-	Normal         int
-	Invalid        int
-	Tunnel         int
-	NonTunnel      int
-	Unknown        int
-	Downloaded     int64
-	Deducted       int64
-	Proxy          int
-	UniqueIPs      int
-	ClaimedTests   int
-	ClaimedAvg     float64
-	RealAvg        float64
-	ClaimedDiffPct    float64
-	ClaimedHasDiff    bool
-	ClaimedChecked    int
-	ClaimedMatched    int
+	Label              string
+	Tests              int
+	WithRatio          int
+	Normal             int
+	Invalid            int
+	Tunnel             int
+	NonTunnel          int
+	Unknown            int
+	Downloaded         int64
+	Deducted           int64
+	Proxy              int
+	UniqueIPs          int
+	ClaimedTests       int
+	ClaimedAvg         float64
+	RealAvg            float64
+	ClaimedDiffPct     float64
+	ClaimedHasDiff     bool
+	ClaimedChecked     int
+	ClaimedMatched     int
 	ClaimedAccuracyPct float64
 	ClaimedHasAccuracy bool
-	Failed            failStats
+	Failed             failStats
+}
+
+type adminSettingsView struct {
+	Proxies          string
+	TelegramTokenSet bool
+	TelegramChatID   string
+	AdminUser        string
 }
 
 type adminView struct {
@@ -53,6 +60,7 @@ type adminView struct {
 	Failures     []storedFailure
 	RepeatIPs    []repeatIP
 	UI           uiSettings
+	Settings     adminSettingsView
 	FailureQuery string
 	FailurePage  int
 	FailurePages int
@@ -62,7 +70,8 @@ type adminView struct {
 }
 
 func (s *server) adminEnabled() bool {
-	return s.adminUser != "" && s.adminPassword != ""
+	user, password := s.adminCredentials()
+	return user != "" && password != ""
 }
 
 func constantTimeEqual(a, b string) bool {
@@ -85,7 +94,8 @@ func (s *server) authorizeAdmin(w http.ResponseWriter, r *http.Request, asJSON b
 		return fail("admin_disabled", "Admin panel is not configured.", http.StatusServiceUnavailable)
 	}
 	user, password, ok := r.BasicAuth()
-	if ok && constantTimeEqual(user, s.adminUser) && constantTimeEqual(password, s.adminPassword) {
+	adminUser, adminPassword := s.adminCredentials()
+	if ok && constantTimeEqual(user, adminUser) && constantTimeEqual(password, adminPassword) {
 		return true
 	}
 	if !s.rateLimit("admin-auth", clientIP(r), maxAdminAuthPerHour) {
@@ -165,6 +175,103 @@ func (s *server) adminBlockIP(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin#repeat-ips", http.StatusSeeOther)
 }
 
+func (s *server) adminSettings(w http.ResponseWriter, r *http.Request) {
+	if !s.authorizeAdmin(w, r, false) {
+		return
+	}
+	if !sameOriginRequest(r) {
+		http.Error(w, "Cross-origin request blocked.", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form.", http.StatusBadRequest)
+		return
+	}
+	section := strings.TrimSpace(r.FormValue("section"))
+	switch section {
+	case "proxies":
+		proxies, err := parseProxyText(r.FormValue("proxies"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := s.updateSettings(func(value *settingsData) error {
+			value.Proxies = proxies
+			return nil
+		}); err != nil {
+			fmt.Printf("admin: could not save proxies: %v\n", err)
+			http.Error(w, "Could not save proxy settings.", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/admin#proxies", http.StatusSeeOther)
+	case "telegram":
+		token := strings.TrimSpace(r.FormValue("telegram_token"))
+		chat := strings.TrimSpace(r.FormValue("telegram_chat_id"))
+		clearToken := r.FormValue("clear_telegram_token") == "on"
+		if len(token) > maxTelegramToken || len(chat) > maxTelegramChat {
+			http.Error(w, "Telegram credentials are too long.", http.StatusBadRequest)
+			return
+		}
+		if err := s.updateSettings(func(value *settingsData) error {
+			if token != "" {
+				value.TelegramToken = token
+			} else if clearToken {
+				value.TelegramToken = ""
+			}
+			if r.Form.Has("telegram_chat_id") {
+				value.TelegramChat = chat
+			}
+			return nil
+		}); err != nil {
+			fmt.Printf("admin: could not save telegram settings: %v\n", err)
+			http.Error(w, "Could not save Telegram settings.", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/admin#telegram", http.StatusSeeOther)
+	case "credentials":
+		user := strings.TrimSpace(r.FormValue("admin_user"))
+		current := r.FormValue("current_password")
+		newPassword := r.FormValue("new_password")
+		confirm := r.FormValue("confirm_password")
+		oldUser, oldPassword := s.adminCredentials()
+		if !constantTimeEqual(current, oldPassword) {
+			http.Error(w, "Current password is incorrect.", http.StatusForbidden)
+			return
+		}
+		if user == "" {
+			user = oldUser
+		}
+		if newPassword == "" {
+			newPassword = oldPassword
+		}
+		if newPassword != confirm {
+			http.Error(w, "The new passwords do not match.", http.StatusBadRequest)
+			return
+		}
+		if len(user) > maxAdminUserLen || len(newPassword) > maxAdminPassLen {
+			http.Error(w, "Admin credentials are too long.", http.StatusBadRequest)
+			return
+		}
+		if user == "" || newPassword == "" {
+			http.Error(w, "Admin username and password cannot be empty.", http.StatusBadRequest)
+			return
+		}
+		if err := s.updateSettings(func(value *settingsData) error {
+			value.AdminUser = user
+			value.AdminPass = newPassword
+			return nil
+		}); err != nil {
+			fmt.Printf("admin: could not save admin credentials: %v\n", err)
+			http.Error(w, "Could not save admin credentials.", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/admin#credentials", http.StatusSeeOther)
+	default:
+		http.Error(w, "Invalid settings section.", http.StatusBadRequest)
+	}
+}
+
 func (s *server) adminView(req ...*http.Request) adminView {
 	s.mu.Lock()
 	snapshot := s.liveSnapshotLocked()
@@ -213,10 +320,17 @@ func (s *server) adminView(req ...*http.Request) adminView {
 	}
 	failures := filtered[start:end]
 	online, _ := snapshot["online"].(int)
+	settings := s.settingsSnapshot()
 	return adminView{
 		Online:      online,
 		Version:     ratio.Version,
 		GeneratedAt: time.Now().Format("2006-01-02 15:04:05"),
+		Settings: adminSettingsView{
+			Proxies:          proxyText(settings.Proxies),
+			TelegramTokenSet: settings.TelegramToken != "",
+			TelegramChatID:   settings.TelegramChat,
+			AdminUser:        settings.AdminUser,
+		},
 		Ranges: []adminRange{
 			adminRangeFrom(snapshot, "h24", "۲۴ ساعت اخیر"),
 			adminRangeFrom(snapshot, "d7", "۷ روز اخیر"),
@@ -265,28 +379,28 @@ func adminRangeFrom(snapshot map[string]any, key, label string) adminRange {
 	_, hasDiff := values["claimed_diff_pct"]
 	_, hasAccuracy := values["claimed_accuracy_pct"]
 	return adminRange{
-		Label:          label,
-		Tests:          number("tests"),
-		WithRatio:      number("with_ratio"),
-		Normal:         number("normal"),
-		Invalid:        number("invalid"),
-		Tunnel:         number("tunnel"),
-		NonTunnel:      number("non_tunnel"),
-		Unknown:        number("unknown_tunnel"),
-		Downloaded:     downloaded,
-		Deducted:       deducted,
-		Proxy:          number("proxy"),
-		UniqueIPs:      number("unique_ips"),
-		ClaimedTests:   number("claimed_tests"),
-		ClaimedAvg:     decimal("claimed_avg"),
-		RealAvg:        decimal("claimed_real_avg"),
-		ClaimedDiffPct:    decimal("claimed_diff_pct"),
-		ClaimedHasDiff:    hasDiff,
-		ClaimedChecked:    number("claimed_checked"),
-		ClaimedMatched:    number("claimed_matched"),
+		Label:              label,
+		Tests:              number("tests"),
+		WithRatio:          number("with_ratio"),
+		Normal:             number("normal"),
+		Invalid:            number("invalid"),
+		Tunnel:             number("tunnel"),
+		NonTunnel:          number("non_tunnel"),
+		Unknown:            number("unknown_tunnel"),
+		Downloaded:         downloaded,
+		Deducted:           deducted,
+		Proxy:              number("proxy"),
+		UniqueIPs:          number("unique_ips"),
+		ClaimedTests:       number("claimed_tests"),
+		ClaimedAvg:         decimal("claimed_avg"),
+		RealAvg:            decimal("claimed_real_avg"),
+		ClaimedDiffPct:     decimal("claimed_diff_pct"),
+		ClaimedHasDiff:     hasDiff,
+		ClaimedChecked:     number("claimed_checked"),
+		ClaimedMatched:     number("claimed_matched"),
 		ClaimedAccuracyPct: decimal("claimed_accuracy_pct"),
 		ClaimedHasAccuracy: hasAccuracy,
-		Failed:            failed,
+		Failed:             failed,
 	}
 }
 
@@ -387,6 +501,14 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
 .z-ui-form select { min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); color: var(--text); font: inherit; }
 .z-ui-form .z-ui-checks { display: flex; flex-wrap: wrap; gap: 10px 14px; flex: 1 1 320px; }
 .z-ui-form input[type="checkbox"] { accent-color: var(--brand); }
+.z-settings-form { display: flex; flex-direction: column; gap: 10px; }
+.z-settings-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.z-settings-form input[type="text"], .z-settings-form input[type="password"], .z-settings-form textarea { width: 100%; min-height: 32px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile); color: var(--text); font: inherit; }
+.z-settings-form textarea { min-height: 120px; resize: vertical; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.7; }
+.z-settings-form .z-settings-row { display: flex; flex-wrap: wrap; gap: 16px; }
+.z-settings-form .z-settings-row > label { flex: 1 1 220px; }
+.z-settings-form .z-settings-check { flex-direction: row; align-items: center; gap: 6px; }
+.z-settings-form .z-settings-note { margin: 0; color: var(--muted); font-size: 11px; }
 .empty { padding: 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
 .z-failure-search { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .z-failure-search input { flex: 1 1 260px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--tile); color: var(--text); font: inherit; }
@@ -461,6 +583,59 @@ pre { max-height: 260px; margin: 4px 0 0; padding: 10px; overflow: auto; border:
         <label><input type="checkbox" name="tiles" {{if .UI.Tiles}}checked{{end}}> کارت‌ها</label>
       </div>
       <button class="btn" type="submit">ذخیره</button>
+    </form>
+  </section>
+
+  <section id="proxies">
+    <div class="section-head"><h2>پروکسی‌های ساب</h2><p>به ترتیب امتحان می‌شوند؛ هر خط یک URL (شامل user:pass). خطی که با # یا ! شروع شود غیرفعال می‌ماند.</p></div>
+    <form method="post" action="/admin/api/settings" class="tile z-settings-form">
+      <input type="hidden" name="section" value="proxies">
+      <label>فهرست پروکسی‌ها (از بالا به پایین)
+        <textarea name="proxies" dir="ltr" spellcheck="false" autocomplete="off" placeholder="http://user:pass@host:port">{{.Settings.Proxies}}</textarea>
+      </label>
+      <p class="z-settings-note">برای حذف یک پروکسی خط آن را پاک کن؛ برای غیرفعال کردن موقت ابتدای خط # بگذار. اعتبارنامه‌ها فقط در همین صفحه (no-store) نمایش داده می‌شوند.</p>
+      <div><button class="btn" type="submit">ذخیره پروکسی‌ها</button></div>
+    </form>
+  </section>
+
+  <section id="telegram">
+    <div class="section-head"><h2>تلگرام</h2><p>گزارش‌ها و هشدارهای خطا بلافاصله با این مقادیر ارسال می‌شوند.</p></div>
+    <form method="post" action="/admin/api/settings" class="tile z-settings-form">
+      <input type="hidden" name="section" value="telegram">
+      <div class="z-settings-row">
+        <label>توکن ربات
+          <input type="password" name="telegram_token" dir="ltr" autocomplete="new-password" placeholder="{{if .Settings.TelegramTokenSet}}ذخیره شده — برای تغییر مقدار جدید را وارد کن{{else}}تنظیم نشده{{end}}">
+        </label>
+        <label>Chat ID
+          <input type="text" name="telegram_chat_id" dir="ltr" autocomplete="off" value="{{.Settings.TelegramChatID}}">
+        </label>
+      </div>
+      <label class="z-settings-check"><input type="checkbox" name="clear_telegram_token"> پاک کردن توکن ذخیره‌شده</label>
+      <div><button class="btn" type="submit">ذخیره تلگرام</button></div>
+    </form>
+  </section>
+
+  <section id="credentials">
+    <div class="section-head"><h2>دسترسی مدیریت</h2><p>برای تغییر، رمز فعلی لازم است و رمز جدید باید تکرار شود.</p></div>
+    <form method="post" action="/admin/api/settings" class="tile z-settings-form">
+      <input type="hidden" name="section" value="credentials">
+      <div class="z-settings-row">
+        <label>نام کاربری
+          <input type="text" name="admin_user" autocomplete="username" value="{{.Settings.AdminUser}}" required>
+        </label>
+        <label>رمز فعلی
+          <input type="password" name="current_password" autocomplete="current-password" required>
+        </label>
+      </div>
+      <div class="z-settings-row">
+        <label>رمز جدید (خالی = بدون تغییر)
+          <input type="password" name="new_password" autocomplete="new-password">
+        </label>
+        <label>تکرار رمز جدید
+          <input type="password" name="confirm_password" autocomplete="new-password">
+        </label>
+      </div>
+      <div><button class="btn" type="submit">ذخیره دسترسی</button></div>
     </form>
   </section>
 

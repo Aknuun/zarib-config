@@ -165,10 +165,50 @@ func subProxyURL() *url.URL {
 	return parsed
 }
 
-// subProxyURLs returns the configured proxies in order. The original
-// ZARIB_SUB_PROXY is tried first; ZARIB_SUB_PROXY_HOSTS adds host:port
-// fallbacks that reuse its credentials.
+var runtimeSubProxies struct {
+	sync.RWMutex
+	urls []*url.URL
+}
+
+// SetSubProxyURLs replaces the runtime subscription proxy list. A nil or empty
+// list falls back to the ZARIB_SUB_PROXY* environment variables.
+func SetSubProxyURLs(urls []*url.URL) {
+	runtimeSubProxies.Lock()
+	defer runtimeSubProxies.Unlock()
+	runtimeSubProxies.urls = cloneProxyURLs(urls)
+}
+
+// SubProxyURLs returns the effective subscription proxies: the runtime override
+// when set, otherwise the environment configuration.
+func SubProxyURLs() []*url.URL {
+	return subProxyURLs()
+}
+
+func cloneProxyURLs(urls []*url.URL) []*url.URL {
+	out := make([]*url.URL, 0, len(urls))
+	for _, item := range urls {
+		if item == nil || item.Host == "" {
+			continue
+		}
+		clone := *item
+		out = append(out, &clone)
+	}
+	return out
+}
+
+// subProxyURLs returns the configured proxies in order. A runtime override set
+// by the admin panel wins; otherwise the original ZARIB_SUB_PROXY is tried
+// first and ZARIB_SUB_PROXY_HOSTS adds host:port fallbacks that reuse its
+// credentials.
 func subProxyURLs() []*url.URL {
+	runtimeSubProxies.RLock()
+	if len(runtimeSubProxies.urls) > 0 {
+		out := cloneProxyURLs(runtimeSubProxies.urls)
+		runtimeSubProxies.RUnlock()
+		return out
+	}
+	runtimeSubProxies.RUnlock()
+
 	base := subProxyURL()
 	rawFirst := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_FIRST"))
 	rawHosts := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY_HOSTS"))

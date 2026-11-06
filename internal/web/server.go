@@ -80,6 +80,7 @@ type server struct {
 	failuresFile    string
 	blockedFile     string
 	uiFile          string
+	settingsFile    string
 	telegramToken   string
 	telegramChatID  string
 	telegramAPIBase string
@@ -92,7 +93,9 @@ type server struct {
 	failuresMu      sync.Mutex
 	blockedMu       sync.Mutex
 	uiMu            sync.Mutex
+	settingsMu      sync.RWMutex
 	ui              uiSettings
+	settings        settingsData
 	notifyMu        sync.Mutex
 	notified        map[string]time.Time
 	jobs            map[string]*job
@@ -169,6 +172,7 @@ func Run(addr, staticDir string) error {
 		failuresFile:    filepath.Join(cacheRoot, "failures.jsonl"),
 		blockedFile:     filepath.Join(cacheRoot, "blocked.txt"),
 		uiFile:          filepath.Join(cacheRoot, "ui.json"),
+		settingsFile:    filepath.Join(cacheRoot, "settings.json"),
 		telegramToken:   strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_TOKEN")),
 		telegramChatID:  strings.TrimSpace(os.Getenv("ZARIB_TELEGRAM_CHAT_ID")),
 		telegramAPIBase: "https://api.telegram.org",
@@ -183,6 +187,7 @@ func Run(addr, staticDir string) error {
 		geoCache:        map[string]geoEntry{},
 		sem:             make(chan struct{}, maxActive),
 	}
+	s.loadSettings()
 	s.validateEnv()
 	s.loadStats()
 	s.loadBlockedIPs()
@@ -301,6 +306,11 @@ func (s *server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.adminUI(w, r)
+	case path == "/admin/api/settings":
+		if !allowMethods(w, r, http.MethodPost) {
+			return
+		}
+		s.adminSettings(w, r)
 	case strings.HasPrefix(path, "/admin/"):
 		http.NotFound(w, r)
 	case strings.HasPrefix(path, "/api/jobs/"):
@@ -681,11 +691,19 @@ func (s *server) runJob(jobID string) {
 	if claimed != nil {
 		args = append(args, "--claimed", strconv.FormatFloat(*claimed, 'g', -1, 64))
 	}
-	command := exec.Command(executable, args...)
-	command.Env = withEnv(map[string]string{
+	env := map[string]string{
 		"RATIO_SAFE_FETCH": "1", "NO_COLOR": "1", "HOME": homeDir(),
 		"XDG_CACHE_HOME": filepath.Join(homeDir(), ".cache"),
-	})
+	}
+	// The test runs in a child process, so pass the admin proxy override along.
+	// shortcut: comma-joined proxy URLs break if a password contains a comma; use JSON when that appears.
+	if proxies := s.proxyEnv(); len(proxies) > 0 {
+		env["ZARIB_SUB_PROXY"] = ""
+		env["ZARIB_SUB_PROXY_FIRST"] = strings.Join(proxies, ",")
+		env["ZARIB_SUB_PROXY_HOSTS"] = ""
+	}
+	command := exec.Command(executable, args...)
+	command.Env = withEnv(env)
 	command.Stdin = nil
 	stdout, err := command.StdoutPipe()
 	if err != nil {
@@ -1336,10 +1354,12 @@ func minFloat(a, b float64) float64 {
 }
 
 func (s *server) validateEnv() {
-	if (s.adminUser == "") != (s.adminPassword == "") {
+	adminUser, adminPassword := s.adminCredentials()
+	if (adminUser == "") != (adminPassword == "") {
 		fmt.Println("config: ADMIN_USER and ADMIN_PASSWORD must both be set; admin is disabled")
 	}
-	if (s.telegramToken == "") != (s.telegramChatID == "") {
+	telegramToken, telegramChatID := s.telegramConfig()
+	if (telegramToken == "") != (telegramChatID == "") {
 		fmt.Println("config: ZARIB_TELEGRAM_TOKEN and ZARIB_TELEGRAM_CHAT_ID must both be set")
 	}
 	if raw := strings.TrimSpace(os.Getenv("ZARIB_SUB_PROXY")); raw != "" && !strings.Contains(raw, "://") {

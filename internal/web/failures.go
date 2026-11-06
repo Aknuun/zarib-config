@@ -89,7 +89,8 @@ func (s *server) recordFailure(record storedFailure) {
 // a client that rotates subscription tokens must not flood the chat. Invalid or
 // non-http inputs stay in the admin list only.
 func (s *server) notifyFailure(record storedFailure) {
-	if s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) || s.telegramToken == "" || s.telegramChatID == "" || !isValidURL(record.SubURL) {
+	token, chatID := s.telegramConfig()
+	if s.isSilentIP(record.IP) || s.isBlockedIP(record.IP) || token == "" || chatID == "" || !isValidURL(record.SubURL) {
 		return
 	}
 	// The config itself is incompatible with Xray; keep it in the admin log but

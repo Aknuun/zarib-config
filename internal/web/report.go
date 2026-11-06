@@ -122,7 +122,8 @@ func (s *server) report(w http.ResponseWriter, r *http.Request) {
 	if err := s.storeReport(record); err != nil {
 		fmt.Printf("report: could not store: %v\n", err)
 	}
-	if s.telegramToken == "" || s.telegramChatID == "" {
+	token, chatID := s.telegramConfig()
+	if token == "" || chatID == "" {
 		apiError(w, "report_disabled", "Reporting is not configured.", http.StatusServiceUnavailable)
 		return
 	}
@@ -207,9 +208,10 @@ func buildReportMessage(description, subURL string, result *reportResultIn, deta
 }
 
 func (s *server) sendTelegram(text string) error {
-	endpoint := strings.TrimRight(s.telegramAPIBase, "/") + "/bot" + s.telegramToken + "/sendMessage"
+	token, chatID := s.telegramConfig()
+	endpoint := strings.TrimRight(s.telegramAPIBase, "/") + "/bot" + token + "/sendMessage"
 	body, err := json.Marshal(map[string]any{
-		"chat_id":                  s.telegramChatID,
+		"chat_id":                  chatID,
 		"text":                     text,
 		"disable_web_page_preview": true,
 	})
