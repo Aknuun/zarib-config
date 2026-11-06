@@ -137,7 +137,7 @@ func (s *server) notifyFailure(record storedFailure) {
 
 var persianFailureMessages = map[string]string{
 	"invalid_url":               "لینک ساب معتبر نیست.",
-	"blocked_url":               "این لینک ساب قابل بررسی نیست.",
+	"blocked_url":               "آی‌پی این ساب خصوصی است یا سایت ضریب به آن دسترسی ندارد.",
 	"subscription_not_found":    "ساب پیدا نشد (HTTP 404)؛ لینک حذف شده یا اشتباه است.",
 	"subscription_expired":      "این ساب منقضی شده است.",
 	"subscription_limited":      "حجم این ساب تمام شده است.",

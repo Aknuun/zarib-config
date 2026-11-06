@@ -197,7 +197,7 @@ const fa = {
   chooseConfig: "انتخاب کانفیگ دیگر",
 
   err_invalid_url: "لینک معتبر نیست. باید با http:// یا https:// شروع شود.",
-  err_blocked_url: "این لینک به آدرس عمومی اشاره نمی‌کند و مجاز نیست.",
+  err_blocked_url: "آی‌پی این ساب خصوصی است یا سایت ضریب به آن دسترسی ندارد.",
   err_fetch_failed: "خواندن ساب ممکن نشد. لینک را بررسی کن یا بعداً دوباره تلاش کن.",
   err_subscription_timeout: "خواندن ساب طول کشید و زمان تمام شد. لینک را بررسی کن یا کمی بعد دوباره تلاش کن.",
   err_blocked_target: "این کانفیگ به آدرس غیرعمومی (خصوصی یا داخلی) اشاره می‌کند و برای تست امن مسدود شد. کانفیگ دیگری را امتحان کن.",
@@ -482,7 +482,7 @@ const en: typeof fa = {
   chooseConfig: "Choose another config",
 
   err_invalid_url: "That link is not valid. It must start with http:// or https://.",
-  err_blocked_url: "This link does not point to a public address and is not allowed.",
+  err_blocked_url: "This subscription points to a private or unreachable address. Zarib cannot access it.",
   err_fetch_failed: "Could not read the subscription. Check the link or try again later.",
   err_subscription_timeout: "Reading the subscription timed out. Check the link or try again later.",
   err_blocked_target: "This config points to a non-public (private or internal) address and was blocked for safe testing. Try another config.",

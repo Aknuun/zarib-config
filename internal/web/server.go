@@ -387,7 +387,7 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !publicURLFn(subURL) {
-		fail("blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
+		fail("blocked_url", "This subscription points to a private or unreachable address. Zarib cannot access it.", http.StatusBadRequest)
 		return
 	}
 	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
@@ -478,7 +478,7 @@ func (s *server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !publicURLFn(subURL) {
-		fail("blocked_url", "The subscription URL must be publicly reachable.", http.StatusBadRequest)
+		fail("blocked_url", "This subscription points to a private or unreachable address. Zarib cannot access it.", http.StatusBadRequest)
 		return
 	}
 	batch := strings.EqualFold(strings.TrimSpace(payload.Mode), "batch")
