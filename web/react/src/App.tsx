@@ -170,6 +170,7 @@ function computeAggregate(rows: TestRow[]): Aggregate | null {
     core: last.core,
     xrayVersion: last.xray_version,
     claimed: last.claimed_ratio ?? null,
+      failedConfigs: last.failed_configs ?? 0,
     nonRound: successes.some((row) =>
       isNonRoundRatio(row.result!.ratio_raw ?? row.result!.ratio),
     ),

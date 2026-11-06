@@ -729,6 +729,7 @@ type Result struct {
 	TestedAt                 string   `json:"tested_at"`
 	Config                   *string  `json:"config"`
 	ConfigsTested            int      `json:"configs_tested,omitempty"`
+	FailedConfigs            int      `json:"failed_configs,omitempty"`
 	Core                     string   `json:"core"`
 	XrayVersion              string   `json:"xray_version"`
 	DownloadedBytes          int64    `json:"downloaded_bytes"`
@@ -1302,7 +1303,12 @@ func runBatch(ctx context.Context, opts Options, subURL string) (*Result, error)
 		Downloaded: downloaded, Elapsed: elapsed, Core: coreUsed, XrayPath: xrayPath,
 		DriftRate: driftRate, DriftUsed: driftUsed,
 	}
-	return finalizeResult(opts, final, "Selected configs", nil, len(configs))
+	result, err := finalizeResult(opts, final, "Selected configs", nil, len(configs))
+	if err != nil {
+		return nil, err
+	}
+	result.FailedConfigs = failures
+	return result, nil
 }
 
 func resolveSize(opts Options) (float64, error) {

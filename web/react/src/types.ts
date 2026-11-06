@@ -39,6 +39,7 @@ export interface RatioResult {
   tested_at: string;
   config: string | null;
   configs_tested?: number;
+  failed_configs?: number;
   core: string;
   xray_version: string;
   downloaded_bytes: number;
@@ -169,6 +170,7 @@ export interface Aggregate {
   core: string;
   xrayVersion: string;
   claimed: number | null;
+  failedConfigs: number;
   nonRound: boolean;
 }
 

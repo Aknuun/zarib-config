@@ -178,6 +178,9 @@ export function ResultView({
           )}
 
           {batch && <p className="z-hint">{t("batchNote")}</p>}
+          {batch && aggregate.failedConfigs > 0 && (
+            <p className="z-hint">{t("batchFailedNote", { n: aggregate.failedConfigs })}</p>
+          )}
 
           {notes.length > 0 && (
             <ul className="z-notes">
