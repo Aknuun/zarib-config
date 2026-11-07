@@ -663,7 +663,7 @@ export default function App() {
     return config ? config.remark || config.target || `#${pick}` : null;
   }, [sub, batch, testPicks]);
 
-  async function inspect(value?: string) {
+  async function inspect(value?: string, slow = false) {
     const normalized = normalizeUrl((value ?? url).trim().split(/\s+/)[0] || "");
     if (!normalized) {
       setInspectError({ message: t("invalidUrl") });
@@ -672,7 +672,7 @@ export default function App() {
     setInspecting(true);
     setInspectError(null);
     try {
-      const data = await inspectSubscription(normalized);
+      const data = await inspectSubscription(normalized, slow);
       const nextSub: SubState = {
         ...data,
         url: normalized,
@@ -995,6 +995,7 @@ export default function App() {
               if (inspectError) setInspectError(null);
             }}
             onInspect={(value) => void inspect(value)}
+          onSlowInspect={() => void inspect(undefined, true)}
             inspecting={inspecting}
             error={inspectError}
             version={version}

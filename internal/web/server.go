@@ -127,6 +127,7 @@ type publicJob struct {
 
 type inspectIn struct {
 	SubURL string `json:"sub_url"`
+	Slow   bool   `json:"slow"`
 }
 
 type jobIn struct {
@@ -401,7 +402,11 @@ func (s *server) inspect(w http.ResponseWriter, r *http.Request) {
 		fail("blocked_url", "This subscription points to a private or unreachable address. Zarib cannot access it.", http.StatusBadRequest)
 		return
 	}
-	body, headers, viaProxy, err := ratio.FetchMeta(subURL, 20*time.Second)
+	timeout := 20 * time.Second
+	if payload.Slow {
+		timeout = 90 * time.Second
+	}
+	body, headers, viaProxy, err := ratio.FetchMeta(subURL, timeout)
 	if err != nil {
 		code := "fetch_failed"
 		status := http.StatusBadRequest

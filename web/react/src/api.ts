@@ -69,11 +69,11 @@ export async function request<T>(
   throw lastError;
 }
 
-export function inspectSubscription(subUrl: string) {
+export function inspectSubscription(subUrl: string, slow = false) {
   return request<InspectResponse>(
     "/api/inspect",
-    { method: "POST", body: JSON.stringify({ sub_url: subUrl }) },
-    { retries: 1, timeout: 60_000 },
+    { method: "POST", body: JSON.stringify({ sub_url: subUrl, slow }) },
+    { retries: 1, timeout: slow ? 120_000 : 60_000 },
   );
 }
 

@@ -8,6 +8,7 @@ interface LandingProps {
   url: string;
   onUrlChange: (value: string) => void;
   onInspect: (value?: string) => void;
+  onSlowInspect: () => void;
   inspecting: boolean;
   error: { message: string; detail?: string } | null;
   version: string | null;
@@ -20,6 +21,7 @@ export function Landing({
   url,
   onUrlChange,
   onInspect,
+  onSlowInspect,
   inspecting,
   error,
   version,
@@ -103,7 +105,7 @@ export function Landing({
               {error.message.toLowerCase().includes("timed out") && (
                 <div className="z-inline-slow">
                   <p className="z-page-sub">{t("slowSubNote")}</p>
-                  <Button variant="secondary" onClick={() => onInspect()}>
+                  <Button variant="secondary" onClick={onSlowInspect}>
                     {t("slowSubRetry")}
                   </Button>
                 </div>
